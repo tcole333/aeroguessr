@@ -37,4 +37,40 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`) and parsing t
       print(f"Parsed Plane {raw_message.hex_ident}: Alt={raw_message.altitude}, Lat={raw_message.latitude}, Lon={raw_message.longitude}")
   ```
 
+**`smoother.py`**:
+
+- Provides the `PositionSmoother` class, which wraps a Kalman filter (`filterpy.kalman.KalmanFilter`) to smooth noisy position data (latitude, longitude, altitude).
+- Uses a constant velocity model (6 state dimensions: position + velocity for lat/lon/alt).
+- Requires initial position measurement and configurable process/measurement noise parameters.
+- **Input:** Initial position (`np.ndarray`), process noise variance (`float`), measurement noise variance (`float`). Subsequently takes time delta (`dt: float`) for `predict` and new position measurements (`np.ndarray`) for `update`.
+- **Output:** Access smoothed state via properties like `position`, `velocity`, `state`.
+- **Usage Example:**
+
+  ```python
+  import numpy as np
+  from backend.ingest.smoother import PositionSmoother
+
+  # Example initial measurement and noise
+  initial_measurement = np.array([42.123, -71.456, 30000.0])
+  process_noise_variance = 0.5  # How much velocity might change
+  measurement_noise_variance = 10.0 # How noisy the sensor reading is
+
+  smoother = PositionSmoother(
+      initial_pos=initial_measurement,
+      process_noise=process_noise_variance,
+      measurement_noise=measurement_noise_variance
+  )
+
+  # Later, when a new message arrives...
+  dt = 1.5 # Time since last update in seconds
+  new_measurement = np.array([42.124, -71.458, 29950.0])
+
+  smoother.predict(dt)
+  smoother.update(new_measurement)
+
+  smoothed_position = smoother.position
+  smoothed_velocity = smoother.velocity
+  print(f"Smoothed Pos: {smoothed_position}, Smoothed Vel: {smoothed_velocity}")
+  ```
+
 _(Further sections on Services, Routes, Schemas, Testing, Running Locally will be added here)_
