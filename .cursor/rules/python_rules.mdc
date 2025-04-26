@@ -1,0 +1,31 @@
+---
+description:
+globs: *.py
+alwaysApply: false
+---
+# Rule: Python Development Guidelines
+# Type: Auto Attached
+# File Pattern: *.py
+# Description: Specific rules for editing Python files in the backend.
+
+## Style & Formatting
+- Adhere strictly to Black formatting (line length 100).
+- Follow Ruff linting rules (PEP8 extended, isort, flake8-annotations enabled). Run `ruff check --fix` as needed.
+- Use Google-style docstrings, ensuring Args, Returns, Raises, and Example sections are present and accurate.
+- Maintain strict type hinting. Use MyPy (`strict = True`) to verify; avoid adding `Any` types. CI should fail on new `Any` types.
+
+## Data Structures & API
+- Use `pydantic.BaseModel` for all data validation, serialization (API request/response bodies), and structured data representation.
+- For FastAPI routes:
+    - Always use `async def`.
+    - Avoid blocking I/O calls directly in routes; delegate to services/repositories.
+    - Ensure request/response models use Pydantic schemas defined in `backend/schemas/`.
+    - Use dependency injection (`Depends`) for database sessions, services, etc.
+    - Reference `@docs/api_openapi.yaml` for existing endpoint structures.
+## Code Structure & Best Practices
+- Keep functions concise (aim for < 50 logical lines); extract helper functions where appropriate.
+- Follow the defined service / repository / router layering structure.
+- Implement comprehensive unit tests using pytest for all logic changes. Reference existing tests in `tests/backend/`. Maintain backend test coverage above 85%.
+- Add doctests for examples in docstrings and ensure they pass (`pytest --doctest-modules`).
+- Handle errors explicitly; use custom exception classes where appropriate and provide informative error messages in API responses (e.g., using `FastAPI.HTTPException`).
+- Ensure database interactions are handled within repository layers and use asynchronous operations if applicable (e.g., with `asyncpg` or async SQLAlchemy).

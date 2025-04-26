@@ -1,0 +1,24 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Rule: Project Context Overview
+# Type: Always
+# Description: Provides high-level context about the project structure and stack.
+# Repository Context
+- Backend: `backend/` (Python 3.12, FastAPI, Pydantic, SQLAlchemy)
+- Frontend: `frontend/` (React 18, TypeScript strict, Vite, Zustand, Tailwind CSS, Leaflet)
+- Infrastructure: `infra/` (Docker Compose, deploy scripts, Nginx)
+- Sample Data: `sample_data/` (for testing ADS-B ingest and airport data)
+- Docs: `docs/` (Project standards, PRD, API/WS schemas, ADRs)
+- Key Technologies: Redis (caching, state), PostgreSQL (if using relational DB alongside Redis), WebSocket (real-time communication)
+- Core Functionality: Real-time flight tracking map game, room-based multiplayer, flight data ingestion from ADS-B.
+
+# Key Files & Schemas
+- API Specification: `@docs/api_openapi.yaml` (Auto-generated via `make openapi`)
+- WebSocket Schema: `@docs/ws_schema.yaml`
+- Project Standards: `@docs/project-standards.md`
+- Product Requirements: `@docs/PRD.md`
+- Tech Debt Log: `@TECH_DEBT.md`
+- Architecture Decisions: `@ADR/` directory

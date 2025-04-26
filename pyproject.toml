@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "plane-game-v4"
+version = "0.1.0"
+description = "Real-time flight tracking map game"
+authors = ["Travis Cole <traviscole44@gmail.com>"]
+readme = "README.md"
+
+packages = [
+    { include = "backend" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pyModeS = "^2.20"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,67 @@
+name: Lint Code
+
+on:
+  pull_request:
+    branches: [main]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: read # Allow checkout
+
+jobs:
+  lint:
+    name: Run Linters
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip" # cache pip dependencies
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Linter
+        run: ruff check .
+
+      - name: Run Ruff Formatter Check
+        run: ruff format --check .
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          push: false # Only build the image, don't push it
+          tags: local/plane-game-backend:latest # Tag for local reference during build
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+    # Add Node.js/Prettier/ESLint steps later when frontend exists
+    # - name: Set up Node.js
+    #   uses: actions/setup-node@v4
+    #   with:
+    #     node-version: '20'
+    #     cache: 'npm' # Assuming npm, adjust if using yarn
+    #     cache-dependency-path: frontend/package-lock.json # Adjust path as needed
+
+    # - name: Install Frontend Dependencies
+    #   run: npm ci --prefix frontend # Adjust if using yarn
+
+    # - name: Run Prettier Check (Frontend)
+    #   run: npm run format:check --prefix frontend # Assumes a 'format:check' script exists
+
+    # - name: Run ESLint (Frontend)
+    #   run: npm run lint --prefix frontend # Assumes a 'lint' script exists

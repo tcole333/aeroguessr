@@ -1,0 +1,32 @@
+---
+description:
+globs: *.tsx,*.ts
+alwaysApply: false
+---
+# Rule: TypeScript/React Development Guidelines
+# Type: Auto Attached
+# File Pattern: *.ts, *.tsx
+# Description: Specific rules for editing TypeScript and React files in the frontend.
+
+## Style & Formatting
+- Adhere strictly to Prettier formatting (100 char width, trailing commas ES5). Run `npm run format` or equivalent.
+- Follow ESLint rules (Airbnb + React hooks + `@typescript-eslint/strict`). Run `npm run lint -- --fix` before committing.
+- Use PascalCase for component filenames and named exports.
+## Typing & Components
+- Enforce strict type safety. Use TypeScript interfaces or types for all props, state, and function signatures. **Forbid the use of `any`**. Use `unknown` or generics where appropriate.
+- Use functional components and React Hooks exclusively.
+- Define prop interfaces clearly at the top of component files.
+- Use `zod` for runtime validation if needed, especially for data coming from APIs or complex forms.
+
+## State Management & Styling
+- Use Zustand for state management; colocate store files with the feature they manage. Follow immutable update patterns.
+- Use Tailwind CSS for all styling. Avoid inline styles except for dynamic transforms calculated in JavaScript.
+
+## Best Practices
+- Keep components small and focused (Single Responsibility Principle).
+- Use code-splitting and lazy loading (`React.lazy`, dynamic `import()`) for non-critical components/routes to improve performance.
+- Implement unit/integration tests using Vitest or a similar framework. Reference existing tests in `frontend/src/tests/` or similar. Maintain frontend test coverage above 80%.
+- Add JSDoc comments above complex hooks or functions for clarity, especially explaining purpose and parameters.
+- Ensure proper ARIA attributes and semantic HTML for accessibility. Lighthouse accessibility score should be >= 90.
+- Handle asynchronous operations (API calls, WebSocket events) carefully using `async/await` and appropriate loading/error states in the UI.
+- Reference `@docs/ws_schema.yaml` when dealing with WebSocket message structures.
