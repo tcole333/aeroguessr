@@ -6,7 +6,7 @@ _(Optimised for LLM agents such as Cursor, Claude‑Code, and GitHub Copilot)_
 
 ## 1 Cursor / LLM "Rules"
 
-_All rules defined here should also live in `.cursorrules` at repo root. Keep that file < 500 lines to avoid truncation._
+_All rules defined here should also live in `.cursor/rules/` at repo root. Keep that file < 500 lines to avoid truncation._
 
 ### 1.1 Repository Context (Static Block)
 
