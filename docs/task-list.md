@@ -22,10 +22,10 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 
 ## 2 Flight Ingest Service
 
-- [ ] 11. Create `backend/ingest/` package with Poetry init.
-- [ ] 12. Implement SBS‑1 line parser → `RawMessage` dataclass.
-- [ ] 13. Unit‑test parser with fixture file (pytest).
-- [ ] 14. Build Redis helper (`redis_async.py`) – `set_json`, `expire`.
+- [x] 11. Create `backend/ingest/` package with Poetry init //set at the project level now instead.
+- [x] 12. Implement SBS‑1 line parser → `RawMessage` dataclass.
+- [x] 13. Unit‑test parser with fixture file (pytest).
+- [x] 14. Build Redis helper (`redis_async.py`) – `set_json`, `expire`.
 - [ ] 15. Draft Kalman smoother class (lat/lon/alt – constant‑velocity).
 - [ ] 16. Wire smoother into ingest loop (async TCP reader → smoother → Redis hash update).
 - [ ] 17. Cap trail list to 30 points; store as JSON array.

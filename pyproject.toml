@@ -12,10 +12,14 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.12"
 pyModeS = "^2.20"
+redis = {extras = ["hiredis"], version = "^5.0.7"}
+pydantic = "^2.11.3"
+pytest-asyncio = "^0.26.0"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
+fakeredis = {extras = ["aioredis"], version = "^2.23.1"}
 
 
 [build-system]
