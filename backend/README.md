@@ -73,4 +73,17 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`) and parsing t
   print(f"Smoothed Pos: {smoothed_position}, Smoothed Vel: {smoothed_velocity}")
   ```
 
+**`main.py`**:
+
+- Contains the main asynchronous ingest loop (`run_ingest_loop`) and message handler (`handle_message`).
+- Connects to the configured ADS-B TCP source (`ADSB_HOST`, `ADSB_PORT`).
+- Reads incoming SBS-1 messages line by line.
+- Uses `parser.parse_sbs_message` to decode valid messages.
+- Manages `PositionSmoother` instances in memory for each active aircraft hex ID.
+- Calculates time deltas (`dt`) between position updates for each aircraft.
+- Calls `smoother.predict(dt)` and `smoother.update(measurement)`.
+- Stores the resulting smoothed `PlaneState` (a Pydantic model) in Redis using `RedisClient.set_json`, applying a TTL (`PLANE_TTL_SECONDS`).
+- Handles connection errors and attempts reconnections.
+- Can be run directly (`python -m backend.ingest.main`) using environment variables for configuration.
+
 _(Further sections on Services, Routes, Schemas, Testing, Running Locally will be added here)_

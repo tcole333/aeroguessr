@@ -26,8 +26,8 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 - [x] 12. Implement SBS‑1 line parser → `RawMessage` dataclass.
 - [x] 13. Unit‑test parser with fixture file (pytest).
 - [x] 14. Build Redis helper (`redis_async.py`) – `set_json`, `expire`.
-- [ ] 15. Draft Kalman smoother class (lat/lon/alt – constant‑velocity).
-- [ ] 16. Wire smoother into ingest loop (async TCP reader → smoother → Redis hash update).
+- [x] 15. Draft Kalman smoother class (lat/lon/alt – constant‑velocity).
+- [x] 16. Wire smoother into ingest loop (async TCP reader → smoother → Redis hash update).
 - [ ] 17. Cap trail list to 30 points; store as JSON array.
 - [ ] 18. Add enrichment stub (OpenSky REST) w/ 24 h cache.
 - [ ] 19. Unit‑test enrichment with HTTPX mock.
