@@ -17,6 +17,7 @@ pydantic = "^2.11.3"
 pytest-asyncio = "^0.26.0"
 numpy = "^2.0.0"
 filterpy = "^1.4.5"
+httpx = "^0.28.1"
 
 
 [tool.poetry.group.dev.dependencies]

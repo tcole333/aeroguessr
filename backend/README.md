@@ -7,7 +7,8 @@ This directory contains the Python backend service for the Plane Guessing Game, 
 The backend is responsible for:
 
 - Ingesting and parsing live ADS-B flight data.
-- Enriching flight data with details like origin, destination, and aircraft type.
+- Enriching flight data with details like callsign, origin country (from OpenSky) and origin/destination airports (from FlightAware AeroAPI), caching the results.
+- Smoothing flight position data using a Kalman filter.
 - Managing game rooms and player state using Redis.
 - Handling real-time communication with clients via WebSockets.
 - Providing a REST API for room management and other actions.
@@ -16,7 +17,7 @@ The backend is responsible for:
 
 ### Ingest (`backend/ingest/`)
 
-Handles the connection to the ADS-B data source (e.g., `dump1090`) and parsing the raw data streams.
+Handles the connection to the ADS-B data source (e.g., `dump1090`), parsing, enrichment, smoothing, and storage.
 
 **`parser.py`**:
 
@@ -36,6 +37,17 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`) and parsing t
   if raw_message:
       print(f"Parsed Plane {raw_message.hex_ident}: Alt={raw_message.altitude}, Lat={raw_message.latitude}, Lon={raw_message.longitude}")
   ```
+
+**`enrichment.py`**:
+
+- Provides `fetch_opensky_data` to get supplementary data (callsign, origin country, category) for a given ICAO24 hex ID from the OpenSky Network API.
+- Provides `fetch_aeroapi_route` to get origin and destination airport ICAO codes for a given ICAO24 hex ID from the FlightAware AeroAPI (`/flights/{hex_ident}`).
+- Requires `httpx` for API calls.
+- Requires optional `OPENSKY_USERNAME` and `OPENSKY_PASSWORD` environment variables.
+- Requires `FLIGHTAWARE_API_KEY` environment variable for AeroAPI access.
+- Caches OpenSky results (`enrich_cache:{hex}`) for 24 hours.
+- Caches AeroAPI results (`aeroapi_route:{hex}`) for 6 hours.
+- Defines `EnrichedData` and `RouteData` Pydantic models.
 
 **`smoother.py`**:
 
@@ -79,10 +91,12 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`) and parsing t
 - Connects to the configured ADS-B TCP source (`ADSB_HOST`, `ADSB_PORT`).
 - Reads incoming SBS-1 messages line by line.
 - Uses `parser.parse_sbs_message` to decode valid messages.
+- For new aircraft, calls `enrichment.fetch_opensky_data` and `enrichment.fetch_aeroapi_route` to get and cache supplementary data.
 - Manages `PositionSmoother` instances in memory for each active aircraft hex ID.
 - Calculates time deltas (`dt`) between position updates for each aircraft.
 - Calls `smoother.predict(dt)` and `smoother.update(measurement)`.
-- Stores the resulting smoothed `PlaneState` (a Pydantic model) in Redis using `RedisClient.set_json`, applying a TTL (`PLANE_TTL_SECONDS`).
+- Retrieves existing state from Redis, appends the new smoothed position to a trail (capped at 30 points).
+- Stores the resulting smoothed `PlaneState` (a Pydantic model including position, velocity, trail, callsign, country, category, origin, and destination) in Redis using `RedisClient.set_json`, applying a TTL (`PLANE_TTL_SECONDS`).
 - Handles connection errors and attempts reconnections.
 - Can be run directly (`python -m backend.ingest.main`) using environment variables for configuration.
 

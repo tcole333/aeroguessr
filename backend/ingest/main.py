@@ -7,11 +7,17 @@ import asyncio
 import logging
 import os
 import time
-from typing import Dict
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from pydantic import BaseModel, Field
 
+from backend.ingest.enrichment import (
+    EnrichedData,
+    RouteData,
+    fetch_aeroapi_route,
+    fetch_opensky_data,
+)
 from backend.ingest.parser import RawMessage, parse_sbs_message
 from backend.ingest.smoother import PositionSmoother
 from backend.utils.redis_async import RedisClient
@@ -34,7 +40,10 @@ logger = logging.getLogger(__name__)
 
 # --- Data Structures ---
 class PlaneState(BaseModel):
-    """Represents the smoothed state of an aircraft stored in Redis."""
+    """Represents the smoothed state of an aircraft stored in Redis.
+
+    Includes core position/velocity, a capped trail, and cached enrichment data.
+    """
 
     hex_ident: str = Field(..., description="Aircraft ICAO hex identifier.")
     lat: float = Field(..., description="Smoothed latitude.")
@@ -44,7 +53,19 @@ class PlaneState(BaseModel):
     lon_v: float = Field(..., description="Smoothed longitude velocity.")
     alt_v: float = Field(..., description="Smoothed altitude velocity (fpm).")
     last_update_ts: float = Field(..., description="Timestamp of the last update.")
-    # TODO: Add other fields like callsign, ground speed, track etc. later
+    trail: List[Tuple[float, float, float]] = Field(
+        default_factory=list,
+        description="List of recent (lat, lon, alt) tuples, capped at 30.",
+    )
+    callsign: Optional[str] = Field(None, description="Aircraft callsign (cached).")
+    origin_country: Optional[str] = Field(
+        None, description="Origin country based on ICAO24 (cached)."
+    )
+    category: Optional[int] = Field(None, description="Aircraft category code (cached).")
+    # AeroAPI Enrichment fields (cached)
+    origin: Optional[str] = Field(None, description="Origin airport ICAO (cached).")
+    destination: Optional[str] = Field(None, description="Destination airport ICAO (cached).")
+    # TODO: Add other fields like ground speed, track etc. later
 
 
 # Runtime state (in-memory)
@@ -54,7 +75,7 @@ last_timestamps: Dict[str, float] = {}
 
 # --- Main Ingest Logic ---
 async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
-    """Process a parsed RawMessage: update smoother and store in Redis."""
+    """Process a parsed RawMessage: enrich, update smoother, store in Redis."""
     if not msg.latitude or not msg.longitude or not msg.altitude:
         # logger.debug(f"Skipping message for {msg.hex_ident}: Missing position data.")
         return  # Skip messages without position
@@ -62,8 +83,17 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     hex_ident = msg.hex_ident
     current_time = msg.timestamp
     measurement = np.array([msg.latitude, msg.longitude, msg.altitude])
+    redis_key = f"plane:{hex_ident}"
+
+    # Try to get existing state first
+    existing_state_dict = await redis_client.get_json(redis_key)
+    existing_state: Optional[PlaneState] = (
+        PlaneState(**existing_state_dict) if existing_state_dict else None
+    )
 
     smoother = active_smoothers.get(hex_ident)
+    enriched_data: Optional[EnrichedData] = None
+    route_data: Optional[RouteData] = None
 
     if smoother is None:
         logger.info(f"Creating new smoother for {hex_ident}.")
@@ -73,20 +103,47 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             measurement_noise=KALMAN_MEASUREMENT_NOISE,
         )
         active_smoothers[hex_ident] = smoother
-        # Don't update or predict on the very first message, just store initial state
         last_timestamps[hex_ident] = current_time
-        # Initial velocity is zero
-        smoothed_state = np.concatenate((measurement, np.zeros(3)))
+        smoothed_state_vector = np.concatenate((measurement, np.zeros(3)))
+        current_trail = [(measurement[0], measurement[1], measurement[2])]
+        logger.info(f"Fetching enrichment data for new plane {hex_ident}.")
+        enriched_data = await fetch_opensky_data(hex_ident, redis_client)
+        route_data = await fetch_aeroapi_route(hex_ident, redis_client)
     else:
         last_time = last_timestamps.get(hex_ident, current_time)
-        dt = max(0.01, current_time - last_time)  # Ensure dt is positive
+        dt = max(0.01, current_time - last_time)
 
         try:
             smoother.predict(dt)
             smoother.update(measurement)
-            smoothed_state = smoother.state
+            smoothed_state_vector = smoother.state
             last_timestamps[hex_ident] = current_time
             # logger.debug(f"Updated smoother for {hex_ident}. dt={dt:.2f}s")
+
+            # Manage the trail
+            current_trail = existing_state.trail if existing_state else []
+            new_point = (
+                smoothed_state_vector[0],
+                smoothed_state_vector[1],
+                smoothed_state_vector[2],
+            )
+            current_trail.append(new_point)
+            # Cap the trail at 30 points
+            if len(current_trail) > 30:
+                current_trail.pop(0)  # Remove the oldest point
+
+            # Carry over existing enrichment data if available
+            if existing_state:
+                enriched_data = EnrichedData(
+                    callsign=existing_state.callsign,
+                    origin_country=existing_state.origin_country,
+                    category=existing_state.category,
+                )
+                route_data = RouteData(
+                    origin_icao=existing_state.origin,
+                    destination_icao=existing_state.destination,
+                )
+
         except np.linalg.LinAlgError as e:
             logger.error(f"Kalman filter error for {hex_ident}: {e}. Resetting smoother.")
             # Reset smoother on numerical instability
@@ -94,20 +151,25 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             del last_timestamps[hex_ident]
             return
 
-    # Prepare data for Redis
+    # Prepare data for Redis, including the updated trail and enrichment data
     plane_data = PlaneState(
         hex_ident=hex_ident,
-        lat=smoothed_state[0],
-        lon=smoothed_state[1],
-        alt=smoothed_state[2],
-        lat_v=smoothed_state[3],
-        lon_v=smoothed_state[4],
-        alt_v=smoothed_state[5],
+        lat=smoothed_state_vector[0],
+        lon=smoothed_state_vector[1],
+        alt=smoothed_state_vector[2],
+        lat_v=smoothed_state_vector[3],
+        lon_v=smoothed_state_vector[4],
+        alt_v=smoothed_state_vector[5],
         last_update_ts=current_time,
+        trail=current_trail,
+        callsign=enriched_data.callsign if enriched_data else None,
+        origin_country=enriched_data.origin_country if enriched_data else None,
+        category=enriched_data.category if enriched_data else None,
+        origin=route_data.origin_icao if route_data else None,
+        destination=route_data.destination_icao if route_data else None,
     )
 
     # Store in Redis
-    redis_key = f"plane:{hex_ident}"
     try:
         await redis_client.set_json(redis_key, plane_data, expire_seconds=PLANE_TTL_SECONDS)
         # logger.debug(f"Stored {redis_key} in Redis. TTL={PLANE_TTL_SECONDS}s")

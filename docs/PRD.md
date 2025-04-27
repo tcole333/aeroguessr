@@ -129,13 +129,15 @@ _Server → Client_
 
 ### 5.3 Redis Schema
 
-| Key                   | Type | TTL   | Purpose                                 |
-| --------------------- | ---- | ----- | --------------------------------------- |
-| `plane:{hex}`         | HASH | 5 min | Position + metadata                     |
-| `room:{code}:meta`    | HASH | 1 h   | mode, timeout, host, created_ts         |
-| `room:{code}:players` | HASH | 1 h   | `{nick: {score, connected, last_seen}}` |
-| `room:{code}:round`   | HASH | 1 h   | active plane & state                    |
-| `airport:list`        | JSON | ∞     | Pre‑cached airport directory            |
+| Key                   | Type | TTL   | Purpose                                                        |
+| --------------------- | ---- | ----- | -------------------------------------------------------------- |
+| `plane:{hex}`         | HASH | 5 min | Pos, Vel, Origin, Dest, Meta (Callsign, Country, Cat), Trail[] |
+| `room:{code}:meta`    | HASH | 1 h   | mode, timeout, host, created_ts                                |
+| `room:{code}:players` | HASH | 1 h   | `{nick: {score, connected, last_seen}}`                        |
+| `room:{code}:round`   | HASH | 1 h   | active plane & state                                           |
+| `airport:list`        | JSON | ∞     | Pre‑cached airport directory                                   |
+| `enrich_cache:{hex}`  | JSON | 24 h  | Cached Callsign, Country, Category from OpenSky                |
+| `aeroapi_route:{hex}` | JSON | 6 h   | Cached Origin/Destination ICAO codes from AeroAPI              |
 
 ### 5.4 Resilience & Error Handling
 
