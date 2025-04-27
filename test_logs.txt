@@ -1,424 +1,464 @@
-============================= test session starts ==============================
-platform darwin -- Python 3.12.9, pytest-8.3.5, pluggy-1.5.0
-rootdir: /Users/traviscole/projects/plane-game-v4
-configfile: pytest.ini
-plugins: anyio-4.9.0, asyncio-0.26.0
-asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 11 items
+.E.EFEFE..FE
+==================================== ERRORS ====================================
+__________ ERROR at teardown of test_websocket_connect_and_state_sync __________
 
-tests/backend/routes/test_rooms.py::test_create_room_success
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392393936
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392393216. Loop ID: 4392393936
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392393936
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392393936, FakeRedis ID: 4392390528
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392393936
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392390528. Loop ID: 4392393936
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392393936
--------------------------------- live log call ---------------------------------
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392390528. Loop ID: 4392393936
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392393936
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392393936
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392393936
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392393936
+    def finalizer() -> None:
+        """Yield again, to finalize."""
 
-tests/backend/routes/test_rooms.py::test_join_room_success
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4391802384
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393888144. Loop ID: 4391802384
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4391802384
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4391802384, FakeRedis ID: 4393890208
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4391802384
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393890208. Loop ID: 4391802384
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4391802384
--------------------------------- live log call ---------------------------------
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393890208. Loop ID: 4391802384
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393890208. Loop ID: 4391802384
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/WJPK/join "HTTP/1.1 200 OK"
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4391802384
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4391802384
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4391802384
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4391802384
+        async def async_finalizer() -> None:
+            try:
+                await gen_obj.__anext__()  # type: ignore[union-attr]
+            except StopAsyncIteration:
+                pass
+            else:
+                msg = "Async generator fixture didn't stop."
+                msg += "Yield only once."
+                raise ValueError(msg)
 
-tests/backend/routes/test_rooms.py::test_join_room_not_found
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885888
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393886176. Loop ID: 4393885888
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885888
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885888, FakeRedis ID: 4393889152
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885888
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393889152. Loop ID: 4393885888
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885888
--------------------------------- live log call ---------------------------------
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393889152. Loop ID: 4393885888
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/WXYZ/join "HTTP/1.1 404 Not Found"
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885888
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885888
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885888
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885888
+        task = _create_task_in_context(event_loop, async_finalizer(), context)
+>       event_loop.run_until_complete(task)
 
-tests/backend/routes/test_rooms.py::test_join_room_nickname_conflict
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885360
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393885408. Loop ID: 4393885360
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885360
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885360, FakeRedis ID: 4393888144
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885360
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393888144. Loop ID: 4393885360
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885360
--------------------------------- live log call ---------------------------------
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393888144. Loop ID: 4393885360
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393888144. Loop ID: 4393885360
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/SWZW/join "HTTP/1.1 409 Conflict"
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885360
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885360
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885360
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885360
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:354: in async_finalizer
+    await gen_obj.__anext__()  # type: ignore[union-attr]
+tests/backend/conftest.py:99: in test_client
+    async with AsyncClient(
+.venv/lib/python3.12/site-packages/httpx/_client.py:2016: in __aexit__
+    await self._transport.__aexit__(exc_type, exc_value, traceback)
+.venv/lib/python3.12/site-packages/httpx/_transports/base.py:75: in __aexit__
+    await self.aclose()
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:227: in aclose
+    await self.exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:74: in __aexit__
+    return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:783: in __aexit__
+    return self.cancel_scope.__exit__(exc_type, exc_val, exc_tb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-tests/backend/routes/test_websocket.py::test_websocket_connect_and_state_sync
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885216
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393880080. Loop ID: 4393885216
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885216
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885216, FakeRedis ID: 4393882480
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885216
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882480. Loop ID: 4393885216
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885216
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393880080, Loop ID: 4393885216
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882480. Loop ID: 4393885216
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: HCCS, Path: /ws/HCCS/host_sync, Client ID: 4393880080, Loop ID: 4393885216
-FAILED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885216
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885216
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885216
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885216
+self = <anyio._backends._asyncio.CancelScope object at 0x105e2fb00>
+exc_type = None, exc_val = None
 
-tests/backend/routes/test_websocket.py::test_websocket_ping_pong
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392402672
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392396816. Loop ID: 4392402672
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392402672
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392402672, FakeRedis ID: 4392397104
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392402672
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392397104. Loop ID: 4392402672
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392402672
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392396816, Loop ID: 4392402672
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392397104. Loop ID: 4392402672
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: MHSR, Path: /ws/MHSR/host_ping, Client ID: 4392396816, Loop ID: 4392402672
-FAILED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392402672
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392402672
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392402672
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392402672
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
 
-tests/backend/routes/test_websocket.py::test_websocket_player_joined_broadcast
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392400800
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392395040. Loop ID: 4392400800
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392400800
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392400800, FakeRedis ID: 4394347568
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392400800
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392400800
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392395040, Loop ID: 4392400800
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RZEV, Path: /ws/RZEV/host_join_br, Client ID: 4392395040, Loop ID: 4392400800
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RZEV, Nick: joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RZEV/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RZEV/joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
-FAILED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392400800
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392400800
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392400800
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392400800
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+>           raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+E           RuntimeError: Attempted to exit cancel scope in a different task than it was entered in
 
-tests/backend/routes/test_websocket.py::test_websocket_player_left_broadcast
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393883248
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393882720. Loop ID: 4393883248
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393883248
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393883248, FakeRedis ID: 4393881904
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393883248
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393883248
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393882720, Loop ID: 4393883248
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: ONWI, Path: /ws/ONWI/host_left_br, Client ID: 4393882720, Loop ID: 4393883248
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: ONWI, Nick: leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/ONWI/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/ONWI/leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
-FAILED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393883248
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393883248
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393883248
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393883248
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:457: RuntimeError
+------------------------------ Captured log call -------------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:47 Attempted to disconnect non-existent player 'host_sync' from room 'VINP'.
+WARNING  backend.routes.rooms:rooms.py:458 Player host_sync was already removed from Redis during cleanup.
+________________ ERROR at teardown of test_websocket_ping_pong _________________
 
-tests/backend/routes/test_websocket.py::test_websocket_reject_invalid_room
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4394349632
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4394347952. Loop ID: 4394349632
--------------------------------- live log call ---------------------------------
-WARNING  test_websocket:test_websocket.py:275 Invalid room test raised <class 'AttributeError'> instead of WebSocketDisconnect
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4394349632
+    def finalizer() -> None:
+        """Yield again, to finalize."""
 
-tests/backend/routes/test_websocket.py::test_websocket_reject_invalid_player
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4394347616
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4394347232. Loop ID: 4394347616
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4394347616
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4394347616, FakeRedis ID: 4392131888
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4394347616
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392131888. Loop ID: 4394347616
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4394347616
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4394347232, Loop ID: 4394347616
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392131888. Loop ID: 4394347616
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RPPJ, Path: /ws/RPPJ/host_reject, Client ID: 4394347232, Loop ID: 4394347616
-WARNING  test_websocket:test_websocket.py:293 Invalid player test raised <class 'AttributeError'> instead of WebSocketDisconnect
-PASSED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4394347616
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4394347616
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4394347616
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4394347616
+        async def async_finalizer() -> None:
+            try:
+                await gen_obj.__anext__()  # type: ignore[union-attr]
+            except StopAsyncIteration:
+                pass
+            else:
+                msg = "Async generator fixture didn't stop."
+                msg += "Yield only once."
+                raise ValueError(msg)
 
-tests/backend/routes/test_websocket.py::test_websocket_guess_placeholder_broadcast
--------------------------------- live log setup --------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392130256
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393884832. Loop ID: 4392130256
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392130256
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392130256, FakeRedis ID: 4393882864
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392130256
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392130256
--------------------------------- live log call ---------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393884832, Loop ID: 4392130256
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RGGZ, Path: /ws/RGGZ/host_guess_br, Client ID: 4393884832, Loop ID: 4392130256
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RGGZ, Nick: guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RGGZ/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RGGZ/guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
-FAILED
------------------------------- live log teardown -------------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392130256
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392130256
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392130256
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392130256
+        task = _create_task_in_context(event_loop, async_finalizer(), context)
+>       event_loop.run_until_complete(task)
 
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:354: in async_finalizer
+    await gen_obj.__anext__()  # type: ignore[union-attr]
+tests/backend/conftest.py:99: in test_client
+    async with AsyncClient(
+.venv/lib/python3.12/site-packages/httpx/_client.py:2016: in __aexit__
+    await self._transport.__aexit__(exc_type, exc_value, traceback)
+.venv/lib/python3.12/site-packages/httpx/_transports/base.py:75: in __aexit__
+    await self.aclose()
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:227: in aclose
+    await self.exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:74: in __aexit__
+    return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:783: in __aexit__
+    return self.cancel_scope.__exit__(exc_type, exc_val, exc_tb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
+self = <anyio._backends._asyncio.CancelScope object at 0x105e5bd10>
+exc_type = None, exc_val = None
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+>           raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+E           RuntimeError: Attempted to exit cancel scope in a different task than it was entered in
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:457: RuntimeError
+---------------------------- Captured log teardown -----------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'TCZD'.
+_________ ERROR at teardown of test_websocket_player_joined_broadcast __________
+
+    def finalizer() -> None:
+        """Yield again, to finalize."""
+
+        async def async_finalizer() -> None:
+            try:
+                await gen_obj.__anext__()  # type: ignore[union-attr]
+            except StopAsyncIteration:
+                pass
+            else:
+                msg = "Async generator fixture didn't stop."
+                msg += "Yield only once."
+                raise ValueError(msg)
+
+        task = _create_task_in_context(event_loop, async_finalizer(), context)
+>       event_loop.run_until_complete(task)
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:354: in async_finalizer
+    await gen_obj.__anext__()  # type: ignore[union-attr]
+tests/backend/conftest.py:99: in test_client
+    async with AsyncClient(
+.venv/lib/python3.12/site-packages/httpx/_client.py:2016: in __aexit__
+    await self._transport.__aexit__(exc_type, exc_value, traceback)
+.venv/lib/python3.12/site-packages/httpx/_transports/base.py:75: in __aexit__
+    await self.aclose()
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:227: in aclose
+    await self.exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:74: in __aexit__
+    return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:783: in __aexit__
+    return self.cancel_scope.__exit__(exc_type, exc_val, exc_tb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x1063ad340>
+exc_type = None, exc_val = None
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+>           raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+E           RuntimeError: Attempted to exit cancel scope in a different task than it was entered in
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:457: RuntimeError
+------------------------------ Captured log call -------------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:47 Attempted to disconnect non-existent player 'joiner_join_br' from room 'OFUP'.
+WARNING  backend.utils.connection_manager:connection_manager.py:47 Attempted to disconnect non-existent player 'host_join_br' from room 'OFUP'.
+---------------------------- Captured log teardown -----------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'OFUP'.
+__________ ERROR at teardown of test_websocket_player_left_broadcast ___________
+
+    def finalizer() -> None:
+        """Yield again, to finalize."""
+
+        async def async_finalizer() -> None:
+            try:
+                await gen_obj.__anext__()  # type: ignore[union-attr]
+            except StopAsyncIteration:
+                pass
+            else:
+                msg = "Async generator fixture didn't stop."
+                msg += "Yield only once."
+                raise ValueError(msg)
+
+        task = _create_task_in_context(event_loop, async_finalizer(), context)
+>       event_loop.run_until_complete(task)
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:354: in async_finalizer
+    await gen_obj.__anext__()  # type: ignore[union-attr]
+tests/backend/conftest.py:99: in test_client
+    async with AsyncClient(
+.venv/lib/python3.12/site-packages/httpx/_client.py:2016: in __aexit__
+    await self._transport.__aexit__(exc_type, exc_value, traceback)
+.venv/lib/python3.12/site-packages/httpx/_transports/base.py:75: in __aexit__
+    await self.aclose()
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:227: in aclose
+    await self.exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:74: in __aexit__
+    return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:783: in __aexit__
+    return self.cancel_scope.__exit__(exc_type, exc_val, exc_tb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x106401400>
+exc_type = None, exc_val = None
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+>           raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+E           RuntimeError: Attempted to exit cancel scope in a different task than it was entered in
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:457: RuntimeError
+------------------------------ Captured log call -------------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'KXVT'.
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'KXVT'.
+_______ ERROR at teardown of test_websocket_guess_placeholder_broadcast ________
+
+    def finalizer() -> None:
+        """Yield again, to finalize."""
+
+        async def async_finalizer() -> None:
+            try:
+                await gen_obj.__anext__()  # type: ignore[union-attr]
+            except StopAsyncIteration:
+                pass
+            else:
+                msg = "Async generator fixture didn't stop."
+                msg += "Yield only once."
+                raise ValueError(msg)
+
+        task = _create_task_in_context(event_loop, async_finalizer(), context)
+>       event_loop.run_until_complete(task)
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:354: in async_finalizer
+    await gen_obj.__anext__()  # type: ignore[union-attr]
+tests/backend/conftest.py:99: in test_client
+    async with AsyncClient(
+.venv/lib/python3.12/site-packages/httpx/_client.py:2016: in __aexit__
+    await self._transport.__aexit__(exc_type, exc_value, traceback)
+.venv/lib/python3.12/site-packages/httpx/_transports/base.py:75: in __aexit__
+    await self.aclose()
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:227: in aclose
+    await self.exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/httpx_ws/transport.py:74: in __aexit__
+    return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:783: in __aexit__
+    return self.cancel_scope.__exit__(exc_type, exc_val, exc_tb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x1063701a0>
+exc_type = None, exc_val = None
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+>           raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+E           RuntimeError: Attempted to exit cancel scope in a different task than it was entered in
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:457: RuntimeError
+---------------------------- Captured log teardown -----------------------------
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'VOKM'.
 =================================== FAILURES ===================================
-____________________ test_websocket_connect_and_state_sync _____________________
-
-test_client = <httpx.AsyncClient object at 0x105e54a10>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105e57650>
-
-    async def test_websocket_connect_and_state_sync(test_client: AsyncClient, redis_client: RedisClient):
-        """Verify WebSocket connection and initial stateSync message."""
-        host_nick = "host_sync"
-        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
-
-        try:
-            # Use httpx.AsyncClient websocket context manager
->           async with test_client.websocket(ws_path) as websocket:
-E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
-
-tests/backend/routes/test_websocket.py:70: AttributeError
-
-During handling of the above exception, another exception occurred:
-
-test_client = <httpx.AsyncClient object at 0x105e54a10>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105e57650>
-
-    async def test_websocket_connect_and_state_sync(test_client: AsyncClient, redis_client: RedisClient):
-        """Verify WebSocket connection and initial stateSync message."""
-        host_nick = "host_sync"
-        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
-
-        try:
-            # Use httpx.AsyncClient websocket context manager
-            async with test_client.websocket(ws_path) as websocket:
-                data = await websocket.receive_json()
-                message = WSMessage(**data)
-
-                assert message.type == "stateSync"
-                assert "payload" in data
-                state = FullRoomState(**message.payload)
-
-                assert state.room_meta is not None
-                assert state.room_meta.host_nickname == host_nick
-                assert state.players is not None
-                assert len(state.players) == 1
-                assert host_nick in state.players
-                assert state.players[host_nick].nickname == host_nick
-                assert state.players[host_nick].connected is True
-
-                # Verify player status in Redis (async)
-                player_key = f"room:{room_code}:players"
-                host_player = await redis_client.hget_model(player_key, host_nick, Player)
-                assert host_player is not None
-                assert host_player.connected is True
-
-        except WebSocketDisconnect as e: # httpx might raise this or its own exception
-            pytest.fail(f"WebSocket disconnected unexpectedly: {e.code} {e.reason}")
-        except Exception as e:
->            pytest.fail(f"Unexpected error during WebSocket connection/sync: {e}")
-E            Failed: Unexpected error during WebSocket connection/sync: 'AsyncClient' object has no attribute 'websocket'
-
-tests/backend/routes/test_websocket.py:95: Failed
------------------------------- Captured log setup ------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885216
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393880080. Loop ID: 4393885216
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885216
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885216, FakeRedis ID: 4393882480
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885216
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882480. Loop ID: 4393885216
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885216
------------------------------- Captured log call -------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393880080, Loop ID: 4393885216
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882480. Loop ID: 4393885216
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: HCCS, Path: /ws/HCCS/host_sync, Client ID: 4393880080, Loop ID: 4393885216
----------------------------- Captured log teardown -----------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885216
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885216
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885216
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885216
-___________________________ test_websocket_ping_pong ___________________________
-
-test_client = <httpx.AsyncClient object at 0x105cea810>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb9b0>
-
-    async def test_websocket_ping_pong(test_client: AsyncClient, redis_client: RedisClient):
-        """Verify the server sends pings and responds to client pongs."""
-        host_nick = "host_ping"
-        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
-        ping_interval_s = 10
-        pong_timeout_s = 30
-        test_duration = ping_interval_s * 1.5
-
-        received_server_ping = False
-
-        try:
-            # Use httpx websocket context manager
->           async with test_client.websocket(ws_path) as websocket:
-E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
-
-tests/backend/routes/test_websocket.py:112: AttributeError
-
-During handling of the above exception, another exception occurred:
-
-test_client = <httpx.AsyncClient object at 0x105cea810>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb9b0>
-
-    async def test_websocket_ping_pong(test_client: AsyncClient, redis_client: RedisClient):
-        """Verify the server sends pings and responds to client pongs."""
-        host_nick = "host_ping"
-        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
-        ping_interval_s = 10
-        pong_timeout_s = 30
-        test_duration = ping_interval_s * 1.5
-
-        received_server_ping = False
-
-        try:
-            # Use httpx websocket context manager
-            async with test_client.websocket(ws_path) as websocket:
-                # Consume initial stateSync
-                await websocket.receive_json()
-
-                start_time = time.time()
-                while time.time() - start_time < test_duration:
-                    try:
-                        data = await asyncio.wait_for(websocket.receive_json(), timeout=ping_interval_s * 0.6)
-                        message = WSMessage(**data)
-
-                        if message.type == "ping":
-                            received_server_ping = True
-                            ping_payload = PingPongPayload(**message.payload)
-                            pong_payload = PingPongPayload(seq=ping_payload.seq)
-                            pong_msg = WSMessage(type="pong", payload=pong_payload.model_dump())
-                            await websocket.send_json(pong_msg.model_dump())
-                            logger.debug(f"Client sent pong {ping_payload.seq}")
-
-                    except asyncio.TimeoutError:
-                        logger.debug("Receive timeout, continuing wait for ping...")
-                        pass
-                    except Exception as e:
-                        pytest.fail(f"WebSocket error during ping/pong receive loop: {e}")
-                        break
-
-                await asyncio.sleep(pong_timeout_s - test_duration + ping_interval_s * 0.5)
-
-                # Check liveness
-                final_ping_seq = 999
-                final_ping = WSMessage(type="ping", payload=PingPongPayload(seq=final_ping_seq).model_dump())
-                await websocket.send_json(final_ping.model_dump())
-                data = await asyncio.wait_for(websocket.receive_json(), timeout=2.0)
-                final_pong = WSMessage(**data)
-                assert final_pong.type == "pong"
-                assert PingPongPayload(**final_pong.payload).seq == final_ping_seq
-
-            assert received_server_ping, "Did not receive any ping from the server."
-
-        except Exception as e:
->           pytest.fail(f"WebSocket error during ping/pong test: {e}")
-E           Failed: WebSocket error during ping/pong test: 'AsyncClient' object has no attribute 'websocket'
-
-tests/backend/routes/test_websocket.py:151: Failed
------------------------------- Captured log setup ------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392402672
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392396816. Loop ID: 4392402672
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392402672
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392402672, FakeRedis ID: 4392397104
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392402672
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392397104. Loop ID: 4392402672
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392402672
------------------------------- Captured log call -------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392396816, Loop ID: 4392402672
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392397104. Loop ID: 4392402672
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: MHSR, Path: /ws/MHSR/host_ping, Client ID: 4392396816, Loop ID: 4392402672
----------------------------- Captured log teardown -----------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392402672
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392402672
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392402672
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392402672
 ____________________ test_websocket_player_joined_broadcast ____________________
 
-test_client = <httpx.AsyncClient object at 0x105cea120>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105ec7b60>
+self = <anyio._backends._asyncio.TaskGroup object at 0x1063ac8c0>
+exc_type = None
 
-    async def test_websocket_player_joined_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        try:
+            if exc_val is not None:
+                self.cancel_scope.cancel()
+                if not isinstance(exc_val, CancelledError):
+                    self._exceptions.append(exc_val)
+
+            loop = get_running_loop()
+            try:
+                if self._tasks:
+                    with CancelScope() as wait_scope:
+                        while self._tasks:
+                            self._on_completed_fut = loop.create_future()
+
+                            try:
+                                await self._on_completed_fut
+                            except CancelledError as exc:
+                                # Shield the scope against further cancellation attempts,
+                                # as they're not productive (#695)
+                                wait_scope.shield = True
+                                self.cancel_scope.cancel()
+
+                                # Set exc_val from the cancellation exception if it was
+                                # previously unset. However, we should not replace a native
+                                # cancellation exception with one raise by a cancel scope.
+                                if exc_val is None or (
+                                    isinstance(exc_val, CancelledError)
+                                    and not is_anyio_cancellation(exc)
+                                ):
+                                    exc_val = exc
+
+                            self._on_completed_fut = None
+                else:
+                    # If there are no child tasks to wait on, run at least one checkpoint
+                    # anyway
+                    await AsyncIOBackend.cancel_shielded_checkpoint()
+
+                self._active = False
+                if self._exceptions:
+                    # The exception that got us here should already have been
+                    # added to self._exceptions so it's ok to break exception
+                    # chaining and avoid adding a "During handling of above..."
+                    # for each nesting level.
+                    raise BaseExceptionGroup(
+                        "unhandled errors in a TaskGroup", self._exceptions
+                    ) from None
+                elif exc_val:
+>                   raise exc_val
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:776:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.TaskGroup object at 0x1063ac8c0>
+exc_type = None
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        try:
+            if exc_val is not None:
+                self.cancel_scope.cancel()
+                if not isinstance(exc_val, CancelledError):
+                    self._exceptions.append(exc_val)
+
+            loop = get_running_loop()
+            try:
+                if self._tasks:
+                    with CancelScope() as wait_scope:
+                        while self._tasks:
+                            self._on_completed_fut = loop.create_future()
+
+                            try:
+>                               await self._on_completed_fut
+E                               asyncio.exceptions.CancelledError: Cancelled by cancel scope 1063ac530
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:744: CancelledError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x105e2d130>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105e5aab0>
+
+    async def test_websocket_player_joined_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
         host_nick = "host_join_br"
         joiner_nick = "joiner_join_br"
         room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
@@ -427,40 +467,158 @@ redis_client = <backend.utils.redis_async.RedisClient object at 0x105ec7b60>
         received_join_broadcast = False
 
         try:
-            # Use httpx websocket context manager
->           async with test_client.websocket(host_ws_path) as host_ws, \
-                       test_client.websocket(joiner_ws_path) as joiner_ws:
-E                      AttributeError: 'AsyncClient' object has no attribute 'websocket'
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+>           async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
 
-tests/backend/routes/test_websocket.py:166: AttributeError
------------------------------- Captured log setup ------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392400800
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392395040. Loop ID: 4392400800
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392400800
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392400800, FakeRedis ID: 4394347568
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392400800
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392400800
+tests/backend/routes/test_websocket.py:205:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:217: in __aexit__
+    await anext(self.gen)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1349: in aconnect_ws
+    async with _aconnect_ws(
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:217: in __aexit__
+    await anext(self.gen)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1254: in _aconnect_ws
+    async with session:
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:658: in __aexit__
+    await self._exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:778: in __aexit__
+    if self.cancel_scope.__exit__(type(exc), exc, exc.__traceback__):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x1063ac530>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError('Cancelled by cancel scope 1063ac530')
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+            raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+
+        assert self._host_task is not None
+        host_task_state = _task_states.get(self._host_task)
+        if host_task_state is None or host_task_state.cancel_scope is not self:
+>           raise RuntimeError(
+                "Attempted to exit a cancel scope that isn't the current tasks's "
+                "current cancel scope"
+            )
+E           RuntimeError: Attempted to exit a cancel scope that isn't the current tasks's current cancel scope
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:465: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x105e2d130>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105e5aab0>
+
+    async def test_websocket_player_joined_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
+        host_nick = "host_join_br"
+        joiner_nick = "joiner_join_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        joiner_ws_path = await join_room_and_get_ws_url(test_client, room_code, joiner_nick)
+
+        received_join_broadcast = False
+
+        try:
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+            async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
+                # 1. Host consumes initial stateSync
+                await host_ws.receive_json()
+                logger.debug(f"Host {host_nick} received initial stateSync.")
+
+                # 2. Joiner consumes initial stateSync (which now includes Host)
+                ws_url_http = joiner_ws_path.replace("ws://", "http://", 1)
+                async with aconnect_ws(ws_url_http, client=test_client) as joiner_ws:
+                    joiner_sync_data = await joiner_ws.receive_json()
+                    joiner_sync_msg = WSMessage(**joiner_sync_data)
+                    assert joiner_sync_msg.type == "stateSync"
+                    joiner_state = FullRoomState(**joiner_sync_msg.payload)
+                    assert len(joiner_state.players) == 2  # Host and Joiner
+                    assert host_nick in joiner_state.players
+                    assert joiner_nick in joiner_state.players
+                    logger.debug(f"Joiner {joiner_nick} received initial stateSync.")
+
+                    # 3. Host should receive playerJoined broadcast for the joiner
+                    host_broadcast_msg = await wait_for_message_type(
+                        host_ws, "playerJoined", timeout=2.0
+                    )
+                    payload = PlayerJoinedPayload(**host_broadcast_msg.payload)
+                    assert payload.nickname == joiner_nick
+                    received_join_broadcast = True
+
+            # Send leave on both sockets
+            await joiner_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+            await host_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+        except WebSocketDisconnect as e:
+            pytest.fail(f"WebSocket disconnected unexpectedly during join broadcast test: {e}")
+        finally:
+            # Clean up redis keys
+>           await redis_client.redis.delete(f"room:{room_code}:meta")
+
+tests/backend/routes/test_websocket.py:238:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:611: in execute_command
+    conn = self.connection or await pool.get_connection(command_name, **options)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1064: in get_connection
+    await self.ensure_connection(connection)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1103: in ensure_connection
+    if await connection.can_read_destructive():
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:512: in can_read_destructive
+    return await self._parser.can_read_destructive()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:184: in can_read_destructive
+    return await self.read_from_socket()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:189: in read_from_socket
+    buffer = await self._stream.read(self._read_size)
+.venv/lib/python3.12/site-packages/fakeredis/aioredis.py:96: in read
+    return await self._socket.responses.get()  # type:ignore
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Queue at 0x105e5af60 maxsize=0 tasks=23>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError: Cancelled by cancel scope 1063ac530
+
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/queues.py:158: CancelledError
 ------------------------------ Captured log call -------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392395040, Loop ID: 4392400800
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RZEV, Path: /ws/RZEV/host_join_br, Client ID: 4392395040, Loop ID: 4392400800
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RZEV, Nick: joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RZEV/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RZEV/joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
----------------------------- Captured log teardown -----------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392400800
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392400800
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392400800
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392400800
+WARNING  backend.utils.connection_manager:connection_manager.py:47 Attempted to disconnect non-existent player 'joiner_join_br' from room 'OFUP'.
+WARNING  backend.utils.connection_manager:connection_manager.py:47 Attempted to disconnect non-existent player 'host_join_br' from room 'OFUP'.
 _____________________ test_websocket_player_left_broadcast _____________________
 
-test_client = <httpx.AsyncClient object at 0x105e55460>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105ee47a0>
+test_client = <httpx.AsyncClient object at 0x1063deb40>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x1063dcda0>
 
-    async def test_websocket_player_left_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+    async def test_websocket_player_left_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
         host_nick = "host_left_br"
         leaver_nick = "leaver_left_br"
         room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
@@ -469,39 +627,299 @@ redis_client = <backend.utils.redis_async.RedisClient object at 0x105ee47a0>
         received_left_broadcast = False
 
         try:
-            # Use httpx websocket context manager
->           async with test_client.websocket(host_ws_path) as host_ws:
-E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+            async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
+                ws_url_http = leaver_ws_path.replace("ws://", "http://", 1)
+                async with aconnect_ws(ws_url_http, client=test_client) as leaver_ws:
+                    # Host consumes initial stateSync and the playerJoined for leaver
+                    await asyncio.wait_for(host_ws.receive_json(), timeout=1.0)  # stateSync
+                    await asyncio.wait_for(host_ws.receive_json(), timeout=1.0)  # playerJoined
+                    logger.debug(f"Host {host_nick} consumed initial messages.")
 
-tests/backend/routes/test_websocket.py:216: AttributeError
------------------------------- Captured log setup ------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393883248
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393882720. Loop ID: 4393883248
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393883248
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393883248, FakeRedis ID: 4393881904
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393883248
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393883248
+                    # Leaver consumes its stateSync
+                    await asyncio.wait_for(leaver_ws.receive_json(), timeout=1.0)
+                    logger.debug(f"Leaver {leaver_nick} consumed initial stateSync.")
+
+                    # Send leave to gracefully close
+                    await leaver_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+                    await host_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+                    logger.debug(f"Leaver {leaver_nick} WebSocket connection closed.")
+                    received_left_broadcast = True
+
+                # Verify leaver status in Redis
+                player_key = f"room:{room_code}:players"
+                leaver_player = await redis_client.hget_model(player_key, leaver_nick, Player)
+                assert (
+                    leaver_player is not None
+                ), "Leaver player data missing from Redis after disconnect."
+>               assert (
+                    leaver_player.connected is False
+                ), "Leaver connected status not updated to False in Redis."
+E               AssertionError: Leaver connected status not updated to False in Redis.
+E               assert True is False
+E                +  where True = Player(nickname='leaver_left_br', score=0, connected=True, last_seen_ts=1745724132.4697568).connected
+
+tests/backend/routes/test_websocket.py:281: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x1063deb40>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x1063dcda0>
+
+    async def test_websocket_player_left_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
+        host_nick = "host_left_br"
+        leaver_nick = "leaver_left_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        leaver_ws_path = await join_room_and_get_ws_url(test_client, room_code, leaver_nick)
+
+        received_left_broadcast = False
+
+        try:
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+>           async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
+
+tests/backend/routes/test_websocket.py:256:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:231: in __aexit__
+    await self.gen.athrow(value)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1349: in aconnect_ws
+    async with _aconnect_ws(
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:231: in __aexit__
+    await self.gen.athrow(value)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1254: in _aconnect_ws
+    async with session:
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:658: in __aexit__
+    await self._exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:778: in __aexit__
+    if self.cancel_scope.__exit__(type(exc), exc, exc.__traceback__):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x1064005f0>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError('Cancelled by cancel scope 1064005f0')
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+            raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+
+        assert self._host_task is not None
+        host_task_state = _task_states.get(self._host_task)
+        if host_task_state is None or host_task_state.cancel_scope is not self:
+>           raise RuntimeError(
+                "Attempted to exit a cancel scope that isn't the current tasks's "
+                "current cancel scope"
+            )
+E           RuntimeError: Attempted to exit a cancel scope that isn't the current tasks's current cancel scope
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:465: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x1063deb40>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x1063dcda0>
+
+    async def test_websocket_player_left_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
+        host_nick = "host_left_br"
+        leaver_nick = "leaver_left_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        leaver_ws_path = await join_room_and_get_ws_url(test_client, room_code, leaver_nick)
+
+        received_left_broadcast = False
+
+        try:
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+            async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
+                ws_url_http = leaver_ws_path.replace("ws://", "http://", 1)
+                async with aconnect_ws(ws_url_http, client=test_client) as leaver_ws:
+                    # Host consumes initial stateSync and the playerJoined for leaver
+                    await asyncio.wait_for(host_ws.receive_json(), timeout=1.0)  # stateSync
+                    await asyncio.wait_for(host_ws.receive_json(), timeout=1.0)  # playerJoined
+                    logger.debug(f"Host {host_nick} consumed initial messages.")
+
+                    # Leaver consumes its stateSync
+                    await asyncio.wait_for(leaver_ws.receive_json(), timeout=1.0)
+                    logger.debug(f"Leaver {leaver_nick} consumed initial stateSync.")
+
+                    # Send leave to gracefully close
+                    await leaver_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+                    await host_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+                    logger.debug(f"Leaver {leaver_nick} WebSocket connection closed.")
+                    received_left_broadcast = True
+
+                # Verify leaver status in Redis
+                player_key = f"room:{room_code}:players"
+                leaver_player = await redis_client.hget_model(player_key, leaver_nick, Player)
+                assert (
+                    leaver_player is not None
+                ), "Leaver player data missing from Redis after disconnect."
+                assert (
+                    leaver_player.connected is False
+                ), "Leaver connected status not updated to False in Redis."
+
+        except WebSocketDisconnect as e:
+            pytest.fail(f"WebSocket disconnected unexpectedly during left broadcast test: {e}")
+        finally:
+            # Clean up redis keys
+>           await redis_client.redis.delete(f"room:{room_code}:meta")
+
+tests/backend/routes/test_websocket.py:289:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:611: in execute_command
+    conn = self.connection or await pool.get_connection(command_name, **options)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1064: in get_connection
+    await self.ensure_connection(connection)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1103: in ensure_connection
+    if await connection.can_read_destructive():
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:512: in can_read_destructive
+    return await self._parser.can_read_destructive()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:184: in can_read_destructive
+    return await self.read_from_socket()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:189: in read_from_socket
+    buffer = await self._stream.read(self._read_size)
+.venv/lib/python3.12/site-packages/fakeredis/aioredis.py:96: in read
+    return await self._socket.responses.get()  # type:ignore
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Queue at 0x1063dd6a0 maxsize=0 tasks=21>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError: Cancelled by cancel scope 1064005f0
+
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/queues.py:158: CancelledError
 ------------------------------ Captured log call -------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393882720, Loop ID: 4393883248
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: ONWI, Path: /ws/ONWI/host_left_br, Client ID: 4393882720, Loop ID: 4393883248
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: ONWI, Nick: leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/ONWI/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/ONWI/leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
----------------------------- Captured log teardown -----------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393883248
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393883248
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393883248
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393883248
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'KXVT'.
+WARNING  backend.utils.connection_manager:connection_manager.py:90 Attempted to broadcast to non-existent room 'KXVT'.
 __________________ test_websocket_guess_placeholder_broadcast __________________
 
-test_client = <httpx.AsyncClient object at 0x105e55ca0>
-redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb080>
+self = <anyio._backends._asyncio.TaskGroup object at 0x106431700>
+exc_type = None
 
-    async def test_websocket_guess_placeholder_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        try:
+            if exc_val is not None:
+                self.cancel_scope.cancel()
+                if not isinstance(exc_val, CancelledError):
+                    self._exceptions.append(exc_val)
+
+            loop = get_running_loop()
+            try:
+                if self._tasks:
+                    with CancelScope() as wait_scope:
+                        while self._tasks:
+                            self._on_completed_fut = loop.create_future()
+
+                            try:
+                                await self._on_completed_fut
+                            except CancelledError as exc:
+                                # Shield the scope against further cancellation attempts,
+                                # as they're not productive (#695)
+                                wait_scope.shield = True
+                                self.cancel_scope.cancel()
+
+                                # Set exc_val from the cancellation exception if it was
+                                # previously unset. However, we should not replace a native
+                                # cancellation exception with one raise by a cancel scope.
+                                if exc_val is None or (
+                                    isinstance(exc_val, CancelledError)
+                                    and not is_anyio_cancellation(exc)
+                                ):
+                                    exc_val = exc
+
+                            self._on_completed_fut = None
+                else:
+                    # If there are no child tasks to wait on, run at least one checkpoint
+                    # anyway
+                    await AsyncIOBackend.cancel_shielded_checkpoint()
+
+                self._active = False
+                if self._exceptions:
+                    # The exception that got us here should already have been
+                    # added to self._exceptions so it's ok to break exception
+                    # chaining and avoid adding a "During handling of above..."
+                    # for each nesting level.
+                    raise BaseExceptionGroup(
+                        "unhandled errors in a TaskGroup", self._exceptions
+                    ) from None
+                elif exc_val:
+>                   raise exc_val
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:776:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.TaskGroup object at 0x106431700>
+exc_type = None
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        try:
+            if exc_val is not None:
+                self.cancel_scope.cancel()
+                if not isinstance(exc_val, CancelledError):
+                    self._exceptions.append(exc_val)
+
+            loop = get_running_loop()
+            try:
+                if self._tasks:
+                    with CancelScope() as wait_scope:
+                        while self._tasks:
+                            self._on_completed_fut = loop.create_future()
+
+                            try:
+>                               await self._on_completed_fut
+E                               asyncio.exceptions.CancelledError: Cancelled by cancel scope 106433410
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:744: CancelledError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x1064031a0>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x1063dd1c0>
+
+    async def test_websocket_guess_placeholder_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
         """Verify that a guess message triggers a delta broadcast to others (placeholder)."""
         host_nick = "host_guess_br"
         guesser_nick = "guesser_guess_br"
@@ -512,34 +930,155 @@ redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb080>
         guess_payload = {"airport_code": "BOS"}
 
         try:
-            # Use httpx websocket context manager
->           async with test_client.websocket(host_ws_path) as host_ws, \
-                       test_client.websocket(guesser_ws_path) as guesser_ws:
-E                      AttributeError: 'AsyncClient' object has no attribute 'websocket'
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+>           async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
 
-tests/backend/routes/test_websocket.py:312: AttributeError
------------------------------- Captured log setup ------------------------------
-INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392130256
-INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393884832. Loop ID: 4392130256
-INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392130256
-INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392130256, FakeRedis ID: 4393882864
-INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392130256
-INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392130256
------------------------------- Captured log call -------------------------------
-INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393884832, Loop ID: 4392130256
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
-INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RGGZ, Path: /ws/RGGZ/host_guess_br, Client ID: 4393884832, Loop ID: 4392130256
-INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RGGZ, Nick: guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
-INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
-INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RGGZ/join "HTTP/1.1 200 OK"
-INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RGGZ/guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
----------------------------- Captured log teardown -----------------------------
-INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392130256
-INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392130256
-INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392130256
-INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392130256
+tests/backend/routes/test_websocket.py:362:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:217: in __aexit__
+    await anext(self.gen)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1349: in aconnect_ws
+    async with _aconnect_ws(
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:217: in __aexit__
+    await anext(self.gen)
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:1254: in _aconnect_ws
+    async with session:
+.venv/lib/python3.12/site-packages/httpx_ws/_api.py:658: in __aexit__
+    await self._exit_stack.aclose()
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:696: in aclose
+    await self.__aexit__(None, None, None)
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:754: in __aexit__
+    raise exc_details[1]
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:737: in __aexit__
+    cb_suppress = await cb(*exc_details)
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:778: in __aexit__
+    if self.cancel_scope.__exit__(type(exc), exc, exc.__traceback__):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <anyio._backends._asyncio.CancelScope object at 0x106433410>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError('Cancelled by cancel scope 106433410')
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        del exc_tb
+
+        if not self._active:
+            raise RuntimeError("This cancel scope is not active")
+        if current_task() is not self._host_task:
+            raise RuntimeError(
+                "Attempted to exit cancel scope in a different task than it was "
+                "entered in"
+            )
+
+        assert self._host_task is not None
+        host_task_state = _task_states.get(self._host_task)
+        if host_task_state is None or host_task_state.cancel_scope is not self:
+>           raise RuntimeError(
+                "Attempted to exit a cancel scope that isn't the current tasks's "
+                "current cancel scope"
+            )
+E           RuntimeError: Attempted to exit a cancel scope that isn't the current tasks's current cancel scope
+
+.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:465: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x1064031a0>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x1063dd1c0>
+
+    async def test_websocket_guess_placeholder_broadcast(
+        test_client: AsyncClient, redis_client: RedisClient
+    ) -> None:
+        """Verify that a guess message triggers a delta broadcast to others (placeholder)."""
+        host_nick = "host_guess_br"
+        guesser_nick = "guesser_guess_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        guesser_ws_path = await join_room_and_get_ws_url(test_client, room_code, guesser_nick)
+
+        received_guess_broadcast = False
+        guess_payload = {"airport_code": "BOS"}
+
+        try:
+            ws_url_http = host_ws_path.replace("ws://", "http://", 1)
+            async with aconnect_ws(ws_url_http, client=test_client) as host_ws:
+                # Consume initial messages on both sides
+                await host_ws.receive_json()  # stateSync
+                await host_ws.receive_json()  # playerJoined (guesser)
+                ws_url_http = guesser_ws_path.replace("ws://", "http://", 1)
+                async with aconnect_ws(ws_url_http, client=test_client) as guesser_ws:
+                    await guesser_ws.receive_json()  # stateSync
+                    logger.debug("Both clients connected and consumed initial messages.")
+
+                    # Guesser sends a guess message
+                    guess_msg = WSMessage(type="guess", payload=guess_payload)
+                    await guesser_ws.send_json(guess_msg.model_dump())
+                    logger.debug(f"Guesser {guesser_nick} sent guess: {guess_payload}")
+
+                    # Host should receive the delta broadcast
+                    try:
+                        host_broadcast_msg = await wait_for_message_type(host_ws, "delta", timeout=2.0)
+                        assert host_broadcast_msg.type == "delta"
+                        # Check the placeholder payload structure
+                        assert host_broadcast_msg.payload.get("guess_ack") == guess_payload
+                        assert host_broadcast_msg.payload.get("sender") == guesser_nick
+                        received_guess_broadcast = True
+                    except asyncio.TimeoutError:
+                        pytest.fail(
+                            f"Host did not receive delta broadcast for guess from {guesser_nick} "
+                            "within timeout."
+                        )
+
+                    # Guesser should NOT receive the broadcast back (excluded)
+                    await asyncio.sleep(0.5)
+
+                    # Leave
+                    await guesser_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+                    await host_ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+        except WebSocketDisconnect as e:
+            pytest.fail(f"WebSocket disconnected unexpectedly during guess broadcast test: {e}")
+        finally:
+            # Clean up redis keys
+>           await redis_client.redis.delete(f"room:{room_code}:meta")
+
+tests/backend/routes/test_websocket.py:401:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:611: in execute_command
+    conn = self.connection or await pool.get_connection(command_name, **options)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1064: in get_connection
+    await self.ensure_connection(connection)
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:1103: in ensure_connection
+    if await connection.can_read_destructive():
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:512: in can_read_destructive
+    return await self._parser.can_read_destructive()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:184: in can_read_destructive
+    return await self.read_from_socket()
+.venv/lib/python3.12/site-packages/redis/_parsers/hiredis.py:189: in read_from_socket
+    buffer = await self._stream.read(self._read_size)
+.venv/lib/python3.12/site-packages/fakeredis/aioredis.py:96: in read
+    return await self._socket.responses.get()  # type:ignore
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Queue at 0x106433a10 maxsize=0 tasks=25>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError: Cancelled by cancel scope 106433410
+
+/opt/homebrew/Cellar/python@3.12/3.12.9/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/queues.py:158: CancelledError
 =============================== warnings summary ===============================
 .venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: 10 warnings
   /Users/traviscole/projects/plane-game-v4/.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
@@ -547,9 +1086,12 @@ INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop 
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =========================== short test summary info ============================
-FAILED tests/backend/routes/test_websocket.py::test_websocket_connect_and_state_sync
-FAILED tests/backend/routes/test_websocket.py::test_websocket_ping_pong - Fai...
 FAILED tests/backend/routes/test_websocket.py::test_websocket_player_joined_broadcast
 FAILED tests/backend/routes/test_websocket.py::test_websocket_player_left_broadcast
 FAILED tests/backend/routes/test_websocket.py::test_websocket_guess_placeholder_broadcast
-=================== 5 failed, 6 passed, 10 warnings in 0.09s ===================
+ERROR tests/backend/routes/test_websocket.py::test_websocket_connect_and_state_sync
+ERROR tests/backend/routes/test_websocket.py::test_websocket_ping_pong - Runt...
+ERROR tests/backend/routes/test_websocket.py::test_websocket_player_joined_broadcast
+ERROR tests/backend/routes/test_websocket.py::test_websocket_player_left_broadcast
+ERROR tests/backend/routes/test_websocket.py::test_websocket_guess_placeholder_broadcast
+3 failed, 4 passed, 10 warnings, 5 errors in 47.36s

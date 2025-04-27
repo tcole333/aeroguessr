@@ -50,18 +50,18 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 - [x] 30. Send `stateSync` payload on connect (mock data).
 - [x] 31. Add heart‑beat ping/pong (10 s).
 - [x] 32. Write `ConnectionManager` util (broadcast, send_personal).
-- [ ] 33. Route `guess` message → echo back `delta` (placeholder).
-- [ ] 34. Integration test WS using `websockets` Py client.
+- [x] 33. Route `guess` message → echo back `delta` (placeholder).
+- [x] 34. Integration test WS using `websockets` Py client (updated to use a docker image with the live components to test).
 
 ## 5 Game Logic Core
 
-- [ ] 35. Implement Redis `room:{code}:players` helpers (join/leave/update).
-- [ ] 36. Implement host auto‑transfer timer using `asyncio.create_task`.
-- [ ] 37. Code round state machine (`waiting → active → done`).
-- [ ] 38. Add scoring module (exact + distance functions).
-- [ ] 39. Hook `selectPlane` + `startRound` messages to state machine.
-- [ ] 40. Emit `roundStart`, collect guesses, compute results, emit `roundResult`.
-- [ ] 41. Add disconnect handler → mark player offline, start 5 min grace timer.
+- [x] 35. Implement Redis `room:{code}:players` helpers (join/leave/update).
+- [x] 36. Implement host auto‑transfer timer using `asyncio.create_task`.
+- [x] 37. Code round state machine (`waiting → active → done`).
+- [x] 38. Add scoring module (exact + distance functions).
+- [x] 39. Hook `selectPlane` + `startRound` messages to state machine.
+- [x] 40. Emit `roundStart`, collect guesses, compute results, emit `roundResult`.
+- [x] 41. Add disconnect handler → mark player offline, start 5 min grace timer.
 
 ## 6 Plane Broadcast
 

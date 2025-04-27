@@ -104,21 +104,43 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`), parsing, enr
 
 Contains Pydantic models used for data validation, serialization, and defining the structure of data used within the API and potentially stored in Redis.
 
-**`core.py`**: Defines fundamental models like `Player` and `RoomMeta`.
-**`room.py`**: Defines schemas specific to room creation and management, such as `RoomCreateRequest` and `RoomCreateResponse`.
+**`core.py`**: Defines fundamental models like `Player`, `RoomMeta`, and `ScoringMode`.
+**`room.py`**: Defines schemas specific to room creation and management, such as `RoomCreateRequest`, `RoomCreateResponse`, `RoomJoinRequest`, and `RoomJoinResponse`.
+**`game.py`**: Defines schemas for game state, including `RoundStateEnum`, `RoundData`, `PlayerGuess`, and `RoundResultDetail`.
+**`ws.py`**: Defines the wrapper `WSMessage` model and specific payload schemas for each WebSocket message type (e.g., `PingPongPayload`, `GuessPayload`, `RoundStartPayload`, `RoundResultPayload`, `ErrorPayload`).
 
 ### Routes (`backend/routes/`)
 
 Contains FastAPI `APIRouter` instances, grouping related API endpoints.
 
-**`rooms.py`**: Handles endpoints related to game rooms.
+**`rooms.py`**: Handles REST endpoints and the primary WebSocket connection for game rooms.
 
-- `POST /api/v0/rooms`: Creates a new game room. Takes host nickname, mode, and timeout. Returns a unique room code and the WebSocket URL for the host.
-- `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room with a nickname. Returns a WebSocket URL.
+- REST Endpoints:
+  - `POST /api/v0/rooms`: Creates a new game room.
+  - `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room.
+- WebSocket Endpoint (`/ws/{room_code}/{nickname}`):
+  - Manages player connections using `ConnectionManager`.
+  - Handles incoming messages (`ping`, `guess`, `selectPlane`, `startRound`, `transferHost`, `claimHost`, `leave`).
+  - Implements the core game logic, including round state transitions (`WAITING_FOR_SELECTION` -> `ACCEPTING_GUESSES` -> `SHOWING_RESULTS`).
+  - Uses `room_service` and `scoring` service modules for managing state and calculating scores.
+  - Handles round timing via `asyncio` tasks.
+  - Implements host disconnect/transfer logic (2-min claim window, 5-min auto-transfer).
+  - Broadcasts game state updates and events (`stateSync`, `delta`, `roundStart`, `roundResult`, `playerJoined`, `playerLeft`, `newHost`) to clients.
 
-### Services (`backend/services/` - _to be added_)
+### Services (`backend/services/`)
 
-Intended to hold the core business logic, separating it from the API routing layer.
+Holds the core business logic, separated from the API routing layer.
+
+**`room_service.py`**:
+
+- Provides functions to interact with Redis for managing room and player state.
+- Includes helpers for getting/setting `RoomMeta`, `Player` data (within `room:{code}:players` HASH), and `RoundData`.
+- Functions like `get_player`, `add_player`, `update_player_status`, `update_player_score`, `get_all_players`, `remove_player`, `get_room_meta`, `set_room_meta`, `get_round_data`, `set_round_data`.
+
+**`scoring.py`**:
+
+- Contains functions for calculating player scores based on game mode.
+- Implements `calculate_exact_score` and `calculate_distance_score` (with placeholder distance calculation).
 
 ### Utils (`backend/utils/`)
 
@@ -129,12 +151,42 @@ Contains helper functions and classes used across the backend.
 - Connecting to Redis using a connection pool.
 - Setting/getting JSON serialized Pydantic models (`set_json`, `get_model`).
 - Setting/getting JSON serialized Pydantic models within Redis Hashes (`hset_model`, `hget_model`, `hgetall_models`).
+- Deleting fields from Hashes (`hdel`).
 - Setting key expiry (`expire`).
 - Checking key existence (`exists`).
 
 ## Testing (`tests/backend/`)
 
-_(Instructions for running backend tests will be added here)_
+The backend uses `pytest` for testing. Tests are categorized into:
+
+- **Unit Tests:** Test individual functions or classes in isolation, often using mocks or `fakeredis` (if Redis interaction is simple and can be faked). These can be run directly via `poetry run pytest tests/backend`. Filenames typically follow `test_*.py`.
+- **Integration Tests:** Test the interaction between different components, particularly those involving external services like Redis. These tests require a running Redis instance (provided by `infra/docker-compose.test.yml`) and are marked with `@pytest.mark.integration`. Filenames typically follow `test_*_integration.py`.
+
+To run **unit tests** locally:
+
+```bash
+poetry run pytest tests/backend -m "not integration"
+```
+
+To run **integration tests** (requires Docker):
+
+1. Ensure Docker is running.
+2. Use the Makefile target:
+   ```bash
+   make integration-test
+   ```
+   This command:
+   - Builds the necessary Docker images (`infra/Dockerfile.test`).
+   - Starts a dedicated Redis container (`redis-test`).
+   - Starts the backend container connected to `redis-test`.
+   - Executes `pytest -m integration` inside the backend container.
+   - Stops and removes the containers afterwards.
+
+To run **all** backend tests locally (unit tests using `fakeredis` where possible, integration tests will likely fail without the Docker setup):
+
+```bash
+poetry run pytest tests/backend
+```
 
 ## Running Locally
 

@@ -1,0 +1,35 @@
+version: "3.8"
+services:
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend-test:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.test
+    working_dir: /app
+    volumes:
+      - ..:/app
+    # Start the uvicorn server for API testing
+    command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      # Ensure backend connects to the test Redis instance
+      REDIS_URL: redis://redis-test:6379/0
+      # Provide necessary env vars for the running application
+      FLIGHTAWARE_API_KEY: "test-key"
+      OPENSKY_USERNAME: "test-user"
+      OPENSKY_PASSWORD: "test-pass"
+      FAKE_ADSB: "1"
+    depends_on:
+      redis-test:
+        condition: service_healthy
+    # Expose port for external tests to connect
+    ports:
+      - "8000:8000"

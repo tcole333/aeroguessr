@@ -19,13 +19,11 @@ WORKDIR /app
 # RUN pip install --no-cache-dir -r requirements.txt
 
 # Method 2: Using Poetry (preferred for this project based on task list)
-# Install poetry
-RUN pip install poetry
-# Copy only dependency files first for better caching
+# Install Poetry and project dependencies
 COPY pyproject.toml poetry.lock* ./
-# Install dependencies
-RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi --no-dev
-# Use --no-dev if you want to exclude development dependencies in the final image
+RUN pip install poetry \
+    && poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
 
 # --- Application Code ---
 

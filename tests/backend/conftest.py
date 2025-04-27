@@ -96,14 +96,18 @@ async def test_client() -> AsyncGenerator[AsyncClient, None]:
     loop_id = id(asyncio.get_running_loop())
     logger.info(f"[Fixture test_client] Creating AsyncClient. Loop ID: {loop_id}")
     # The redis_client fixture applies the override before this client is used
-    async with AsyncClient(
-        transport=ASGIWebSocketTransport(app=app), base_url="http://testserver"
-    ) as client:
-        logger.info(
-            f"[Fixture test_client] Yielding AsyncClient ID: {id(client)}. Loop ID: {loop_id}"
-        )
+    client = AsyncClient(transport=ASGIWebSocketTransport(app=app), base_url="http://testserver")
+    logger.info(f"[Fixture test_client] Yielding AsyncClient ID: {id(client)}. Loop ID: {loop_id}")
+    try:
         yield client
-    logger.info(f"[Fixture test_client] Closed AsyncClient. Loop ID: {loop_id}")
+    finally:
+        logger.info(
+            f"[Fixture test_client] Closing AsyncClient ID: {id(client)}. Loop ID: {loop_id}"
+        )
+        try:
+            await client.aclose()
+        except RuntimeError as e:
+            logger.warning(f"Error closing AsyncClient: {e}")
 
 
 # Remove AsyncClient fixture definition

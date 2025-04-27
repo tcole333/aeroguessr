@@ -1,0 +1,228 @@
+import logging
+import time
+from typing import Dict
+
+from backend.schemas.core import Player, RoomMeta
+from backend.schemas.game import RoundData
+from backend.utils.redis_async import RedisClient
+
+logger = logging.getLogger(__name__)
+
+
+async def get_player(redis: RedisClient, room_code: str, nickname: str) -> Player | None:
+    """Get a player from a room by nickname.
+
+    Args:
+        redis: Redis client instance
+        room_code: Room code to get player from
+        nickname: Player nickname to get
+
+    Returns:
+        Player object if found, None otherwise
+    """
+    players_key = f"room:{room_code}:players"
+    player_json = await redis.hget(players_key, nickname)
+
+    if not player_json:
+        return None
+
+    return Player.model_validate_json(player_json)
+
+
+async def add_player(redis: RedisClient, room_code: str, player: Player) -> Player:
+    """Add or update a player in a room.
+
+    Args:
+        redis: Redis client instance
+        room_code: Room code to add player to
+        player: Player object to add/update
+
+    Returns:
+        The added/updated Player object
+    """
+    players_key = f"room:{room_code}:players"
+    room_ttl = 3600  # 1 hour
+
+    # Store player data
+    await redis.hset(players_key, player.nickname, player.model_dump_json())
+    await redis.expire(players_key, room_ttl)
+    return player
+
+
+async def update_player_status(
+    redis: RedisClient, room_code: str, nickname: str, connected: bool
+) -> Player | None:
+    """Adds score_change to a player's score and returns the updated player."""
+    players_key = f"room:{room_code}:players"
+    player = await redis.hget_model(players_key, nickname, Player)
+    if player:
+        player.connected = connected
+        player.last_seen_ts = time.time()
+        try:
+            await redis.hset_model(players_key, nickname, player)
+            logger.debug(
+                f"Updated player '{nickname}' status in room '{room_code}' "
+                f"to connected={connected}."
+            )
+            return player
+        except Exception as e:
+            logger.error(
+                f"Failed to update status for player '{nickname}' in room " f"'{room_code}': {e}",
+                exc_info=True,
+            )
+            raise  # Re-raise to signal failure
+    else:
+        logger.warning(
+            f"Attempted to update status for non-existent player '{nickname}' "
+            f"in room '{room_code}'."
+        )
+        return None
+
+
+async def update_player_score(
+    redis: RedisClient, room_code: str, nickname: str, score_change: int
+) -> Player | None:
+    """Adds score_change to a player's score and returns the updated player."""
+    players_key = f"room:{room_code}:players"
+    player = await redis.hget_model(players_key, nickname, Player)
+    if player:
+        player.score += score_change
+        player.last_seen_ts = time.time()  # Update activity timestamp
+        try:
+            await redis.hset_model(players_key, nickname, player)
+            logger.info(
+                f"Updated player '{nickname}' score by {score_change} to "
+                f"{player.score} in room '{room_code}'."
+            )
+            return player
+        except Exception as e:
+            logger.error(
+                f"Failed to update score for player '{nickname}' in room " f"'{room_code}': {e}",
+                exc_info=True,
+            )
+            raise  # Re-raise
+    else:
+        logger.warning(
+            f"Attempted to update score for non-existent player '{nickname}' "
+            f"in room '{room_code}'."
+        )
+        return None
+
+
+async def get_all_players(redis: RedisClient, room_code: str) -> Dict[str, Player]:
+    """Get all players in a room.
+
+    Args:
+        redis: Redis client instance
+        room_code: Room code to get players from
+
+    Returns:
+        Dictionary of nickname -> Player for all players in room
+    """
+    players_key = f"room:{room_code}:players"
+    players_dict = await redis.hgetall(players_key)
+
+    return {nick: Player.model_validate_json(p_json) for nick, p_json in players_dict.items()}
+
+
+async def remove_player(redis: RedisClient, room_code: str, nickname: str) -> bool:
+    """Remove a player from the room's player hash. Returns True if deleted."""
+    players_key = f"room:{room_code}:players"
+    try:
+        deleted_count = await redis.hdel(players_key, nickname)
+        if deleted_count > 0:
+            logger.info(f"Removed player '{nickname}' from room '{room_code}'.")
+            return True
+        else:
+            logger.warning(
+                f"Attempted to remove non-existent player '{nickname}' from room '{room_code}'."
+            )
+            return False
+    except Exception as e:
+        logger.error(
+            f"Failed to remove player '{nickname}' from room '{room_code}': {e}",
+            exc_info=True,
+        )
+        raise  # Re-raise
+
+
+# --- Room Metadata Helpers --- #
+
+
+# TODO: Add functions for managing room metadata (get_room_meta, set_room_meta)
+# Example:
+async def get_room_meta(redis: RedisClient, room_code: str) -> RoomMeta | None:
+    """Retrieve the RoomMeta data for a given room code."""
+    meta_key = f"room:{room_code}:meta"
+    try:
+        return await redis.get_model(meta_key, RoomMeta)
+    except Exception as e:
+        logger.error(f"Failed to get or parse RoomMeta for room '{room_code}': {e}", exc_info=True)
+        raise  # Re-raise to indicate failure
+
+
+async def set_room_meta(redis: RedisClient, room_code: str, room_meta: RoomMeta) -> None:
+    """Set the RoomMeta data for a given room code, applying room TTL."""
+    meta_key = f"room:{room_code}:meta"
+    room_ttl_seconds = 3600  # Consider getting this from config
+    try:
+        await redis.set_json(meta_key, room_meta, expire_seconds=room_ttl_seconds)
+        logger.debug(f"Set RoomMeta for room '{room_code}'.")
+    except Exception as e:
+        logger.error(f"Failed to set RoomMeta for room '{room_code}': {e}", exc_info=True)
+        raise
+
+
+# --- Round Data Helpers --- #
+
+
+async def get_round_data(redis: RedisClient, room_code: str) -> RoundData | None:
+    """Retrieve the current round data for a room.
+
+    Returns RoundData or None if key doesn't exist.
+    If the key exists but fails to parse, raises an exception.
+    """
+    round_key = f"room:{room_code}:round"
+    try:
+        round_data = await redis.get_model(round_key, RoundData)
+        return round_data
+    except Exception as e:
+        logger.error(
+            f"Failed to get or parse round data for room '{room_code}': {e}", exc_info=True
+        )
+        # Depending on desired behavior, either return None or re-raise
+        # Returning None might mask parsing errors vs. non-existence
+        raise
+
+
+async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundData) -> None:
+    """Set the round data for a room, applying room TTL.
+
+    Overwrites existing round data.
+    """
+    round_key = f"room:{room_code}:round"
+    room_ttl_seconds = 3600  # Consider getting this from config or RoomMeta
+    try:
+        await redis.set_json(round_key, round_data, expire_seconds=room_ttl_seconds)
+        logger.debug(f"Set round data for room '{room_code}' to state {round_data.state}")
+    except Exception as e:
+        logger.error(f"Failed to set round data for room '{room_code}': {e}", exc_info=True)
+        raise
+
+
+async def initialize_round_data(redis: RedisClient, room_code: str) -> RoundData:
+    """Initializes round data if it doesn't exist, otherwise returns existing.
+
+    Useful when a room is created or game starts.
+    """
+    existing_data = await get_round_data(redis, room_code)
+    if existing_data:
+        return existing_data
+
+    logger.info(f"Initializing round data for room '{room_code}'.")
+    new_round_data = RoundData()  # Creates with default WAITING_FOR_SELECTION state
+    await set_round_data(redis, room_code, new_round_data)
+    return new_round_data
+
+
+# TODO: Add functions for managing round state (get_round_data, set_round_data)

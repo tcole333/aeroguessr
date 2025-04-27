@@ -206,6 +206,21 @@ class RedisClient:
                     # Skip this field
         return models
 
+    async def hdel(self, hash_key: str, *fields: str) -> int:
+        """Delete one or more fields from a Redis Hash.
+
+        Args:
+            hash_key: The key of the Redis Hash.
+            *fields: One or more fields to delete.
+
+        Returns:
+            The number of fields that were removed from the hash,
+            not including specified but non existing fields.
+        """
+        async with await self.get_connection() as conn:
+            # Ensure fields are passed correctly to the underlying client
+            return await conn.hdel(hash_key, *fields)
+
     async def exists(self, key: str) -> bool:
         """Check if a key exists in Redis."""
         async with await self.get_connection() as conn:

@@ -48,6 +48,10 @@ class ConnectionManager:
                 f"Attempted to disconnect non-existent player '{nickname}' from room '{room_code}'."
             )
 
+    def get_room_connections(self, room_code: str) -> Dict[str, WebSocket]:
+        """Returns the dictionary of connections for a specific room."""
+        return self.active_connections.get(room_code, {})
+
     async def send_personal_message(self, message: dict, websocket: WebSocket) -> None:
         """
         Sends a JSON message to a specific WebSocket connection.

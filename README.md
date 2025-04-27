@@ -59,10 +59,49 @@ _(Example usage snippets will be added as endpoints/messages are implemented)_
 
 ## 6. Common Tasks
 
-- **Start Development Servers:** _(Instructions to be added)_
-- **Run Tests:** _(Instructions to be added)_
-- **Set Up Environment Variables:** Copy `.env.example` to `.env` and populate required values (like `OPENSKY_USERNAME`, `OPENSKY_PASSWORD`).
-- **Update API Schema:** Run `make openapi` in the `backend/` directory after making API changes.
+### 6.1 Running Unit Tests
+
+```python
+poetry run tests/
+```
+
+### 6.2 Running Integration Tests
+
+#### Using the Makefile (Recommended)
+
+```bash
+make integration-test
+```
+
+This command will:
+
+1. Build and start the necessary test services (backend + Redis)
+2. Run integration tests (marked with `@pytest.mark.integration`)
+3. Tear down the test services automatically
+
+#### Manual Approach
+
+If you need more control, you can run the steps individually:
+
+1. Start the test services (backend + Redis):
+
+   ```bash
+   docker compose -f infra/docker-compose.test.yml up -d
+   ```
+
+2. Run integration tests (marked with `@pytest.mark.integration`):
+
+   ```bash
+   docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "cd /app && PYTHONPATH=/app poetry run pytest -q -m integration"
+   ```
+
+3. Tear down the test services:
+
+   ```bash
+   docker compose -f infra/docker-compose.test.yml down
+   ```
+
+Ensure Docker and `docker-compose` are installed.
 
 ## 7. FAQ & Gotchas
 

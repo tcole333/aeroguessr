@@ -1,12 +1,13 @@
 # Makefile
 
-.PHONY: help openapi
+.PHONY: help openapi integration-test
 
 # Default target: Show help
 help:
 	@echo "Available targets:"
 	@echo "  openapi    Generate OpenAPI specification (docs/api_openapi.yaml)"
 	@echo "  help       Show this help message"
+	@echo "  integration-test    Spin up test services and run integration tests"
 
 # Target to generate OpenAPI specification
 openapi:
@@ -15,3 +16,12 @@ openapi:
 	@echo "----------------------------------------"
 
 # Add other common targets like lint, test, build, etc. here later
+
+integration-test:
+	@echo "--- Building and starting integration test services ---"
+	@docker compose -f infra/docker-compose.test.yml build
+	@docker compose -f infra/docker-compose.test.yml up -d
+	@echo "--- Running integration tests ---"
+	@docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "cd /app && PYTHONPATH=/app poetry run pytest -q -m integration"
+	@echo "--- Tearing down integration test services ---"
+	@docker compose -f infra/docker-compose.test.yml down

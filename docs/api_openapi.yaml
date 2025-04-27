@@ -14,7 +14,11 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Read Root  Get
   /healthz:
     get:
       summary: Health Check
@@ -25,7 +29,11 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Check Healthz Get
   /api/v0/rooms:
     post:
       tags:
