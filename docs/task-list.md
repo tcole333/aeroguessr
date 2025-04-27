@@ -65,9 +65,9 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 
 ## 6 Plane Broadcast
 
-- [ ] 42. Create async task: every 1 s pull all `plane:*` keys; build `PlaneUpdate[]`.
-- [ ] 43. Diff against last sent, send `delta` with only changed planes.
-- [ ] 44. Compress payload >1 kB with `gzip` frame.
+- [x] 42. Create async task: every 1 s pull all `plane:*` keys; build `PlaneUpdate[]`.
+- [x] 43. Diff against last sent, send `delta` with only changed planes.
+- [Deferred] 44. Compress payload >1 kB with `gzip` frame.
 
 ## 7 Frontend Scaffold
 

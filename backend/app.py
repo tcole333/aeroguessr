@@ -1,19 +1,74 @@
 """Main FastAPI application for the Plane Guessing Game backend."""
 
-from typing import Dict
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Dict
 
 from fastapi import FastAPI, status
 
 from backend.routes import rooms  # Import the rooms router
-from backend.routes.rooms import websocket_endpoint  # noqa: E402, after import section
 
+# Explicitly import endpoint for add_api_websocket_route if needed, but router usually handles this.
+# from backend.routes.rooms import websocket_endpoint
+from backend.services.broadcast import broadcast_plane_updates
+from backend.utils.connection_manager import ConnectionManager
+from backend.utils.redis_async import RedisClient
+
+logger = logging.getLogger(__name__)
+
+# --- Global State / Dependencies --- #
+# Initialize outside lifespan for potential direct access if needed,
+# but manage connections within lifespan.
+# TODO: Review if global instances are the best approach vs. dependency injection.
+redis_client = RedisClient()  # Assumes RedisClient() handles connection setup internally or lazily
+connection_manager = ConnectionManager()  # Global manager for WebSocket connections
+
+
+# --- Application Lifespan Management --- #
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Handles application startup and shutdown events."""
+    logger.info("Application startup...")
+
+    # Connect Redis client (if it needs explicit connection)
+    # await redis_client.connect() # Example if needed
+
+    # Start background tasks
+    broadcast_task = asyncio.create_task(broadcast_plane_updates(redis_client, connection_manager))
+    logger.info("Broadcast task started.")
+
+    yield  # Application runs here
+
+    # --- Shutdown --- #
+    logger.info("Application shutdown...")
+
+    # Cancel background tasks
+    logger.info("Attempting to cancel broadcast task...")
+    broadcast_task.cancel()
+    try:
+        await broadcast_task
+        logger.info("Broadcast task cancelled successfully.")
+    except asyncio.CancelledError:
+        logger.info("Broadcast task already cancelled.")
+    except Exception as e:
+        logger.error(f"Error during broadcast task shutdown: {e}", exc_info=True)
+
+    # Disconnect Redis client (if it needs explicit disconnection)
+    # await redis_client.disconnect() # Example if needed
+    logger.info("Application shutdown complete.")
+
+
+# --- FastAPI App Initialization --- #
 app = FastAPI(
     title="Plane Guessing Game API",
     description="API for managing game rooms, players, and flight data.",
-    version="0.1.0",  # Corresponds to pyproject.toml version
+    version="0.1.0",
+    lifespan=lifespan,  # Register the lifespan context manager
 )
 
 
+# --- API Endpoints --- #
 @app.get("/")
 async def read_root() -> Dict[str, str]:
     """Root endpoint providing a basic welcome message."""
@@ -23,25 +78,25 @@ async def read_root() -> Dict[str, str]:
 @app.get("/healthz", status_code=status.HTTP_200_OK)
 async def health_check() -> Dict[str, str]:
     """Health check endpoint to verify service status."""
+    # TODO: Add checks for Redis connection?
     return {"status": "ok"}
 
 
-# Include routers
+# --- Routers & WebSocket --- #
 app.include_router(rooms.router)
 
+# Note: rooms.router already defines the WebSocket endpoint.
+# Explicitly adding it again with add_api_websocket_route might cause issues
+# unless the router's definition is removed or handled carefully.
+# Let's rely on the router inclusion for now.
+# app.add_api_websocket_route(
+#     path="/ws/{room_code}/{nickname}",
+#     endpoint=websocket_endpoint, # Make sure this is correctly imported/defined
+#     name="websocket_endpoint_root",
+# )
 
-# Register top-level WebSocket route per PRD (alias for rooms.websocket route)
-app.add_api_websocket_route(
-    path="/ws/{room_code}/{nickname}",
-    endpoint=websocket_endpoint,
-    name="websocket_endpoint_root",
-)
 
-
-# Further routers and configuration will be added here.
-
-
-# Optional: Add uvicorn entry point logic if desired for direct execution
+# --- Optional Direct Execution --- #
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)

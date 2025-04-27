@@ -249,6 +249,59 @@ class ErrorPayload(BaseModel):
         }
 
 
+# --- Delta Update Payload --- #
+# Import PlaneState here specifically for DeltaPayload
+# This might warrant restructuring if schemas grow significantly
+try:
+    from backend.ingest.main import PlaneState
+except ImportError:
+    PlaneState = Dict  # type: ignore
+
+
+class DeltaPayload(BaseModel):
+    """Payload for the server delta message, containing state changes."""
+
+    planes: Optional[Dict[str, List[PlaneState | str]]] = Field(
+        default=None,
+        description=(
+            "Changes in plane states. 'updated' contains full PlaneState objects, "
+            "'removed' contains hex IDs."
+        ),
+        # Example: { "updated": [PlaneState, ...], "removed": ["hex1", "hex2"] }
+    )
+    scores: Optional[Dict[str, int]] = Field(
+        default=None, description="Updated scores for players {nickname: new_total_score}."
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "planes": {
+                    "updated": [
+                        {
+                            "hex_ident": "a1b2c3",
+                            "lat": 42.36,
+                            "lon": -71.05,
+                            "alt": 5000,
+                            "lat_v": 0.01,
+                            "lon_v": -0.01,
+                            "alt_v": 10.0,
+                            "last_update_ts": time.time() * 1000,
+                            "trail": [[42.359, -71.049, 4990]],
+                            "callsign": "UAL123",
+                            "origin_country": "USA",
+                            "category": 2,
+                            "origin": "KBOS",
+                            "destination": "KJFK",
+                        }  # Example PlaneState
+                    ],
+                    "removed": ["d4e5f6"],
+                },
+                "scores": {"Player1": 250},
+            }
+        }
+
+
 # --- Wrapper Message --- #
 
 # Example of creating ping/pong messages:

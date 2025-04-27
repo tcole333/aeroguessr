@@ -416,20 +416,38 @@ components:
 
     DeltaPayload:
       type: object
-      description: Represents partial state updates.
+      description: Represents partial state updates for planes and scores.
       properties:
         planes:
-          type: object # Or array? Depends on format.
-          description: Updated plane data (structure TBD).
+          type: object
           nullable: true
+          description: Contains lists of updated plane states and removed plane hex IDs.
+          properties:
+            updated:
+              type: array
+              description: List of full PlaneState objects that are new or have changed.
+              items:
+                $ref: "#/components/schemas/PlaneState" # Reference the PlaneState model
+            removed:
+              type: array
+              description: List of hex_ident strings for planes that are no longer tracked.
+              items:
+                type: string
+                example: "a1b2c3"
+          required:
+            - updated
+            - removed
+          example:
+            updated:
+              - $ref: "#/components/schemas/PlaneState/example" # Reference example
+            removed: ["d4e5f6"]
         scores:
           type: object
+          nullable: true
           additionalProperties:
             type: integer
           description: "Updated scores for players {nickname: new_total_score}."
-          nullable: true
-      # Example:
-      # payload: { scores: { "Player1": 150, "Player2": 200 } }
+      # Example defined within the 'planes' property now
 
     RoundStartPayload:
       type: object
@@ -613,4 +631,94 @@ components:
         - current_total_score
       # Example omitted for brevity
 
-    # Add other models like PlaneState if needed for DeltaPayload
+    # Add PlaneState model definition for reference
+    PlaneState:
+      type: object
+      description: Represents the smoothed state of an aircraft.
+      properties:
+        hex_ident:
+          type: string
+          description: Aircraft ICAO hex identifier.
+        lat:
+          type: number
+          format: float
+          description: Smoothed latitude.
+        lon:
+          type: number
+          format: float
+          description: Smoothed longitude.
+        alt:
+          type: number
+          format: float
+          description: Smoothed altitude in feet.
+        lat_v:
+          type: number
+          format: float
+          description: Smoothed latitude velocity.
+        lon_v:
+          type: number
+          format: float
+          description: Smoothed longitude velocity.
+        alt_v:
+          type: number
+          format: float
+          description: Smoothed altitude velocity (fpm).
+        last_update_ts:
+          type: number
+          format: float # epoch seconds
+          description: Timestamp of the last update.
+        trail:
+          type: array
+          description: List of recent (lat, lon, alt) tuples, capped at 30.
+          items:
+            type: array
+            items:
+              type: number
+              format: float
+            minItems: 3
+            maxItems: 3
+        callsign:
+          type: string
+          nullable: true
+          description: Aircraft callsign (cached).
+        origin_country:
+          type: string
+          nullable: true
+          description: Origin country based on ICAO24 (cached).
+        category:
+          type: integer
+          nullable: true
+          description: Aircraft category code (cached).
+        origin:
+          type: string
+          nullable: true
+          description: Origin airport ICAO (cached).
+        destination:
+          type: string
+          nullable: true
+          description: Destination airport ICAO (cached).
+      required:
+        - hex_ident
+        - lat
+        - lon
+        - alt
+        - lat_v
+        - lon_v
+        - alt_v
+        - last_update_ts
+        - trail
+      example:
+        hex_ident: "a1b2c3"
+        lat: 42.3601
+        lon: -71.0589
+        alt: 5500.0
+        lat_v: 0.015
+        lon_v: -0.012
+        alt_v: 25.5
+        last_update_ts: 1678886405.5
+        trail: [[42.3590, -71.0577, 5475.0], [42.3595, -71.0583, 5487.5]]
+        callsign: "DAL456"
+        origin_country: "USA"
+        category: 2
+        origin: "KBOS"
+        destination: "KLGA"

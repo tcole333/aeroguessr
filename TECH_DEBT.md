@@ -31,3 +31,13 @@
 - **Code Ref:** `backend/routes/rooms.py#L498`
 
 ---
+
+## ⛳ Item: WebSocket Delta Message Compression
+
+- **Context:** The `backend/services/broadcast.py` background task sends `delta` WebSocket messages containing plane updates. Currently, these messages are sent as uncompressed JSON.
+- **Potential issues:** Large numbers of planes or frequent updates could lead to significant bandwidth usage, potentially exceeding the 5 kB/s target mentioned in the PRD for low-bandwidth environments (like a home Pi).
+- **Why accepted:** Implementing standard WebSocket compression (permessage-deflate) requires potentially switching WebSocket libraries or adding complex middleware, adding significant effort upfront. Monitoring actual payload sizes during testing is needed first.
+- **Next step:** Monitor the size of broadcasted delta messages during integration/load testing. If average or peak sizes exceed thresholds (e.g., >1-2KB consistently), investigate adding permessage-deflate compression, potentially using the `websockets` library directly instead of FastAPI's built-in handling, or exploring FastAPI/Starlette middleware options.
+- **Code Ref:** `backend/services/broadcast.py` (TODO comment within `broadcast_plane_updates` function)
+
+---
