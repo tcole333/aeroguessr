@@ -35,19 +35,19 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 
 ## 3 Backend API Skeleton
 
-- [ ] 21. Scaffold FastAPI app (`backend/app.py`) with uvicorn entry.
-- [ ] 22. Add Pydantic models: Plane, Player, RoomMeta.
-- [ ] 23. Implement health check `GET /healthz`.
-- [ ] 24. Create `rooms_router` with `POST /rooms` (in‑memory stub).
-- [ ] 25. Integrate Redis helpers for room meta.
-- [ ] 26. Add join endpoint and nickname uniqueness logic.
-- [ ] 27. Generate OpenAPI docs (`/docs`).
+- [x] 21. Scaffold FastAPI app (`backend/app.py`) with uvicorn entry.
+- [x] 22. Add Pydantic models: Plane, Player, RoomMeta.
+- [x] 23. Implement health check `GET /healthz`.
+- [x] 24. Create `rooms_router` with `POST /rooms` (in‑memory stub).
+- [x] 25. Integrate Redis helpers for room meta.
+- [x] 26. Add join endpoint and nickname uniqueness logic.
+- [x] 27. Generate OpenAPI docs (`/docs`).
 
 ## 4 WebSocket Gateway
 
-- [ ] 28. Install `fastapi-websocket` extras.
-- [ ] 29. Implement `/ws/{room}/{player}` handler skeleton.
-- [ ] 30. Send `stateSync` payload on connect (mock data).
+- [x] 28. Install `fastapi-websocket` extras.
+- [x] 29. Implement `/ws/{room}/{player}` handler skeleton.
+- [x] 30. Send `stateSync` payload on connect (mock data).
 - [ ] 31. Add heart‑beat ping/pong (10 s).
 - [ ] 32. Write `ConnectionManager` util (broadcast, send_personal).
 - [ ] 33. Route `guess` message → echo back `delta` (placeholder).

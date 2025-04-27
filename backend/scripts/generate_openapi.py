@@ -1,0 +1,44 @@
+import logging
+from pathlib import Path
+
+import yaml
+
+from backend.app import app  # Import the FastAPI app instance
+
+logger = logging.getLogger(__name__)
+
+
+def generate_openapi_spec() -> None:
+    """Generates the OpenAPI spec and writes it to docs/api_openapi.yaml."""
+
+    # Ensure the docs directory exists relative to the project root
+    project_root = Path(__file__).parent.parent.parent
+    output_dir = project_root / "docs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "api_openapi.yaml"
+
+    logger.info(f"Generating OpenAPI spec for '{app.title}' v{app.version}...")
+
+    # Get the OpenAPI schema as a dictionary
+    openapi_schema = app.openapi()
+
+    # Convert Python dictionary to YAML format
+    try:
+        yaml_schema = yaml.dump(openapi_schema, sort_keys=False, allow_unicode=True)
+    except Exception as e:
+        logger.error(f"Error converting schema to YAML: {e}")
+        return
+
+    # Write the YAML schema to the file
+    try:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(yaml_schema)
+        logger.info(f"✅ OpenAPI spec successfully written to: {output_path}")
+    except IOError as e:
+        logger.error(f"Error writing OpenAPI spec to file {output_path}: {e}")
+
+
+if __name__ == "__main__":
+    # Configure basic logging for script execution
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    generate_openapi_spec()

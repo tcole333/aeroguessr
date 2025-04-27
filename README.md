@@ -50,6 +50,9 @@ _(Note: Port mapping might vary based on `docker-compose.yml` configuration)_
 ## 5. Endpoints / Messages
 
 - **REST API:** Defined in [`docs/api_openapi.yaml`](docs/api_openapi.yaml) (Auto-generated via `make openapi`).
+  - `GET /healthz`: Basic health check.
+  - `POST /api/v0/rooms`: Creates a new game room.
+  - `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room.
 - **WebSocket Messages:** Defined in [`docs/ws_schema.yaml`](docs/ws_schema.yaml).
 
 _(Example usage snippets will be added as endpoints/messages are implemented)_

@@ -100,4 +100,59 @@ Handles the connection to the ADS-B data source (e.g., `dump1090`), parsing, enr
 - Handles connection errors and attempts reconnections.
 - Can be run directly (`python -m backend.ingest.main`) using environment variables for configuration.
 
-_(Further sections on Services, Routes, Schemas, Testing, Running Locally will be added here)_
+### Schemas (`backend/schemas/`)
+
+Contains Pydantic models used for data validation, serialization, and defining the structure of data used within the API and potentially stored in Redis.
+
+**`core.py`**: Defines fundamental models like `Player` and `RoomMeta`.
+**`room.py`**: Defines schemas specific to room creation and management, such as `RoomCreateRequest` and `RoomCreateResponse`.
+
+### Routes (`backend/routes/`)
+
+Contains FastAPI `APIRouter` instances, grouping related API endpoints.
+
+**`rooms.py`**: Handles endpoints related to game rooms.
+
+- `POST /api/v0/rooms`: Creates a new game room. Takes host nickname, mode, and timeout. Returns a unique room code and the WebSocket URL for the host.
+- `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room with a nickname. Returns a WebSocket URL.
+
+### Services (`backend/services/` - _to be added_)
+
+Intended to hold the core business logic, separating it from the API routing layer.
+
+### Utils (`backend/utils/`)
+
+Contains helper functions and classes used across the backend.
+
+**`redis_async.py`**: Provides the `RedisClient` class, a wrapper around `redis-py`'s async capabilities for common operations like:
+
+- Connecting to Redis using a connection pool.
+- Setting/getting JSON serialized Pydantic models (`set_json`, `get_model`).
+- Setting/getting JSON serialized Pydantic models within Redis Hashes (`hset_model`, `hget_model`, `hgetall_models`).
+- Setting key expiry (`expire`).
+- Checking key existence (`exists`).
+
+## Testing (`tests/backend/`)
+
+_(Instructions for running backend tests will be added here)_
+
+## Running Locally
+
+1.  Ensure you have Python 3.12+ and Poetry installed.
+2.  Create a `.env` file in the project root directory (copy `.env.example` and fill in values like `REDIS_URL`, `FLIGHTAWARE_API_KEY`, etc.).
+3.  Navigate to the project root directory in your terminal.
+4.  Install dependencies: `poetry install`
+5.  Start the FastAPI development server:
+
+    ```bash
+    poetry run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+    ```
+
+6.  Access the API docs at `http://localhost:8000/docs`.
+7.  To run the ingest service (requires a running Redis instance and ADS-B source configured in `.env`):
+
+    ```bash
+    poetry run python -m backend.ingest.main
+    ```
+
+_(Further sections on Services, Testing will be expanded)_
