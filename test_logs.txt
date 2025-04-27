@@ -1,0 +1,555 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.9, pytest-8.3.5, pluggy-1.5.0
+rootdir: /Users/traviscole/projects/plane-game-v4
+configfile: pytest.ini
+plugins: anyio-4.9.0, asyncio-0.26.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 11 items
+
+tests/backend/routes/test_rooms.py::test_create_room_success
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392393936
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392393216. Loop ID: 4392393936
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392393936
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392393936, FakeRedis ID: 4392390528
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392393936
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392390528. Loop ID: 4392393936
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392393936
+-------------------------------- live log call ---------------------------------
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392390528. Loop ID: 4392393936
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392393936
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392393936
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392393936
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392393936
+
+tests/backend/routes/test_rooms.py::test_join_room_success
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4391802384
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393888144. Loop ID: 4391802384
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4391802384
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4391802384, FakeRedis ID: 4393890208
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4391802384
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393890208. Loop ID: 4391802384
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4391802384
+-------------------------------- live log call ---------------------------------
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393890208. Loop ID: 4391802384
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393890208. Loop ID: 4391802384
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/WJPK/join "HTTP/1.1 200 OK"
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4391802384
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4391802384
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4391802384
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4391802384
+
+tests/backend/routes/test_rooms.py::test_join_room_not_found
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885888
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393886176. Loop ID: 4393885888
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885888
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885888, FakeRedis ID: 4393889152
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885888
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393889152. Loop ID: 4393885888
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885888
+-------------------------------- live log call ---------------------------------
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393889152. Loop ID: 4393885888
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/WXYZ/join "HTTP/1.1 404 Not Found"
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885888
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885888
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885888
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885888
+
+tests/backend/routes/test_rooms.py::test_join_room_nickname_conflict
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885360
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393885408. Loop ID: 4393885360
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885360
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885360, FakeRedis ID: 4393888144
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885360
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393888144. Loop ID: 4393885360
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885360
+-------------------------------- live log call ---------------------------------
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393888144. Loop ID: 4393885360
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393888144. Loop ID: 4393885360
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/SWZW/join "HTTP/1.1 409 Conflict"
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885360
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885360
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885360
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885360
+
+tests/backend/routes/test_websocket.py::test_websocket_connect_and_state_sync
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885216
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393880080. Loop ID: 4393885216
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885216
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885216, FakeRedis ID: 4393882480
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885216
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882480. Loop ID: 4393885216
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885216
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393880080, Loop ID: 4393885216
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882480. Loop ID: 4393885216
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: HCCS, Path: /ws/HCCS/host_sync, Client ID: 4393880080, Loop ID: 4393885216
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885216
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885216
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885216
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885216
+
+tests/backend/routes/test_websocket.py::test_websocket_ping_pong
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392402672
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392396816. Loop ID: 4392402672
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392402672
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392402672, FakeRedis ID: 4392397104
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392402672
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392397104. Loop ID: 4392402672
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392402672
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392396816, Loop ID: 4392402672
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392397104. Loop ID: 4392402672
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: MHSR, Path: /ws/MHSR/host_ping, Client ID: 4392396816, Loop ID: 4392402672
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392402672
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392402672
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392402672
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392402672
+
+tests/backend/routes/test_websocket.py::test_websocket_player_joined_broadcast
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392400800
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392395040. Loop ID: 4392400800
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392400800
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392400800, FakeRedis ID: 4394347568
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392400800
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392400800
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392395040, Loop ID: 4392400800
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RZEV, Path: /ws/RZEV/host_join_br, Client ID: 4392395040, Loop ID: 4392400800
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RZEV, Nick: joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RZEV/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RZEV/joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392400800
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392400800
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392400800
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392400800
+
+tests/backend/routes/test_websocket.py::test_websocket_player_left_broadcast
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393883248
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393882720. Loop ID: 4393883248
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393883248
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393883248, FakeRedis ID: 4393881904
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393883248
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393883248
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393882720, Loop ID: 4393883248
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: ONWI, Path: /ws/ONWI/host_left_br, Client ID: 4393882720, Loop ID: 4393883248
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: ONWI, Nick: leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/ONWI/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/ONWI/leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393883248
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393883248
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393883248
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393883248
+
+tests/backend/routes/test_websocket.py::test_websocket_reject_invalid_room
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4394349632
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4394347952. Loop ID: 4394349632
+-------------------------------- live log call ---------------------------------
+WARNING  test_websocket:test_websocket.py:275 Invalid room test raised <class 'AttributeError'> instead of WebSocketDisconnect
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4394349632
+
+tests/backend/routes/test_websocket.py::test_websocket_reject_invalid_player
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4394347616
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4394347232. Loop ID: 4394347616
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4394347616
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4394347616, FakeRedis ID: 4392131888
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4394347616
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392131888. Loop ID: 4394347616
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4394347616
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4394347232, Loop ID: 4394347616
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392131888. Loop ID: 4394347616
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RPPJ, Path: /ws/RPPJ/host_reject, Client ID: 4394347232, Loop ID: 4394347616
+WARNING  test_websocket:test_websocket.py:293 Invalid player test raised <class 'AttributeError'> instead of WebSocketDisconnect
+PASSED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4394347616
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4394347616
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4394347616
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4394347616
+
+tests/backend/routes/test_websocket.py::test_websocket_guess_placeholder_broadcast
+-------------------------------- live log setup --------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392130256
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393884832. Loop ID: 4392130256
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392130256
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392130256, FakeRedis ID: 4393882864
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392130256
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392130256
+-------------------------------- live log call ---------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393884832, Loop ID: 4392130256
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RGGZ, Path: /ws/RGGZ/host_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RGGZ, Nick: guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RGGZ/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RGGZ/guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392130256
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392130256
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392130256
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392130256
+
+
+=================================== FAILURES ===================================
+____________________ test_websocket_connect_and_state_sync _____________________
+
+test_client = <httpx.AsyncClient object at 0x105e54a10>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105e57650>
+
+    async def test_websocket_connect_and_state_sync(test_client: AsyncClient, redis_client: RedisClient):
+        """Verify WebSocket connection and initial stateSync message."""
+        host_nick = "host_sync"
+        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+
+        try:
+            # Use httpx.AsyncClient websocket context manager
+>           async with test_client.websocket(ws_path) as websocket:
+E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:70: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x105e54a10>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105e57650>
+
+    async def test_websocket_connect_and_state_sync(test_client: AsyncClient, redis_client: RedisClient):
+        """Verify WebSocket connection and initial stateSync message."""
+        host_nick = "host_sync"
+        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+
+        try:
+            # Use httpx.AsyncClient websocket context manager
+            async with test_client.websocket(ws_path) as websocket:
+                data = await websocket.receive_json()
+                message = WSMessage(**data)
+
+                assert message.type == "stateSync"
+                assert "payload" in data
+                state = FullRoomState(**message.payload)
+
+                assert state.room_meta is not None
+                assert state.room_meta.host_nickname == host_nick
+                assert state.players is not None
+                assert len(state.players) == 1
+                assert host_nick in state.players
+                assert state.players[host_nick].nickname == host_nick
+                assert state.players[host_nick].connected is True
+
+                # Verify player status in Redis (async)
+                player_key = f"room:{room_code}:players"
+                host_player = await redis_client.hget_model(player_key, host_nick, Player)
+                assert host_player is not None
+                assert host_player.connected is True
+
+        except WebSocketDisconnect as e: # httpx might raise this or its own exception
+            pytest.fail(f"WebSocket disconnected unexpectedly: {e.code} {e.reason}")
+        except Exception as e:
+>            pytest.fail(f"Unexpected error during WebSocket connection/sync: {e}")
+E            Failed: Unexpected error during WebSocket connection/sync: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:95: Failed
+------------------------------ Captured log setup ------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393885216
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393880080. Loop ID: 4393885216
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393885216
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393885216, FakeRedis ID: 4393882480
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393885216
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882480. Loop ID: 4393885216
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393885216
+------------------------------ Captured log call -------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393880080, Loop ID: 4393885216
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882480. Loop ID: 4393885216
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: HCCS, Path: /ws/HCCS/host_sync, Client ID: 4393880080, Loop ID: 4393885216
+---------------------------- Captured log teardown -----------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393885216
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393885216
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393885216
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393885216
+___________________________ test_websocket_ping_pong ___________________________
+
+test_client = <httpx.AsyncClient object at 0x105cea810>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb9b0>
+
+    async def test_websocket_ping_pong(test_client: AsyncClient, redis_client: RedisClient):
+        """Verify the server sends pings and responds to client pongs."""
+        host_nick = "host_ping"
+        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        ping_interval_s = 10
+        pong_timeout_s = 30
+        test_duration = ping_interval_s * 1.5
+
+        received_server_ping = False
+
+        try:
+            # Use httpx websocket context manager
+>           async with test_client.websocket(ws_path) as websocket:
+E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:112: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+test_client = <httpx.AsyncClient object at 0x105cea810>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb9b0>
+
+    async def test_websocket_ping_pong(test_client: AsyncClient, redis_client: RedisClient):
+        """Verify the server sends pings and responds to client pongs."""
+        host_nick = "host_ping"
+        room_code, ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        ping_interval_s = 10
+        pong_timeout_s = 30
+        test_duration = ping_interval_s * 1.5
+
+        received_server_ping = False
+
+        try:
+            # Use httpx websocket context manager
+            async with test_client.websocket(ws_path) as websocket:
+                # Consume initial stateSync
+                await websocket.receive_json()
+
+                start_time = time.time()
+                while time.time() - start_time < test_duration:
+                    try:
+                        data = await asyncio.wait_for(websocket.receive_json(), timeout=ping_interval_s * 0.6)
+                        message = WSMessage(**data)
+
+                        if message.type == "ping":
+                            received_server_ping = True
+                            ping_payload = PingPongPayload(**message.payload)
+                            pong_payload = PingPongPayload(seq=ping_payload.seq)
+                            pong_msg = WSMessage(type="pong", payload=pong_payload.model_dump())
+                            await websocket.send_json(pong_msg.model_dump())
+                            logger.debug(f"Client sent pong {ping_payload.seq}")
+
+                    except asyncio.TimeoutError:
+                        logger.debug("Receive timeout, continuing wait for ping...")
+                        pass
+                    except Exception as e:
+                        pytest.fail(f"WebSocket error during ping/pong receive loop: {e}")
+                        break
+
+                await asyncio.sleep(pong_timeout_s - test_duration + ping_interval_s * 0.5)
+
+                # Check liveness
+                final_ping_seq = 999
+                final_ping = WSMessage(type="ping", payload=PingPongPayload(seq=final_ping_seq).model_dump())
+                await websocket.send_json(final_ping.model_dump())
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=2.0)
+                final_pong = WSMessage(**data)
+                assert final_pong.type == "pong"
+                assert PingPongPayload(**final_pong.payload).seq == final_ping_seq
+
+            assert received_server_ping, "Did not receive any ping from the server."
+
+        except Exception as e:
+>           pytest.fail(f"WebSocket error during ping/pong test: {e}")
+E           Failed: WebSocket error during ping/pong test: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:151: Failed
+------------------------------ Captured log setup ------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392402672
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392396816. Loop ID: 4392402672
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392402672
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392402672, FakeRedis ID: 4392397104
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392402672
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4392397104. Loop ID: 4392402672
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392402672
+------------------------------ Captured log call -------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392396816, Loop ID: 4392402672
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4392397104. Loop ID: 4392402672
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: MHSR, Path: /ws/MHSR/host_ping, Client ID: 4392396816, Loop ID: 4392402672
+---------------------------- Captured log teardown -----------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392402672
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392402672
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392402672
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392402672
+____________________ test_websocket_player_joined_broadcast ____________________
+
+test_client = <httpx.AsyncClient object at 0x105cea120>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105ec7b60>
+
+    async def test_websocket_player_joined_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+        host_nick = "host_join_br"
+        joiner_nick = "joiner_join_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        joiner_ws_path = await join_room_and_get_ws_url(test_client, room_code, joiner_nick)
+
+        received_join_broadcast = False
+
+        try:
+            # Use httpx websocket context manager
+>           async with test_client.websocket(host_ws_path) as host_ws, \
+                       test_client.websocket(joiner_ws_path) as joiner_ws:
+E                      AttributeError: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:166: AttributeError
+------------------------------ Captured log setup ------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392400800
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4392395040. Loop ID: 4392400800
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392400800
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392400800, FakeRedis ID: 4394347568
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392400800
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392400800
+------------------------------ Captured log call -------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4392395040, Loop ID: 4392400800
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RZEV, Path: /ws/RZEV/host_join_br, Client ID: 4392395040, Loop ID: 4392400800
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RZEV, Nick: joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4394347568. Loop ID: 4392400800
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RZEV/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RZEV/joiner_join_br, Client ID: 4392395040, Loop ID: 4392400800
+---------------------------- Captured log teardown -----------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392400800
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392400800
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392400800
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392400800
+_____________________ test_websocket_player_left_broadcast _____________________
+
+test_client = <httpx.AsyncClient object at 0x105e55460>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105ee47a0>
+
+    async def test_websocket_player_left_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+        host_nick = "host_left_br"
+        leaver_nick = "leaver_left_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        leaver_ws_path = await join_room_and_get_ws_url(test_client, room_code, leaver_nick)
+
+        received_left_broadcast = False
+
+        try:
+            # Use httpx websocket context manager
+>           async with test_client.websocket(host_ws_path) as host_ws:
+E           AttributeError: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:216: AttributeError
+------------------------------ Captured log setup ------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4393883248
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393882720. Loop ID: 4393883248
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4393883248
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4393883248, FakeRedis ID: 4393881904
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4393883248
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4393883248
+------------------------------ Captured log call -------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393882720, Loop ID: 4393883248
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: ONWI, Path: /ws/ONWI/host_left_br, Client ID: 4393882720, Loop ID: 4393883248
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: ONWI, Nick: leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393881904. Loop ID: 4393883248
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/ONWI/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/ONWI/leaver_left_br, Client ID: 4393882720, Loop ID: 4393883248
+---------------------------- Captured log teardown -----------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4393883248
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4393883248
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4393883248
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4393883248
+__________________ test_websocket_guess_placeholder_broadcast __________________
+
+test_client = <httpx.AsyncClient object at 0x105e55ca0>
+redis_client = <backend.utils.redis_async.RedisClient object at 0x105ceb080>
+
+    async def test_websocket_guess_placeholder_broadcast(test_client: AsyncClient, redis_client: RedisClient):
+        """Verify that a guess message triggers a delta broadcast to others (placeholder)."""
+        host_nick = "host_guess_br"
+        guesser_nick = "guesser_guess_br"
+        room_code, host_ws_path = await create_room_and_get_ws_url(test_client, nickname=host_nick)
+        guesser_ws_path = await join_room_and_get_ws_url(test_client, room_code, guesser_nick)
+
+        received_guess_broadcast = False
+        guess_payload = {"airport_code": "BOS"}
+
+        try:
+            # Use httpx websocket context manager
+>           async with test_client.websocket(host_ws_path) as host_ws, \
+                       test_client.websocket(guesser_ws_path) as guesser_ws:
+E                      AttributeError: 'AsyncClient' object has no attribute 'websocket'
+
+tests/backend/routes/test_websocket.py:312: AttributeError
+------------------------------ Captured log setup ------------------------------
+INFO     conftest:conftest.py:81 [Fixture test_client] Creating AsyncClient. Loop ID: 4392130256
+INFO     conftest:conftest.py:84 [Fixture test_client] Yielding AsyncClient ID: 4393884832. Loop ID: 4392130256
+INFO     conftest:conftest.py:23 [Fixture fake_redis_instance] Creating FakeRedis. Loop ID: 4392130256
+INFO     conftest:conftest.py:39 [Fixture redis_client] START. Loop ID: 4392130256, FakeRedis ID: 4393882864
+INFO     conftest:conftest.py:50 [Fixture redis_client] Applying override. Loop ID: 4392130256
+INFO     conftest:conftest.py:56 [Fixture redis_client] Flushing FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     conftest:conftest.py:59 [Fixture redis_client] Yielding client wrapper. Loop ID: 4392130256
+------------------------------ Captured log call -------------------------------
+INFO     test_websocket:test_websocket.py:29 [Helper create_room_and_get_ws_url] START. Client ID: 4393884832, Loop ID: 4392130256
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms "HTTP/1.1 201 Created"
+INFO     test_websocket:test_websocket.py:39 [Helper create_room_and_get_ws_url] END. Code: RGGZ, Path: /ws/RGGZ/host_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+INFO     test_websocket:test_websocket.py:45 [Helper join_room_and_get_ws_url] START. Code: RGGZ, Nick: guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+INFO     conftest:conftest.py:46 [Dependency Override] get_redis_client called. Returning client wrapping FakeRedis ID: 4393882864. Loop ID: 4392130256
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v0/rooms/RGGZ/join "HTTP/1.1 200 OK"
+INFO     test_websocket:test_websocket.py:55 [Helper join_room_and_get_ws_url] END. Path: /ws/RGGZ/guesser_guess_br, Client ID: 4393884832, Loop ID: 4392130256
+---------------------------- Captured log teardown -----------------------------
+INFO     conftest:conftest.py:63 [Fixture redis_client] Restoring override. Loop ID: 4392130256
+INFO     conftest:conftest.py:69 [Fixture redis_client] END. Loop ID: 4392130256
+INFO     conftest:conftest.py:27 [Fixture fake_redis_instance] Closing FakeRedis. Loop ID: 4392130256
+INFO     conftest:conftest.py:86 [Fixture test_client] Closed AsyncClient. Loop ID: 4392130256
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: 10 warnings
+  /Users/traviscole/projects/plane-game-v4/.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/backend/routes/test_websocket.py::test_websocket_connect_and_state_sync
+FAILED tests/backend/routes/test_websocket.py::test_websocket_ping_pong - Fai...
+FAILED tests/backend/routes/test_websocket.py::test_websocket_player_joined_broadcast
+FAILED tests/backend/routes/test_websocket.py::test_websocket_player_left_broadcast
+FAILED tests/backend/routes/test_websocket.py::test_websocket_guess_placeholder_broadcast
+=================== 5 failed, 6 passed, 10 warnings in 0.09s ===================

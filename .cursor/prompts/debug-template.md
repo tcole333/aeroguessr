@@ -18,8 +18,4 @@
 
 ## Verification Steps
 
-- [ ] Added/updated failing test at `<path/to/test_*.py>`.
-- [ ] Ran `pre-commit run --all-files` locally – all green.
-- [ ] Confirmed `make sample-replay` passes (or relevant validation).
-
 > _Reminder_: Update or add docstring/README if behaviour changes.

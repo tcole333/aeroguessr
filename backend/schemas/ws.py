@@ -13,6 +13,17 @@ except ImportError:
     RoomMeta = Dict  # type: ignore
 
 
+class PingPongPayload(BaseModel):
+    """Payload for ping and pong messages."""
+
+    seq: int = Field(..., description="Sequence number for matching ping/pong.")
+
+    class Config:
+        """Pydantic configuration."""
+
+        json_schema_extra = {"example": {"seq": 12345}}
+
+
 # Define base structure for WS messages (as per PRD)
 class WSMessage(BaseModel):
     type: str = Field(..., description="The type of the WebSocket message.")
@@ -68,4 +79,34 @@ class FullRoomState(BaseModel):
         }
 
 
+# --- Payloads for Player Events --- #
+
+
+class PlayerJoinedPayload(BaseModel):
+    """Payload for the playerJoined message."""
+
+    nickname: str = Field(..., description="Nickname of the player who joined.")
+    # You might add the full Player object later if needed
+
+    class Config:
+        """Pydantic configuration."""
+
+        json_schema_extra = {"example": {"nickname": "NewPlayer123"}}
+
+
+class PlayerLeftPayload(BaseModel):
+    """Payload for the playerLeft message."""
+
+    nickname: str = Field(..., description="Nickname of the player who left.")
+
+    class Config:
+        """Pydantic configuration."""
+
+        json_schema_extra = {"example": {"nickname": "LeavingPlayer456"}}
+
+
 # We will add schemas for other WS message types here (e.g., delta, roundStart)
+
+# Example of creating ping/pong messages:
+# ping_msg = WSMessage(type="ping", payload=PingPongPayload(seq=1))
+# pong_msg = WSMessage(type="pong", payload=PingPongPayload(seq=1))

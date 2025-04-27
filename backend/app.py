@@ -5,6 +5,7 @@ from typing import Dict
 from fastapi import FastAPI, status
 
 from backend.routes import rooms  # Import the rooms router
+from backend.routes.rooms import websocket_endpoint  # noqa: E402, after import section
 
 app = FastAPI(
     title="Plane Guessing Game API",
@@ -27,6 +28,14 @@ async def health_check() -> Dict[str, str]:
 
 # Include routers
 app.include_router(rooms.router)
+
+
+# Register top-level WebSocket route per PRD (alias for rooms.websocket route)
+app.add_api_websocket_route(
+    path="/ws/{room_code}/{nickname}",
+    endpoint=websocket_endpoint,
+    name="websocket_endpoint_root",
+)
 
 
 # Further routers and configuration will be added here.

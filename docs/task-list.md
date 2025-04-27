@@ -48,8 +48,8 @@ _Granularity ≈ 10–15 min per task. Execute top‑to‑bottom; each step 
 - [x] 28. Install `fastapi-websocket` extras.
 - [x] 29. Implement `/ws/{room}/{player}` handler skeleton.
 - [x] 30. Send `stateSync` payload on connect (mock data).
-- [ ] 31. Add heart‑beat ping/pong (10 s).
-- [ ] 32. Write `ConnectionManager` util (broadcast, send_personal).
+- [x] 31. Add heart‑beat ping/pong (10 s).
+- [x] 32. Write `ConnectionManager` util (broadcast, send_personal).
 - [ ] 33. Route `guess` message → echo back `delta` (placeholder).
 - [ ] 34. Integration test WS using `websockets` Py client.
 
