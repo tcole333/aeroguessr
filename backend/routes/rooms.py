@@ -288,6 +288,9 @@ async def websocket_endpoint(
     # Player exists, proceed with connection using the manager
     await manager.connect(websocket, room_code, nickname)
 
+    # Track whether we've already broadcast a leave event for this connection
+    left_broadcasted: bool = False
+
     # Keep track of active background tasks for this connection
     background_tasks = set()
 
@@ -634,8 +637,7 @@ async def websocket_endpoint(
     pong_timeout_s = 30  # 3 missed pings at 10s interval
 
     async def _recv_loop(ws: WebSocket) -> None:
-        nonlocal last_pong_time
-        nonlocal current_round_timer_task
+        nonlocal last_pong_time, current_round_timer_task, left_broadcasted
         try:
             while True:
                 # In httpx-ws / ASGI test transports a close frame surfaces as
@@ -1022,8 +1024,19 @@ async def websocket_endpoint(
 
                 elif message.type == "leave":
                     logger.info(f"Leave received from {nickname}")
-                    # Graceful client-initiated disconnect – close socket and exit recv loop
-                    await ws.close(code=status.WS_1000_NORMAL_CLOSURE)
+                    # Broadcast leave immediately per PRD
+                    left_payload = PlayerLeftPayload(nickname=nickname)
+                    leave_msg = WSMessage(
+                        type="playerLeft",
+                        payload=left_payload.model_dump(),
+                        ts=int(time.time() * 1000),
+                    )
+                    await manager.broadcast(
+                        leave_msg.model_dump(), room_code, exclude_nickname=nickname
+                    )
+                    left_broadcasted = True
+                    # Graceful client-initiated disconnect
+                    await websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
                     break
                 # TODO: Add handlers for other message types (selectPlane, startRound, etc.)
 
@@ -1043,7 +1056,7 @@ async def websocket_endpoint(
                     logger.warning(
                         f"Player {nickname} not found during activity update, may disconnect."
                     )
-                    await ws.close(code=status.WS_1011_INTERNAL_ERROR)
+                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
                     break
 
         except WebSocketDisconnect:
@@ -1173,15 +1186,17 @@ async def websocket_endpoint(
                         f"Updated player {nickname} status to disconnected in Redis "
                         "during final cleanup."
                     )
-                    # Broadcast playerLeft only if the player was successfully marked
-                    # disconnected here
-                    player_left_payload = PlayerLeftPayload(nickname=nickname)
-                    left_message = WSMessage(type="playerLeft", payload=player_left_payload)
-                    await manager.broadcast(
-                        message=left_message.model_dump(exclude_none=True),
-                        room_code=room_code,
-                        exclude_nickname=nickname,  # Don't send to the player who just left
-                    )
+                    # Broadcast playerLeft only if not already broadcast
+                    if not left_broadcasted:
+                        player_left_payload = PlayerLeftPayload(nickname=nickname)
+                        left_message = WSMessage(
+                            type="playerLeft", payload=player_left_payload.model_dump()
+                        )
+                        await manager.broadcast(
+                            message=left_message.model_dump(exclude_none=True),
+                            room_code=room_code,
+                            exclude_nickname=nickname,
+                        )
                 else:
                     # This case might happen if Redis data was removed between check and
                     # update, or if update_player_status failed

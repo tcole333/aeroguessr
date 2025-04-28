@@ -36,7 +36,7 @@ The most significant gaps are in WebSocket testing:
 
 The following steps prioritize enabling and expanding WebSocket tests using the existing integration test (`make integration-test`) framework.
 
-- **Priority 1: Enable & Verify Basic WebSocket Tests**
+- **Priority 1: Enable & Verify Basic WebSocket Tests** -- COMPLETED
 
   1.  Remove `pytest.skip` from `tests/backend/routes/test_websocket.py`.
   2.  Run `make integration-test` and resolve any immediate failures in the previously disabled tests (connect/sync, ping/pong, join/leave broadcasts, invalid room/player rejection).
