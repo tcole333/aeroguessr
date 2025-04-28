@@ -27,6 +27,8 @@ services:
       OPENSKY_USERNAME: "test-user"
       OPENSKY_PASSWORD: "test-pass"
       FAKE_ADSB: "1"
+      PYTHONUNBUFFERED: 1
+      LOG_LEVEL: DEBUG
     depends_on:
       redis-test:
         condition: service_healthy

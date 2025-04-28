@@ -1,0 +1,56 @@
+infra-backend-test-1  | INFO:     Will watch for changes in these directories: ['/app']
+infra-backend-test-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+infra-backend-test-1  | INFO:     Started reloader process [1] using WatchFiles
+infra-backend-test-1  | /usr/local/lib/python3.12/site-packages/filterpy/common/helpers.py:367: SyntaxWarning: invalid escape sequence '\S'
+infra-backend-test-1  |   P = \Sum {A[i] B[i].T} for i in 0..N
+infra-backend-test-1  | 2025-04-27 23:28:37,659 - backend.utils.connection_manager - INFO - ConnectionManager initialized.
+infra-backend-test-1  | 2025-04-27 23:28:37,674 - backend.utils.connection_manager - INFO - ConnectionManager initialized.
+infra-backend-test-1  | INFO:     Started server process [11]
+infra-backend-test-1  | INFO:     Waiting for application startup.
+infra-backend-test-1  | 2025-04-27 23:28:37,682 - backend.app - INFO - Application startup...
+infra-backend-test-1  | 2025-04-27 23:28:37,682 - backend.app - INFO - Broadcast task started.
+infra-backend-test-1  | 2025-04-27 23:28:37,682 - backend.services.broadcast - INFO - Starting plane update broadcast task...
+infra-backend-test-1  | INFO:     Application startup complete.
+infra-backend-test-1  | INFO:     192.168.112.3:44552 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-04-27 23:28:46,865 - backend.utils.redis_async - INFO - Setting key room:BTTY:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_guess","created_ts":1745796526.865359}
+infra-backend-test-1  | INFO:     192.168.112.3:44556 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     192.168.112.3:44556 - "POST /api/v0/rooms/BTTY/join HTTP/1.1" 200 OK
+infra-backend-test-1  | INFO:     ('192.168.112.3', 44556) - "WebSocket /api/v0/rooms/ws/BTTY/host_guess" [accepted]
+infra-backend-test-1  | 2025-04-27 23:28:46,880 - backend.utils.connection_manager - INFO - Player 'host_guess' connected to room 'BTTY'.
+infra-backend-test-1  | INFO:     connection open
+infra-backend-test-1  | 2025-04-27 23:28:46,882 - backend.services.room_service - INFO - Initializing round data for room 'BTTY'.
+infra-backend-test-1  | 2025-04-27 23:28:46,882 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-04-27 23:28:46,882 - backend.utils.redis_async - INFO - Setting key room:BTTY:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-04-27 23:28:46,883 - backend.routes.rooms - INFO - Ensured round data exists for room BTTY. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | INFO:     ('192.168.112.3', 44564) - "WebSocket /api/v0/rooms/ws/BTTY/player_guess" [accepted]
+infra-backend-test-1  | 2025-04-27 23:28:46,895 - backend.utils.connection_manager - INFO - Player 'player_guess' connected to room 'BTTY'.
+infra-backend-test-1  | INFO:     connection open
+infra-backend-test-1  | 2025-04-27 23:28:46,896 - backend.routes.rooms - INFO - Ensured round data exists for room BTTY. Current state: waiting_for_selection
+infra-backend-test-1  | 2025-04-27 23:28:46,899 - backend.routes.rooms - DEBUG - Received WS message from host_guess: selectPlane
+infra-backend-test-1  | 2025-04-27 23:28:46,900 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-04-27 23:28:46,900 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-04-27 23:28:46,900 - backend.utils.redis_async - INFO - Setting key room:BTTY:round with data {"state":"waiting_for_selection","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-04-27 23:28:46,900 - backend.routes.rooms - INFO - Host host_guess selected plane a7b8c9 for room BTTY. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-04-27 23:28:47,000 - backend.routes.rooms - DEBUG - Received WS message from host_guess: startRound
+infra-backend-test-1  | 2025-04-27 23:28:47,001 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745796527.001323 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-04-27 23:28:47,001 - backend.utils.redis_async - INFO - Setting key room:BTTY:round with data {"state":"accepting_guesses","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745796527.001323,"guesses":{},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-04-27 23:28:47,002 - backend.routes.rooms - INFO - Host host_guess started round 1 for plane a7b8c9 in room BTTY.
+infra-backend-test-1  | 2025-04-27 23:28:47,002 - backend.routes.rooms - INFO - Starting round timer for 10s in room BTTY.
+infra-backend-test-1  | 2025-04-27 23:28:47,004 - backend.routes.rooms - DEBUG - Received WS message from player_guess: guess
+infra-backend-test-1  | 2025-04-27 23:28:47,004 - backend.routes.rooms - INFO - Guess received from player_guess: {'airport_code': 'LHR'}
+infra-backend-test-1  | 2025-04-27 23:28:47,721 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for player_guess
+infra-backend-test-1  | 2025-04-27 23:28:47,722 - backend.utils.connection_manager - INFO - Player 'player_guess' disconnected from room 'BTTY'.
+infra-backend-test-1  | 2025-04-27 23:28:47,722 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for player_guess in room BTTY
+infra-backend-test-1  | 2025-04-27 23:28:47,722 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for player_guess.
+infra-backend-test-1  | 2025-04-27 23:28:47,722 - backend.routes.rooms - INFO - Pinger task cancelled for player_guess
+infra-backend-test-1  | 2025-04-27 23:28:47,723 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for player_guess.
+infra-backend-test-1  | 2025-04-27 23:28:47,723 - backend.routes.rooms - DEBUG - Player player_guess already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | INFO:     connection closed
+infra-backend-test-1  | 2025-04-27 23:28:47,724 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_guess
+infra-backend-test-1  | 2025-04-27 23:28:47,724 - backend.utils.connection_manager - INFO - Player 'host_guess' disconnected from room 'BTTY'.
+infra-backend-test-1  | 2025-04-27 23:28:47,724 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_guess in room BTTY
+infra-backend-test-1  | 2025-04-27 23:28:47,724 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_guess.
+infra-backend-test-1  | 2025-04-27 23:28:47,725 - backend.routes.rooms - INFO - Pinger task cancelled for host_guess
+infra-backend-test-1  | 2025-04-27 23:28:47,725 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_guess.
+infra-backend-test-1  | 2025-04-27 23:28:47,725 - backend.routes.rooms - DEBUG - Player host_guess already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | INFO:     connection closed

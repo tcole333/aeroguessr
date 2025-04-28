@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import json
 import logging
 import random
@@ -19,7 +18,6 @@ from fastapi import (
 from pydantic import ValidationError
 from starlette.websockets import WebSocketState
 
-from backend.ingest.main import PlaneState
 from backend.schemas.core import Player, RoomMeta, ScoringMode
 from backend.schemas.game import PlayerGuess, RoundResultDetail, RoundStateEnum
 from backend.schemas.room import (
@@ -38,6 +36,7 @@ from backend.schemas.ws import (
     PlayerJoinedPayload,
     PlayerLeftPayload,
     RoundResultPayload,
+    RoundStartPayload,
     SelectPlanePayload,
     TransferHostPayload,
     WSMessage,
@@ -47,6 +46,10 @@ from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
+
+# <<< TEMPORARY DEBUGGING >>>
+logger.setLevel(logging.DEBUG)
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 # Dependency function to get Redis client
@@ -664,282 +667,134 @@ async def websocket_endpoint(
                         ).model_dump(),
                         ws,
                     )
-                elif message.type == "guess":
-                    logger.info(f"Guess received from {nickname}: {message.payload}")
-                    # TODO: Process guess (placeholder)
-                    # Example: Broadcast delta back (temporary)
-                    delta_msg = WSMessage(
-                        type="delta",
-                        payload={"guess_ack": message.payload, "sender": nickname},
-                        ts=int(time.time() * 1000),
-                    )
-                    await manager.broadcast(
-                        delta_msg.model_dump(), room_code, exclude_nickname=nickname
-                    )
-
                 # --- Host Actions --- #
                 elif message.type == "selectPlane":
                     if nickname != room_meta.host_nickname:
-                        logger.warning(f"Player {nickname} (not host) tried to select plane.")
                         await _send_error("NOT_HOST", "Only the host can select a plane.")
-                        continue  # Ignore
-
-                    try:
-                        payload = SelectPlanePayload(**message.payload)
-                        current_round_data = await room_service.get_round_data(
-                            redis_client, room_code
-                        )
-                        if (
-                            not current_round_data
-                            or current_round_data.state != RoundStateEnum.WAITING_FOR_SELECTION
-                        ):
-                            logger.warning(
-                                (
-                                    f"Host {nickname} tried to select plane in wrong state: "
-                                    f"{current_round_data.state if current_round_data else 'N/A'}"
-                                )
-                            )
-                            await _send_error(
-                                "INVALID_STATE",
-                                "Can only select plane when waiting for selection.",
-                            )
-                            continue
-
-                        # --- Fetch and Validate Plane Data --- #
-                        plane_key = f"plane:{payload.hex}"
-                        plane_data_dict = await redis_client.get_json(plane_key)
-                        if not plane_data_dict:
-                            logger.warning(
-                                (
-                                    f"Host {nickname} selected non-existent plane hex "
-                                    f"{payload.hex}."
-                                )
-                            )
-                            await _send_error(
-                                "PLANE_NOT_FOUND", f"Aircraft {payload.hex} not found."
-                            )
-                            continue
-
-                        try:
-                            selected_plane = PlaneState(**plane_data_dict)
-                        except ValidationError as e:
-                            logger.error(
-                                (
-                                    f"Failed to parse PlaneState for {payload.hex} from Redis: "
-                                    f"{e}"
-                                )
-                            )
-                            await _send_error("INTERNAL_ERROR", "Failed to load plane data.")
-                            continue
-
-                        # TODO: Make LOCAL_AIRPORT_CODE configurable (e.g., via env var)
-                        LOCAL_AIRPORT_CODE = "BOS"
-
-                        if not selected_plane.origin or not selected_plane.destination:
-                            logger.warning(
-                                (
-                                    f"Host {nickname} selected plane {payload.hex} "
-                                    "missing origin/destination data."
-                                )
-                            )
-                            await _send_error(
-                                "PLANE_DATA_MISSING",
-                                f"Aircraft {payload.hex} is missing route data.",
-                            )
-                            continue
-
-                        # --- Determine Guess Direction and Correct Answer --- #
-                        origin_code = selected_plane.origin.upper()
-                        dest_code = selected_plane.destination.upper()
-                        local_code = LOCAL_AIRPORT_CODE.upper()
-
-                        if dest_code == local_code and origin_code != local_code:
-                            # Arriving flight -> Guess Origin
-                            direction_to_guess = "origin"
-                            correct_answer = selected_plane.origin
-                        elif origin_code == local_code and dest_code != local_code:
-                            # Departing flight -> Guess Destination
-                            direction_to_guess = "destination"
-                            correct_answer = selected_plane.destination
-                        else:
-                            # Neither origin nor destination is local (or both are? Unlikely)
-                            logger.warning(
-                                (
-                                    f"Host {nickname} selected plane {payload.hex} that is not "
-                                    f"arriving/departing locally (O:{origin_code}, D:{dest_code}, "
-                                    f"Local:{local_code}). Cannot start round."
-                                )
-                            )
-                            await _send_error(
-                                "INVALID_FLIGHT_LEG",
-                                (
-                                    f"Cannot start round for {payload.hex}. Select a flight "
-                                    f"arriving at or departing from {LOCAL_AIRPORT_CODE}."
-                                ),
-                            )
-                            continue
-
-                        # --- Update Round Data --- #
-                        current_round_data.selected_plane_hex = (
-                            selected_plane.hex_ident
-                        )  # Use validated hex
-                        current_round_data.correct_airport_code = correct_answer
-                        current_round_data.guess_direction = direction_to_guess
-
-                        await room_service.set_round_data(
-                            redis_client, room_code, current_round_data
-                        )
-                        logger.info(
-                            (
-                                f"Host {nickname} selected plane {selected_plane.hex_ident} for "
-                                f"room {room_code}. Players will guess: {direction_to_guess} "
-                                f"({correct_answer})."
-                            )
-                        )
-                        # Send message back to host confirming selection?
-                        confirm_payload = {
-                            "hex": selected_plane.hex_ident,
-                            "origin": selected_plane.origin,
-                            "destination": selected_plane.destination,
-                            "guess_direction": direction_to_guess,
-                        }
-                        # Need to define this schema in ws.py
-                        confirm_msg = WSMessage(
-                            type="planeSelectedConfirm", payload=confirm_payload
-                        )
-                        await manager.send_personal_message(confirm_msg.model_dump(), ws)
-
-                    except ValidationError as e:
-                        logger.warning(f"Invalid selectPlane payload from {nickname}: {e}")
-                        await _send_error("INVALID_PAYLOAD", f"Invalid message format: {e}")
-                    except Exception as e:
-                        logger.error(
-                            f"Error processing selectPlane from {nickname}: {e}", exc_info=True
-                        )
-                        await _send_error("INTERNAL_ERROR", "An unexpected error occurred.")
-
-                elif message.type == "startRound":
-                    if nickname != room_meta.host_nickname:
-                        logger.warning(f"Player {nickname} (not host) tried to start round.")
-                        await _send_error("NOT_HOST", "Only the host can start a round.")
                         continue
 
                     try:
-                        # Optional: payload = StartRoundPayload(**message.payload)
-                        current_round_data = await room_service.get_round_data(
-                            redis_client, room_code
-                        )
-                        if (
-                            not current_round_data
-                            or current_round_data.state != RoundStateEnum.WAITING_FOR_SELECTION
-                        ):
-                            logger.warning(
-                                (
-                                    f"Host {nickname} tried to start round in wrong state: "
-                                    f"{current_round_data.state if current_round_data else 'N/A'}"
-                                )
-                            )
-                            await _send_error(
-                                "INVALID_STATE",
-                                "Can only start round when waiting for selection.",
-                            )
-                            continue
-                        if not current_round_data.selected_plane_hex:
-                            logger.warning(
-                                (
-                                    f"Host {nickname} tried to start round without selecting "
-                                    "plane."
-                                )
-                            )
-                            await _send_error("PLANE_NOT_SELECTED", "Please select a plane first.")
-                            continue
+                        payload = SelectPlanePayload(**message.payload)
+                        plane_hex = payload.hex
+                    except ValidationError as e:
+                        await _send_error("INVALID_PAYLOAD", f"Invalid selectPlane payload: {e}")
+                        continue
 
-                        # Transition state
-                        current_round_data.state = RoundStateEnum.ACCEPTING_GUESSES
-                        current_round_data.round_start_time = time.time()
-                        current_round_data.guesses = {}  # Clear previous guesses
-                        current_round_data.results = None  # Clear previous results
-                        current_round_data.round_number += 1
-
-                        await room_service.set_round_data(
-                            redis_client, room_code, current_round_data
-                        )
-
-                        # Broadcast roundStart message
-                        round_start_payload = {
-                            "hex": current_round_data.selected_plane_hex,
-                            "timeout_s": room_meta.round_timeout_seconds,
-                            "direction": current_round_data.guess_direction,
-                            "round_number": current_round_data.round_number,
-                        }
-                        round_start_message = WSMessage(
-                            type="roundStart",
-                            payload=round_start_payload,
-                            ts=int(time.time() * 1000),
-                        )
-                        await manager.broadcast(round_start_message.model_dump(), room_code)
-                        logger.info(
-                            (
-                                f"Host {nickname} started round {current_round_data.round_number} "
-                                f"for plane {current_round_data.selected_plane_hex} in room "
-                                f"{room_code}."
-                            )
-                        )
-
-                        # Start timer task to end round
-                        if current_round_timer_task and not current_round_timer_task.done():
-                            current_round_timer_task.cancel()  # Cancel previous timer if any
-
-                        timer_duration = room_meta.round_timeout_seconds
-                        logger.info(
-                            (f"Starting round timer for {timer_duration}s in room " f"{room_code}.")
-                        )
-                        current_round_timer_task = asyncio.create_task(
-                            asyncio.sleep(timer_duration, result="timer_expired"),
-                            name=f"round_timer_{room_code}_{current_round_data.round_number}",
-                        )
-                        background_tasks.add(current_round_timer_task)
-                        current_round_timer_task.add_done_callback(background_tasks.discard)
-
-                        # Add callback to handle timer completion or cancellation
-                        def _timer_done_callback(task: asyncio.Task) -> None:
-                            nonlocal current_round_timer_task
-                            try:
-                                result = task.result()
-                                if result == "timer_expired":
-                                    logger.info(
-                                        (
-                                            f"Round timer expired for room {room_code}. "
-                                            "Ending round."
-                                        )
-                                    )
-                                    # Use call_soon_threadsafe or ensure _end_round is awaitable
-                                    # from here?
-                                    # Creating a new task is safer to avoid blocking the callback.
-                                    end_task = asyncio.create_task(_end_round(initiator="timer"))
-                                    background_tasks.add(end_task)
-                                    end_task.add_done_callback(background_tasks.discard)
-                            except asyncio.CancelledError:
-                                logger.info((f"Round timer task cancelled for room {room_code}."))
-                            except Exception as exc:
-                                logger.error(
-                                    (
-                                        f"Exception in round timer callback for {room_code}: "
-                                        f"{exc}"
-                                    )
-                                )
-                            finally:
-                                # Clear reference if this was the active timer task
-                                if current_round_timer_task is task:
-                                    current_round_timer_task = None
-
-                        current_round_timer_task.add_done_callback(_timer_done_callback)
-
-                    except Exception as e:
-                        logger.error((f"Error processing startRound from {nickname}: {e}"))
+                    current_round_data = await room_service.get_round_data(redis_client, room_code)
+                    if not current_round_data:
                         await _send_error(
-                            "INTERNAL_ERROR", "An unexpected error occurred starting the round."
+                            "ROUND_DATA_MISSING", "Internal error: Round data not found."
                         )
+                        continue  # Or raise?
+                    if current_round_data.state != RoundStateEnum.WAITING_FOR_SELECTION:
+                        await _send_error(
+                            "INVALID_STATE",
+                            f"Cannot select plane, current round state is "
+                            f"{current_round_data.state}.",
+                        )
+                        continue
+
+                    # --- Fetch Plane Data (Placeholder Implementation) --- #
+                    # TODO: Replace placeholder with actual plane data lookup and origin/dest logic
+                    #       Requires PlaneState schema and potentially flight phase analysis.
+                    plane_key = f"plane:{plane_hex}"
+                    if not await redis_client.exists(plane_key):
+                        await _send_error(
+                            "PLANE_NOT_FOUND",
+                            f"Selected plane {plane_hex} not found in tracking data.",
+                        )
+                        continue
+
+                    # Placeholder logic from TECH_DEBT.md
+                    correct_airport_code = "BOS"  # Hardcoded
+                    guess_direction = "destination"  # Hardcoded
+                    logger.warning(
+                        f"Using placeholder logic for selectPlane: "
+                        f"Correct={correct_airport_code}, Dir={guess_direction}"
+                    )
+                    # ---------------------------------------------------- #
+
+                    current_round_data.selected_plane_hex = plane_hex
+                    current_round_data.correct_airport_code = correct_airport_code
+                    current_round_data.guess_direction = guess_direction
+                    # Keep state as WAITING_FOR_SELECTION until startRound
+                    # current_round_data.state = RoundStateEnum.PLANE_SELECTED # Add if needed
+
+                    await room_service.set_round_data(redis_client, room_code, current_round_data)
+                    logger.info(
+                        f"Host {nickname} selected plane {plane_hex} for room {room_code}. "
+                        f"Correct: {correct_airport_code}, Direction: {guess_direction}."
+                    )
+                    # Optional: Send confirmation back to host?
+                    # confirm_payload = PlaneSelectedConfirmPayload(...)
+                    # await manager.send_personal_message(...)
+
+                elif message.type == "startRound":
+                    if nickname != room_meta.host_nickname:
+                        await _send_error("NOT_HOST", "Only the host can start a round.")
+                        continue
+
+                    current_round_data = await room_service.get_round_data(redis_client, room_code)
+                    # Verify state and that a plane is selected
+                    if not current_round_data:
+                        await _send_error(
+                            "ROUND_DATA_MISSING", "Internal error: Round data not found."
+                        )
+                        continue
+                    if current_round_data.state != RoundStateEnum.WAITING_FOR_SELECTION:
+                        await _send_error(
+                            "INVALID_STATE",
+                            f"Cannot start round, current state is {current_round_data.state}.",
+                        )
+                        continue
+                    if not current_round_data.selected_plane_hex:
+                        await _send_error("PLANE_NOT_SELECTED", "A plane must be selected first.")
+                        continue
+
+                    # --- Update Round State --- #
+                    current_round_data.state = RoundStateEnum.ACCEPTING_GUESSES
+                    current_round_data.round_start_time = time.time()
+                    current_round_data.guesses = {}  # Clear previous guesses
+                    current_round_data.results = None  # Clear previous results
+                    current_round_data.round_number += 1  # Increment round number
+
+                    await room_service.set_round_data(redis_client, room_code, current_round_data)
+                    logger.info(
+                        f"Host {nickname} started round {current_round_data.round_number} "
+                        f"for plane {current_round_data.selected_plane_hex} in room {room_code}."
+                    )
+
+                    # --- Broadcast roundStart --- #
+                    round_start_payload = RoundStartPayload(
+                        hex=current_round_data.selected_plane_hex,
+                        timeout_s=room_meta.round_timeout_seconds,
+                        direction=current_round_data.guess_direction,
+                        round_number=current_round_data.round_number,
+                    )
+                    round_start_message = WSMessage(
+                        type="roundStart", payload=round_start_payload.model_dump()
+                    )
+                    await manager.broadcast(round_start_message.model_dump(), room_code)
+
+                    # --- Start Round Timer --- #
+                    # Cancel existing timer if any (e.g., from a previous partial round)
+                    if current_round_timer_task and not current_round_timer_task.done():
+                        current_round_timer_task.cancel()
+
+                    timer_duration = room_meta.round_timeout_seconds
+                    logger.info(f"Starting round timer for {timer_duration}s in room {room_code}.")
+
+                    async def _round_timer_ends(timer_duration: int) -> None:
+                        await asyncio.sleep(timer_duration)
+                        logger.info(f"Round timer expired for room {room_code}. Ending round.")
+                        await _end_round(initiator="timer")
+
+                    current_round_timer_task = asyncio.create_task(
+                        _round_timer_ends(timer_duration)
+                    )
+                    background_tasks.add(current_round_timer_task)
+                    # Callback to remove task from set when done/cancelled
+                    current_round_timer_task.add_done_callback(background_tasks.discard)
 
                 elif message.type == "transferHost":
                     if nickname != room_meta.host_nickname:
@@ -1066,19 +921,24 @@ async def websocket_endpoint(
                 elif message.type == "guess":
                     try:
                         payload = GuessPayload(**message.payload)
+                        # <<< ADD Log before get >>>
+                        logger.info(f"[HANDLER DEBUG] Attempting to get round data for {room_code}")
                         current_round_data = await room_service.get_round_data(
                             redis_client, room_code
+                        )
+                        # <<< ADD Log after get >>>
+                        logger.info(
+                            f"[HANDLER DEBUG] Got round data for {room_code}: {current_round_data}"
                         )
 
                         if (
                             not current_round_data
                             or current_round_data.state != RoundStateEnum.ACCEPTING_GUESSES
                         ):
+                            # <<< ADD Log before state error >>>
                             logger.warning(
-                                (
-                                    f"Player {nickname} guessed '{payload.airport_code}' "
-                                    "outside guessing phase."
-                                )
+                                f"[HANDLER DEBUG] Guess rejected for {nickname}. Current state: "
+                                f"{current_round_data.state if current_round_data else 'None'}"
                             )
                             await _send_error(
                                 "GUESS_OUTSIDE_ROUND",
@@ -1086,12 +946,6 @@ async def websocket_endpoint(
                             )
                             continue
                         if nickname in current_round_data.guesses:
-                            logger.warning(
-                                (
-                                    f"Player {nickname} submitted duplicate guess "
-                                    f"'{payload.airport_code}'."
-                                )
-                            )
                             await _send_error(
                                 "DUPLICATE_GUESS",
                                 "You have already submitted a guess for this round.",
@@ -1101,14 +955,34 @@ async def websocket_endpoint(
                         # Store the guess
                         new_guess = PlayerGuess(nickname=nickname, guess=payload.airport_code)
                         current_round_data.guesses[nickname] = new_guess
-                        await room_service.set_round_data(
+
+                        logger.info(
+                            f"[HANDLER DEBUG] About to call set_round_data for {nickname}. "
+                            f"Guesses in object: {current_round_data.guesses}"
+                        )
+
+                        # Save the updated round data using the service function
+                        success = await room_service.set_round_data(
                             redis_client, room_code, current_round_data
                         )
-                        logger.info(
-                            (
-                                f"Player {nickname} guessed '{payload.airport_code}' for "
-                                f"round {current_round_data.round_number}."
+
+                        # Log success or failure of the service call
+                        if not success:
+                            # This indicates an issue within set_round_data or Redis interaction
+                            logger.error(
+                                f"FAILED to save guess for {nickname} using "
+                                f"room_service.set_round_data."
                             )
+                            # Consider sending an error back to the user?
+                            await _send_error(
+                                "SAVE_ERROR", "Failed to record your guess. Please try again."
+                            )
+                            continue  # Skip the rest of the guess processing if save failed
+
+                        # Existing info log remains
+                        logger.info(
+                            f"Player {nickname} guessed '{payload.airport_code}' for "
+                            f"round {current_round_data.round_number}."
                         )
 
                         # Check if all connected players have guessed to end round early
@@ -1120,32 +994,30 @@ async def websocket_endpoint(
                         }
                         guessed_players = set(current_round_data.guesses.keys())
 
+                        # Ensure the current player is considered connected for this check
+                        connected_players.add(nickname)
+
                         if connected_players.issubset(guessed_players):
                             logger.info(
-                                (
-                                    f"All {len(connected_players)} connected players have "
-                                    f"guessed in room {room_code}. Ending round early."
-                                )
+                                f"All {len(connected_players)} connected players have "
+                                f"guessed in room {room_code}. Ending round early."
                             )
-                            # Use call_soon or create_task?
+                            # Ensure _end_round is called safely from the loop
                             end_task = asyncio.create_task(_end_round(initiator="all_guessed"))
                             background_tasks.add(end_task)
                             end_task.add_done_callback(background_tasks.discard)
                         else:
                             logger.debug(
-                                (
-                                    f"Waiting for more guesses. Connected:"
-                                    f" {len(connected_players)}, Guessed: {len(guessed_players)}"
-                                )
+                                f"Waiting for more guesses. Connected: {len(connected_players)}, "
+                                f"Guessed: {len(guessed_players)} ({guessed_players})"
                             )
 
                     except ValidationError as e:
-                        logger.warning(f"Invalid guess payload from {nickname}: {e}")
-                        await _send_error("INVALID_PAYLOAD", f"Invalid message format: {e}")
+                        await _send_error("INVALID_PAYLOAD", f"Invalid guess format: {e}")
                     except Exception as e:
                         logger.error(f"Error processing guess from {nickname}: {e}", exc_info=True)
                         await _send_error(
-                            "INTERNAL_ERROR", "An unexpected error occurred submitting your guess."
+                            "INTERNAL_ERROR", "An error occurred submitting your guess."
                         )
 
                 elif message.type == "leave":
@@ -1212,6 +1084,17 @@ async def websocket_endpoint(
                     type="ping", payload=ping_payload.model_dump(), ts=int(time.time() * 1000)
                 )
                 try:
+                    # Check WebSocket state before attempting to send
+                    if (
+                        ws.application_state != WebSocketState.CONNECTED
+                        or ws.client_state != WebSocketState.CONNECTED
+                    ):
+                        logger.debug(
+                            f"Pinger loop: WebSocket no longer connected for {nickname}. "
+                            "Exiting pinger."
+                        )
+                        break  # Exit loop gracefully if socket is closed
+
                     await manager.send_personal_message(ping_message.model_dump(), ws)
                 except WebSocketDisconnect:
                     logger.info(
@@ -1225,65 +1108,46 @@ async def websocket_endpoint(
         except Exception as e:
             logger.error(f"Error in WebSocket pinger loop for {nickname}: {e}")
             # Ensure manager is updated if pinger crashes unexpectedly
-            manager.disconnect(room_code, nickname)
+            # Check state before attempting disconnect, as it might already be handled
+            if nickname in manager.get_room_connections(room_code):
+                manager.disconnect(room_code, nickname)
             # Consider closing the websocket here as well
             try:
-                await ws.close(code=status.WS_1011_INTERNAL_ERROR)
+                # Check state again before closing
+                if ws.application_state == WebSocketState.CONNECTED:
+                    await ws.close(code=status.WS_1011_INTERNAL_ERROR)
             except Exception:  # Ignore errors during close
                 pass
 
-    # Run receive loop in *current* task to simplify cancellation semantics.
+    # Add the pinger task to the background tasks set
+    # Create the background task for sending pings
     ping_task = asyncio.create_task(send_pings(websocket))
+    # Add the task to the set for tracking cancellation during cleanup
+    background_tasks.add(ping_task)
+    # Optional but recommended: remove task from set upon completion/cancellation
+    ping_task.add_done_callback(background_tasks.discard)
 
     try:
         await _recv_loop(websocket)  # blocks until disconnect / error
-    finally:
-        # Ensure ping task is cancelled regardless of exit reason
-        if not ping_task.done():
-            ping_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await ping_task
-
-    # --- Final cleanup (after loops) --- #
-    try:
-        # This block ensures cleanup happens regardless of how the connection closes
-        logger.info(f"Cleaning up WebSocket connection for {nickname} in room {room_code}")
-        # ping_task already cancelled above
-
-        # Attempt graceful close handshake if socket still open
-        with contextlib.suppress(Exception):
-            if websocket.application_state == WebSocketState.CONNECTED:
-                await websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
-
-        # Disconnect from the manager
-        manager.disconnect(room_code, nickname)
-
-        # Update player status to disconnected using room_service
-        final_player_status = await room_service.update_player_status(
-            redis=redis_client, room_code=room_code, nickname=nickname, connected=False
+    except WebSocketDisconnect:
+        # This exception is often caught inside _recv_loop or send_pings first
+        logger.info(f"WebSocket disconnected event caught for {nickname}.")
+    except Exception as e:  # <-- Restore this general exception handler
+        logger.error(
+            f"Unexpected error in WebSocket handler for {nickname} in {room_code}: {e}",
+            exc_info=True,
         )
-        if final_player_status:
-            logger.info(f"Updated player {nickname} status to disconnected in Redis.")
-        else:
-            logger.warning(f"Could not update final status for player {nickname} in Redis.")
+        # Attempt to send error message if socket still open
+        # Check state defensively before sending
+        if (
+            websocket.application_state == WebSocketState.CONNECTED
+            and websocket.client_state == WebSocketState.CONNECTED
+        ):
+            await _send_error("UNEXPECTED_ERROR", f"An internal error occurred: {e}")
+    finally:
+        logger.info(f"Cleaning up WebSocket connection for {nickname} in room {room_code}")
 
-        # Broadcast playerLeft message
-        if final_player_status:
-            left_payload = PlayerLeftPayload(nickname=nickname)
-            left_message = WSMessage(type="playerLeft", payload=left_payload.model_dump())
-            # Avoid broadcasting to the disconnected player themselves
-            await manager.broadcast(left_message.model_dump(), room_code, exclude_nickname=nickname)
-        else:
-            logger.warning(f"Could not update final status for player {nickname} in Redis.")
-
-        # Room cleanup logic (if last player leaves) could go here or be a separate task
-        # players_remaining = await room_service.get_all_players(redis_client, room_code)
-        # if not players_remaining:
-        #     logger.info(f"Room {room_code} is empty. Deleting metadata.")
-        #     await redis_client.delete(meta_key)
-        #     # Maybe delete round key too?
-
-        # Ensure all background tasks are cancelled on disconnect
+        # Cancel any outstanding background tasks for this player
         logger.debug(f"Cancelling {len(background_tasks)} background tasks for {nickname}.")
         for task in list(background_tasks):  # Iterate over a copy
             if not task.done():
@@ -1293,8 +1157,49 @@ async def websocket_endpoint(
             await asyncio.gather(*background_tasks, return_exceptions=True)
             logger.debug(f"Finished awaiting cancelled tasks for {nickname}.")
 
-    except Exception as e:
-        logger.error(f"Error in WebSocket cleanup for {nickname}: {e}")
-        # Ensure manager is updated on unexpected errors leading to loop exit
-        manager.disconnect(room_code, nickname)
-        # Consider re-raising or specific handling
+        # Check if the player is still considered connected by the manager *before*
+        # trying to disconnect again
+        if nickname in manager.get_room_connections(room_code):
+            logger.debug(f"Performing manager disconnect for {nickname} during final cleanup.")
+            manager.disconnect(room_code, nickname)  # Call manager disconnect only if needed
+
+            # Also perform Redis status update only if manager disconnect was just done
+            try:
+                updated = await room_service.update_player_status(
+                    redis=redis_client, room_code=room_code, nickname=nickname, connected=False
+                )
+                if updated:
+                    logger.info(
+                        f"Updated player {nickname} status to disconnected in Redis "
+                        "during final cleanup."
+                    )
+                    # Broadcast playerLeft only if the player was successfully marked
+                    # disconnected here
+                    player_left_payload = PlayerLeftPayload(nickname=nickname)
+                    left_message = WSMessage(type="playerLeft", payload=player_left_payload)
+                    await manager.broadcast(
+                        message=left_message.model_dump(exclude_none=True),
+                        room_code=room_code,
+                        exclude_nickname=nickname,  # Don't send to the player who just left
+                    )
+                else:
+                    # This case might happen if Redis data was removed between check and
+                    # update, or if update_player_status failed
+                    logger.warning(
+                        f"Player {nickname} status not updated in Redis during final cleanup "
+                        "(maybe already removed or error)."
+                    )
+
+            except Exception as e:
+                logger.error(
+                    f"Error during final Redis status update or broadcast for {nickname}: {e}",
+                    exc_info=True,
+                )
+        else:
+            logger.debug(
+                f"Player {nickname} already disconnected by manager, skipping final disconnect "
+                "actions."
+            )
+
+
+# --- Background Task: Ping ---

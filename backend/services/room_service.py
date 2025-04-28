@@ -21,12 +21,7 @@ async def get_player(redis: RedisClient, room_code: str, nickname: str) -> Playe
         Player object if found, None otherwise
     """
     players_key = f"room:{room_code}:players"
-    player_json = await redis.hget(players_key, nickname)
-
-    if not player_json:
-        return None
-
-    return Player.model_validate_json(player_json)
+    return await redis.hget_model(players_key, nickname, Player)
 
 
 async def add_player(redis: RedisClient, room_code: str, player: Player) -> Player:
@@ -43,8 +38,8 @@ async def add_player(redis: RedisClient, room_code: str, player: Player) -> Play
     players_key = f"room:{room_code}:players"
     room_ttl = 3600  # 1 hour
 
-    # Store player data
-    await redis.hset(players_key, player.nickname, player.model_dump_json())
+    # Store player data using the wrapper method
+    await redis.hset_model(players_key, player.nickname, player)
     await redis.expire(players_key, room_ttl)
     return player
 
@@ -120,9 +115,7 @@ async def get_all_players(redis: RedisClient, room_code: str) -> Dict[str, Playe
         Dictionary of nickname -> Player for all players in room
     """
     players_key = f"room:{room_code}:players"
-    players_dict = await redis.hgetall(players_key)
-
-    return {nick: Player.model_validate_json(p_json) for nick, p_json in players_dict.items()}
+    return await redis.hgetall_models(players_key, Player)
 
 
 async def remove_player(redis: RedisClient, room_code: str, nickname: str) -> bool:
@@ -195,7 +188,7 @@ async def get_round_data(redis: RedisClient, room_code: str) -> RoundData | None
         raise
 
 
-async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundData) -> None:
+async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundData) -> bool:
     """Set the round data for a room, applying room TTL.
 
     Overwrites existing round data.
@@ -203,8 +196,13 @@ async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundDa
     round_key = f"room:{room_code}:round"
     room_ttl_seconds = 3600  # Consider getting this from config or RoomMeta
     try:
-        await redis.set_json(round_key, round_data, expire_seconds=room_ttl_seconds)
-        logger.debug(f"Set round data for room '{room_code}' to state {round_data.state}")
+        logger.info(f"Current round data: {round_data}")
+        success = await redis.set_json(round_key, round_data, expire_seconds=room_ttl_seconds)
+        if success:
+            logger.debug(f"Set round data for room '{room_code}' to state {round_data.state}")
+        else:
+            logger.error(f"Redis SET command failed for round data key: {round_key}")
+        return success  # Return the success status
     except Exception as e:
         logger.error(f"Failed to set round data for room '{room_code}': {e}", exc_info=True)
         raise

@@ -75,17 +75,22 @@ class RedisClient:
         key: str,
         model: BaseModel,
         expire_seconds: Optional[int] = None,
-    ) -> None:
+    ) -> bool:
         """Serialize a Pydantic model to JSON and store it in Redis.
 
         Args:
             key: The Redis key.
             model: The Pydantic model instance to store.
             expire_seconds: Optional TTL in seconds.
+
+        Returns:
+            True if the set operation was successful, False otherwise.
         """
         async with await self.get_connection() as conn:
             json_data = model.model_dump_json()
-            await conn.set(key, json_data, ex=expire_seconds)
+            # Return the result of the set command
+            logger.info(f"Setting key {key} with data {json_data}")
+            return await conn.set(key, json_data, ex=expire_seconds)  # type: ignore
 
     async def get_model(self, key: str, model_type: Type[T_BaseModel]) -> Optional[T_BaseModel]:
         """Retrieve a JSON string from Redis and deserialize it into a Pydantic model.

@@ -26,12 +26,12 @@ class PlaneDeltaUpdate(BaseModel):
 
 
 async def broadcast_plane_updates(redis_client: RedisClient, manager: ConnectionManager) -> None:
-    """Periodically fetches plane states, calculates deltas, and prepares for broadcast.
+    """Periodically fetches plane states, calculates deltas, and broadcasts to all rooms.
 
     This task runs indefinitely until the application shuts down. It fetches all
     `plane:*` keys, compares them to the previous state to find changes (new,
-    updated, removed planes), and (in subsequent tasks) will broadcast these
-    deltas via the ConnectionManager.
+    updated, removed planes), and broadcasts these deltas via the ConnectionManager
+    to all currently active rooms.
 
     Args:
         redis_client: The asynchronous Redis client instance.
@@ -47,22 +47,28 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             # --- Task 42: Fetch Current Plane States ---
             current_planes_list: List[PlaneState] = []
             current_keys = set()
-            async for key in redis_client.scan_iter("plane:*"):
+            # Get the underlying connection to use scan_iter
+            conn = await redis_client.get_connection()
+            async for key in conn.scan_iter("plane:*"):  # Use conn.scan_iter
                 current_keys.add(key)
                 try:
-                    plane_dict = await redis_client.get_json(key)
-                    if plane_dict:
-                        try:
-                            plane = PlaneState(**plane_dict)
-                            current_planes_list.append(plane)
-                        except Exception as parse_error:  # Catch Pydantic validation errors etc.
-                            logger.warning(
-                                f"Failed to parse PlaneState for key {key}: {parse_error}"
-                            )
+                    # Use get_model, not get_json, and provide the model type
+                    plane = await redis_client.get_model(key, PlaneState)
+                    if plane:
+                        current_planes_list.append(plane)
+                    # Remove the inner try/except for parsing, get_model handles it
+                    # try:
+                    #     plane = PlaneState(**plane_dict)
+                    #     current_planes_list.append(plane)
+                    # except Exception as parse_error:  # Catch Pydantic validation errors etc.
+                    #     logger.warning(
+                    #         f"Failed to parse PlaneState for key {key}: {parse_error}"
+                    #     )
                     else:
-                        logger.debug(f"Key {key} disappeared between SCAN and GET.")
+                        # get_model returns None if key doesn't exist or fails parsing
+                        logger.debug(f"Plane data not found or failed parse for key {key}.")
                 except Exception as e:
-                    logger.error(f"Failed to get plane data for key {key}: {e}")
+                    logger.error(f"Error processing plane key {key}: {e}")
 
             current_state_map: Dict[str, PlaneState] = {p.hex_ident: p for p in current_planes_list}
             logger.debug(f"Fetched {len(current_state_map)} current plane states.")
@@ -105,24 +111,33 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                 )
                 ws_message = WSMessage(type="delta", payload=delta_payload_data)
 
-                logger.debug(f"Broadcasting delta: {ws_message.model_dump_json(exclude_none=True)}")
+                logger.debug(
+                    f"Preparing to broadcast delta: {ws_message.model_dump_json(exclude_none=True)}"
+                )
 
                 # TODO: Implement compression for payloads > 1KB (Task #44)
-                # Check size before sending? Requires serialization first.
-                # json_payload = ws_message.model_dump_json(exclude_none=True)
-                # if len(json_payload.encode('utf-8')) > 1024:
-                #    logger.warning("Payload > 1KB, consider compression!")
-                #    # Add compression logic here if implemented
 
-                try:
-                    # Broadcast to all connected clients managed by the ConnectionManager
-                    # Assumes ConnectionManager is shared and handles individual rooms/clients
-                    # correctly.
-                    # If broadcasting needs to be room-specific, this logic needs refinement.
-                    await manager.broadcast_json(ws_message.model_dump(exclude_none=True))
-                    logger.debug("Delta broadcast successful.")
-                except Exception as broadcast_error:
-                    logger.error(f"Error during broadcast: {broadcast_error}", exc_info=True)
+                # Get active rooms and broadcast to each one
+                active_room_codes = list(manager.active_connections.keys())  # Get codes first
+                if not active_room_codes:
+                    logger.debug("No active rooms to broadcast to.")
+                else:
+                    logger.debug(f"Broadcasting delta to rooms: {active_room_codes}")
+                    for room_code in active_room_codes:
+                        try:
+                            # Pass the specific room_code to the broadcast method
+                            await manager.broadcast(
+                                message=ws_message.model_dump(exclude_none=True),
+                                room_code=room_code,
+                            )
+                            logger.debug(f"Delta broadcast successful to room '{room_code}'.")
+                        except Exception as broadcast_error:
+                            # Log error specific to this room, but continue broadcasting to others
+                            logger.error(
+                                f"Error broadcasting delta to room '{room_code}': "
+                                f"{broadcast_error}",
+                                exc_info=True,
+                            )
 
             # --- Loop Timing ---
             end_time = asyncio.get_event_loop().time()
