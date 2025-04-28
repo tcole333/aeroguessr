@@ -27,14 +27,16 @@ This document summarizes the findings of a review comparing the WebSocket implem
 ### 2.4 Unimplemented/Untested Functionality (Based on PRD comparison)
 
 - **Client->Server:** `skipRound` message handling appears unimplemented in `rooms.py`. `claimHost` is defined in `ws.py` but its handling logic in `rooms.py` needs verification/implementation according to PRD rules (2-min window).
-- **Server->Client:** No explicit handling seen for sending `stateSync` on initial connect (though `rooms.py` _does_ fetch initial state, it needs to explicitly send a `stateSync` message).
+- **Server->Client:** Initial `stateSync` is correctly sent on connect (verified by integration tests).
 - **Resilience:** Ping/pong logic exists in `rooms.py`, but client-side reconnect logic (back-off, queuing) is frontend-specific and not reviewed here. Server-side handling of host disconnects (transfer/auto-randomize) needs robust implementation and testing in `rooms.py`.
 
 ### 2.5 Recent Fix (2025-04-27)
 
 During integration testing a duplicate `guess` handler in `backend/routes/rooms.py` was discovered. The first (placeholder) branch consumed incoming `guess` messages, preventing the real persistence logic from running and leaving `RoundData.guesses` empty. This has now been **removed**, and the integration test `test_websocket_player_guess_integration` passes, confirming guesses are correctly saved to Redis.
 
-_No further action required for this specific issue._
+### 2.6 Recent Fix (2025-04-28)
+
+Added immediate `playerLeft` broadcast upon receiving a client `leave` message, with duplicate-guard in cleanup to prevent double emissions.
 
 ## 3. Next Steps
 

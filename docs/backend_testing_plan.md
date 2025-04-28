@@ -36,21 +36,27 @@ The most significant gaps are in WebSocket testing:
 
 The following steps prioritize enabling and expanding WebSocket tests using the existing integration test (`make integration-test`) framework.
 
-- **Priority 1: Enable & Verify Basic WebSocket Tests** -- COMPLETED
+- **Priority 1: Enable & Verify Basic WebSocket Tests**
+  Integration tests in `tests/integration/test_websocket_basic.py` covering connect/sync, ping/pong, playerJoined/playerLeft, and invalid connection cases now pass reliably.
+  Remaining: Remove `pytest.skip` and verify unit-level WebSocket tests in `tests/backend/routes/test_websocket.py`.
+
+  **Priority 1 Status:** Foundation in place via integration tests; unit-test activation pending.
 
   1.  Remove `pytest.skip` from `tests/backend/routes/test_websocket.py`.
-  2.  Run `make integration-test` and resolve any immediate failures in the previously disabled tests (connect/sync, ping/pong, join/leave broadcasts, invalid room/player rejection).
-  3.  Ensure these foundational tests pass reliably in the integration environment.
+  2.  Run `make integration-test` / `pytest` and resolve any failures in those unit tests.
+  3.  Ensure these foundational tests pass reliably in both integration and unit environments.
 
-- **Priority 2: Implement Core Game Loop Tests (Integration)**
+- **Priority 2: Core Game-Loop Tests (Integration) – ✅ Completed**
 
-  1.  Add new integration tests in `test_websocket.py` covering:
-      - Host selects a valid plane (`selectPlane`) -> verify host confirmation message and Redis state. (Requires adding test plane data to Redis).
-      - Host starts a round (`startRound`) -> verify `roundStart` broadcast to all clients.
-      - Player submits a guess (`guess`) -> verify guess stored in Redis.
-      - Round timeout expiry -> verify `roundResult` broadcast.
-      - Round end (all players guess) -> verify `roundResult` broadcast.
-      - Verify `roundResult` payload structure and basic content (scoring logic can be simplified/mocked initially if needed).
+  The following integration tests are now in place and passing:
+
+  - `test_websocket_host_select_plane_integration` – `selectPlane` confirms Redis state.
+  - `test_websocket_host_start_round_integration` – `roundStart` broadcast verified.
+  - `test_websocket_player_guess_integration` – guess persistence verified.
+  - **NEW** `test_round_timeout_triggers_result` – round timer expiry emits `roundResult` and sets `SHOWING_RESULTS`.
+  - **NEW** `test_round_result_when_all_players_guessed` – early round end when all players guess, verifies `roundResult` payload.
+
+  Together these cover the core game-loop path required for Priority 2. Any further edge-cases (multi-round flow, score delta ordering) can be tackled under later priorities.
 
 - **Priority 3: Implement Plane Delta Broadcast Test (Integration)**
 

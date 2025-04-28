@@ -24,6 +24,10 @@ Implement new FastAPI route **`<METHOD> /api/vX/<resource>`**.
 - [ ] Run `make openapi` and review changes.
 - [ ] Commit updated `.docs/api_openapi.yaml`.
 
+### Important Context
+
+### Example Stub Code
+
 ```python
 # Example Route Stub (in backend/routes/items.py)
 from fastapi import APIRouter, Depends, HTTPException, status
