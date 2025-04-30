@@ -36,7 +36,7 @@ The most significant gaps are in WebSocket testing:
 
 The following steps prioritize enabling and expanding WebSocket tests using the existing integration test (`make integration-test`) framework.
 
-- **Priority 1: Enable & Verify Basic WebSocket Tests**
+- **Priority 1: Enable & Verify Basic WebSocket Tests – ✅ Completed**
   Integration tests in `tests/integration/test_websocket_basic.py` covering connect/sync, ping/pong, playerJoined/playerLeft, and invalid connection cases now pass reliably.
   Remaining: Remove `pytest.skip` and verify unit-level WebSocket tests in `tests/backend/routes/test_websocket.py`.
 
@@ -58,12 +58,15 @@ The following steps prioritize enabling and expanding WebSocket tests using the 
 
   Together these cover the core game-loop path required for Priority 2. Any further edge-cases (multi-round flow, score delta ordering) can be tackled under later priorities.
 
-- **Priority 3: Implement Plane Delta Broadcast Test (Integration)**
+- **Priority 3: Implement Plane Delta Broadcast Test (Integration) – ✅ Completed**
 
-  1.  Add an integration test where:
-      - A client connects and receives initial `stateSync`.
-      - The test manually manipulates `plane:<hex>` data in the connected Redis instance (add/update/delete).
-      - Verify the client receives `delta` messages reflecting these changes accurately in the `updated` and `removed` fields.
+  Implemented in `tests/integration/test_websocket_delta.py` which:
+
+  1. Connects a client and consumes initial `stateSync`.
+  2. Adds two dummy planes in Redis and awaits a `delta` containing both in `updated`.
+  3. Updates one plane and awaits a `delta` with only that plane in `updated`.
+  4. Deletes the second plane and awaits a `delta` listing it in `removed`.
+     The test passes reliably (`make integration-test`) and covers add/update/remove flows.
 
 - **Priority 4: Implement Error Handling & Edge Case Tests (Integration)**
 

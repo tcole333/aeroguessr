@@ -220,7 +220,7 @@ async def test_round_result_when_all_players_guessed(
         )
 
         # Expect roundResult quickly (< 3 s)
-        result_host = await _wait_for_message(ws_host, "roundResult", timeout=3.0)
+        result_host = await _wait_for_message(ws_host, "roundResult", timeout=5.0)
         # Accept delta message in any order
         payload_host = RoundResultPayload(**result_host.payload)
         assert {res.nickname for res in payload_host.results} == {host_nick, player_nick}

@@ -103,6 +103,26 @@ If you need more control, you can run the steps individually:
 
 Ensure Docker and `docker-compose` are installed.
 
+### 6.3 Replaying Sample ADS-B Data (Offline Mode)
+
+```bash
+# Ensure FAKE_ADSB flag is enabled so backend spawns the generator
+export FAKE_ADSB=1
+# Optional: choose a different capture and/or speed
+export FAKE_ADSB_FILE=sample_data/sbs_parser_fixtures.sbs
+export FAKE_ADSB_SPEED=5  # 5× faster than real-time
+
+# Run the generator in a separate shell (loops until Ctrl-C)
+make sample-replay
+
+# Start the backend as usual (it will connect to localhost:30003)
+poetry run uvicorn backend.app:app --reload
+```
+
+When `FAKE_ADSB=1`, `backend.ingest.main` automatically spins up the sample
+feed even if you don't call `make sample-replay`. The Make target is provided
+for quick manual testing or if you want the generator to run independently.
+
 ## 7. FAQ & Gotchas
 
 - **Map Tiles:** Uses OpenStreetMap by default. Be mindful of their [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/). Caching is implemented, but high volume may require switching providers (see [PRD §8.1](docs/PRD.md#81-map-tiles)).

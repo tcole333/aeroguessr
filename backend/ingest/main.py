@@ -4,6 +4,7 @@ Connects to TCP source, parses messages, smooths data, and stores in Redis.
 """
 
 import asyncio
+import importlib
 import logging
 import os
 import time
@@ -189,6 +190,22 @@ async def run_ingest_loop() -> None:
     except Exception as e:
         logger.error(f"Failed to connect to Redis: {e}. Exiting.")
         return
+
+    # If FAKE_ADSB flag is set, start the sample generator in this loop.
+    if os.getenv("FAKE_ADSB") == "1":
+        sample_path = os.getenv("FAKE_ADSB_FILE", "sample_data/sbs_parser_fixtures.sbs")
+        logger.info("FAKE_ADSB=1 – starting internal sample generator using %s", sample_path)
+        # Dynamically import to avoid mandatory dependency for production runs
+        adsb_gen_mod = importlib.import_module("sample_data.adsb_generator")
+        asyncio.create_task(
+            adsb_gen_mod.run_server(
+                filepath=sample_path,
+                host=ADSB_HOST,
+                port=ADSB_PORT,
+                loop_forever=True,
+                speed=float(os.getenv("FAKE_ADSB_SPEED", "1.0")),
+            )
+        )
 
     while True:
         try:

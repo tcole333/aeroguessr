@@ -8,11 +8,11 @@ from typing import AsyncGenerator, Dict
 from fastapi import FastAPI, status
 
 from backend.routes import rooms  # Import the rooms router
+from backend.routes.rooms import manager as connection_manager
 
 # Explicitly import endpoint for add_api_websocket_route if needed, but router usually handles this.
 # from backend.routes.rooms import websocket_endpoint
 from backend.services.broadcast import broadcast_plane_updates
-from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,11 @@ logger = logging.getLogger(__name__)
 # but manage connections within lifespan.
 # TODO: Review if global instances are the best approach vs. dependency injection.
 redis_client = RedisClient()  # Assumes RedisClient() handles connection setup internally or lazily
-connection_manager = ConnectionManager()  # Global manager for WebSocket connections
+# Use the same ConnectionManager instance used by room WebSocket endpoints to
+# ensure background broadcast tasks and routes share connection tracking.
+# This avoids issues where plane `delta` messages are prepared but not delivered
+# because the broadcast task held a separate, empty manager instance.
+# Import after rooms to avoid circular import problems.
 
 
 # --- Application Lifespan Management --- #
