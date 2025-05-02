@@ -18,7 +18,7 @@ services:
     volumes:
       - ..:/app
     # Start the uvicorn server for API testing
-    command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
       # Ensure backend connects to the test Redis instance
       REDIS_URL: redis://redis-test:6379/0

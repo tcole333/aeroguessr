@@ -51,6 +51,18 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+# --- Global State / Dependencies --- #
+# Initialize outside lifespan for potential direct access if needed,
+# but manage connections within lifespan.
+# TODO: Review if global instances are the best approach vs. dependency injection.
+redis_client = RedisClient()
+# Use the same ConnectionManager instance used by room WebSocket endpoints to
+# ensure background broadcast tasks and routes share connection tracking.
+# This avoids issues where plane `delta` messages are prepared but not delivered
+# because the broadcast task held a separate, empty manager instance.
+# Import after rooms to avoid circular import problems.
+manager = ConnectionManager()
+
 
 # Dependency function to get Redis client
 # (Could be moved to a dedicated deps.py file later)
@@ -62,8 +74,10 @@ async def get_redis_client() -> RedisClient:
     return RedisClient()
 
 
-# Create a single instance of the ConnectionManager
-manager = ConnectionManager()
+# Dependency function to get the global ConnectionManager instance
+def get_connection_manager() -> ConnectionManager:
+    return manager
+
 
 # Remove in-memory stubs
 # rooms_db: dict[str, RoomMeta] = {}
@@ -260,6 +274,7 @@ async def websocket_endpoint(
     room_code: str,
     nickname: str,
     redis_client: RedisClient = Depends(get_redis_client),  # noqa: B008
+    conn_manager: ConnectionManager = Depends(get_connection_manager),  # noqa: B008
 ) -> None:
     """Handle WebSocket connections for players in a room using ConnectionManager."""
     meta_key = f"room:{room_code}:meta"
@@ -921,106 +936,114 @@ async def websocket_endpoint(
 
                 # --- Player Actions --- #
                 elif message.type == "guess":
-                    try:
-                        payload = GuessPayload(**message.payload)
-                        # <<< ADD Log before get >>>
-                        logger.info(f"[HANDLER DEBUG] Attempting to get round data for {room_code}")
-                        current_round_data = await room_service.get_round_data(
-                            redis_client, room_code
-                        )
-                        # <<< ADD Log after get >>>
-                        logger.info(
-                            f"[HANDLER DEBUG] Got round data for {room_code}: {current_round_data}"
-                        )
-
-                        if (
-                            not current_round_data
-                            or current_round_data.state != RoundStateEnum.ACCEPTING_GUESSES
-                        ):
-                            # <<< ADD Log before state error >>>
-                            logger.warning(
-                                f"[HANDLER DEBUG] Guess rejected for {nickname}. Current state: "
-                                f"{current_round_data.state if current_round_data else 'None'}"
-                            )
-                            await _send_error(
-                                "GUESS_OUTSIDE_ROUND",
-                                "Guesses are only allowed during an active round.",
-                            )
-                            continue
-                        if nickname in current_round_data.guesses:
-                            await _send_error(
-                                "DUPLICATE_GUESS",
-                                "You have already submitted a guess for this round.",
-                            )
-                            continue
-
-                        # Store the guess
-                        new_guess = PlayerGuess(nickname=nickname, guess=payload.airport_code)
-                        current_round_data.guesses[nickname] = new_guess
-
-                        logger.info(
-                            f"[HANDLER DEBUG] About to call set_round_data for {nickname}. "
-                            f"Guesses in object: {current_round_data.guesses}"
-                        )
-
-                        # Save the updated round data using the service function
-                        success = await room_service.set_round_data(
-                            redis_client, room_code, current_round_data
-                        )
-
-                        # Log success or failure of the service call
-                        if not success:
-                            # This indicates an issue within set_round_data or Redis interaction
-                            logger.error(
-                                f"FAILED to save guess for {nickname} using "
-                                f"room_service.set_round_data."
-                            )
-                            # Consider sending an error back to the user?
-                            await _send_error(
-                                "SAVE_ERROR", "Failed to record your guess. Please try again."
-                            )
-                            continue  # Skip the rest of the guess processing if save failed
-
-                        # Existing info log remains
-                        logger.info(
-                            f"Player {nickname} guessed '{payload.airport_code}' for "
-                            f"round {current_round_data.round_number}."
-                        )
-
-                        # Check if all connected players have guessed to end round early
-                        all_players_in_room = await room_service.get_all_players(
-                            redis_client, room_code
-                        )
-                        connected_players = {
-                            p.nickname for p in all_players_in_room.values() if p.connected
-                        }
-                        guessed_players = set(current_round_data.guesses.keys())
-
-                        # Ensure the current player is considered connected for this check
-                        connected_players.add(nickname)
-
-                        if connected_players.issubset(guessed_players):
+                    room_lock = conn_manager.get_room_lock(room_code)
+                    async with room_lock:
+                        try:
+                            payload = GuessPayload(**message.payload)
                             logger.info(
-                                f"All {len(connected_players)} connected players have "
-                                f"guessed in room {room_code}. Ending round early."
+                                f"[HANDLER DEBUG] ({nickname}) Attempting to get round data "
+                                "inside lock."
                             )
-                            # Ensure _end_round is called safely from the loop
-                            end_task = asyncio.create_task(_end_round(initiator="all_guessed"))
-                            background_tasks.add(end_task)
-                            end_task.add_done_callback(background_tasks.discard)
-                        else:
-                            logger.debug(
-                                f"Waiting for more guesses. Connected: {len(connected_players)}, "
-                                f"Guessed: {len(guessed_players)} ({guessed_players})"
+                            current_round_data = await room_service.get_round_data(
+                                redis_client, room_code
+                            )
+                            logger.info(
+                                f"[HANDLER DEBUG] ({nickname}) Got round data inside lock: "
+                                f"{current_round_data}"
                             )
 
-                    except ValidationError as e:
-                        await _send_error("INVALID_PAYLOAD", f"Invalid guess format: {e}")
-                    except Exception as e:
-                        logger.error(f"Error processing guess from {nickname}: {e}", exc_info=True)
-                        await _send_error(
-                            "INTERNAL_ERROR", "An error occurred submitting your guess."
-                        )
+                            # --- Validation --- #
+                            if (
+                                not current_round_data
+                                or current_round_data.state != RoundStateEnum.ACCEPTING_GUESSES
+                            ):
+                                logger.warning(
+                                    f"[HANDLER DEBUG] ({nickname}) Guess rejected. State: "
+                                    f"{current_round_data.state if current_round_data else 'None'}"
+                                )
+                                await _send_error(
+                                    "GUESS_OUTSIDE_ROUND",
+                                    "Guesses are only allowed during an active round.",
+                                )
+                                continue  # Release lock and skip rest
+                            if nickname in current_round_data.guesses:
+                                await _send_error(
+                                    "DUPLICATE_GUESS",
+                                    "You have already submitted a guess for this round.",
+                                )
+                                continue  # Release lock and skip rest
+
+                            # --- Modify and Write --- #
+                            new_guess = PlayerGuess(nickname=nickname, guess=payload.airport_code)
+                            updated_guesses = current_round_data.guesses.copy()
+                            updated_guesses[nickname] = new_guess
+                            data_to_save = current_round_data.model_copy(
+                                update={"guesses": updated_guesses}
+                            )
+
+                            logger.info(
+                                f"[HANDLER DEBUG] ({nickname}) About to call set_round_data. "
+                                f"New guesses: {updated_guesses}"
+                            )
+                            success = await room_service.set_round_data(
+                                redis_client, room_code, data_to_save
+                            )
+
+                            if not success:
+                                logger.error(
+                                    f"FAILED to save guess for {nickname} via room_service."
+                                )
+                                await _send_error("SAVE_ERROR", "Failed to record guess.")
+                                continue  # Release lock
+
+                            logger.info(
+                                f"Player {nickname} guessed '{payload.airport_code}' for "
+                                f"round {data_to_save.round_number}."
+                            )
+
+                            # --- Check All Guessed (using the data we just wrote) --- #
+                            all_players_in_room = await room_service.get_all_players(
+                                redis_client, room_code
+                            )
+                            connected_players = {
+                                p.nickname for p in all_players_in_room.values() if p.connected
+                            }
+                            # Use the guesses from the data we just successfully saved
+                            guessed_players = set(data_to_save.guesses.keys())
+
+                            # Ensure current player is counted as connected for the check
+                            connected_players.add(nickname)
+
+                            logger.info(
+                                f"[HANDLER DEBUG] ({nickname}) Checking all guessed: "
+                                f"Connected={connected_players}, Guessed={guessed_players}, "
+                                f"IsSubset={connected_players.issubset(guessed_players)}"
+                            )
+
+                            if connected_players.issubset(guessed_players):
+                                logger.info(
+                                    f"All {len(connected_players)} connected players have "
+                                    f"guessed in room {room_code}. Ending round early."
+                                )
+                                end_task = asyncio.create_task(_end_round(initiator="all_guessed"))
+                                background_tasks.add(end_task)
+                                end_task.add_done_callback(background_tasks.discard)
+                            else:
+                                logger.debug(
+                                    f"({nickname}) Waiting for more guesses. "
+                                    f"Connected: {len(connected_players)}, "
+                                    f"Guessed: {len(guessed_players)} ({guessed_players})"
+                                )
+
+                        except ValidationError as e:
+                            await _send_error("INVALID_PAYLOAD", f"Invalid guess format: {e}")
+                        except Exception as e:
+                            logger.error(
+                                f"Error processing guess from {nickname}: {e}", exc_info=True
+                            )
+                            await _send_error(
+                                "INTERNAL_ERROR", "An error occurred submitting your guess."
+                            )
 
                 elif message.type == "leave":
                     logger.info(f"Leave received from {nickname}")

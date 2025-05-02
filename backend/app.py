@@ -38,25 +38,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Connect Redis client (if it needs explicit connection)
     # await redis_client.connect() # Example if needed
 
-    # Start background tasks
-    broadcast_task = asyncio.create_task(broadcast_plane_updates(redis_client, connection_manager))
-    logger.info("Broadcast task started.")
+    # Start background tasks – ensure we don't spawn duplicates if the module is
+    # re-imported (e.g. when running with `uvicorn --reload`).
+    if not getattr(app.state, "broadcast_started", False):
+        broadcast_task = asyncio.create_task(
+            broadcast_plane_updates(redis_client, connection_manager)
+        )
+        app.state.broadcast_started = True
+        logger.info("Broadcast task started.")
+    else:
+        broadcast_task = None  # type: ignore
+        logger.debug("Broadcast task already running – skipping second startup.")
 
     yield  # Application runs here
 
     # --- Shutdown --- #
     logger.info("Application shutdown...")
 
-    # Cancel background tasks
-    logger.info("Attempting to cancel broadcast task...")
-    broadcast_task.cancel()
-    try:
-        await broadcast_task
-        logger.info("Broadcast task cancelled successfully.")
-    except asyncio.CancelledError:
-        logger.info("Broadcast task already cancelled.")
-    except Exception as e:
-        logger.error(f"Error during broadcast task shutdown: {e}", exc_info=True)
+    # Cancel background tasks only if we started one
+    if broadcast_task is not None:
+        logger.info("Attempting to cancel broadcast task...")
+        broadcast_task.cancel()
+        try:
+            await broadcast_task
+            logger.info("Broadcast task cancelled successfully.")
+        except asyncio.CancelledError:
+            logger.info("Broadcast task already cancelled.")
+        except Exception as e:
+            logger.error(f"Error during broadcast task shutdown: {e}", exc_info=True)
 
     # Disconnect Redis client (if it needs explicit disconnection)
     # await redis_client.disconnect() # Example if needed

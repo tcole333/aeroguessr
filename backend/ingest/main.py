@@ -86,11 +86,8 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     measurement = np.array([msg.latitude, msg.longitude, msg.altitude])
     redis_key = f"plane:{hex_ident}"
 
-    # Try to get existing state first
-    existing_state_dict = await redis_client.get_json(redis_key)
-    existing_state: Optional[PlaneState] = (
-        PlaneState(**existing_state_dict) if existing_state_dict else None
-    )
+    # Try to get existing state first using get_model utility
+    existing_state: Optional[PlaneState] = await redis_client.get_model(redis_key, PlaneState)
 
     smoother = active_smoothers.get(hex_ident)
     enriched_data: Optional[EnrichedData] = None

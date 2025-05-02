@@ -1,343 +1,463 @@
-infra-backend-test-1  | INFO:     Will watch for changes in these directories: ['/app']
-infra-backend-test-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-infra-backend-test-1  | INFO:     Started reloader process [1] using WatchFiles
+infra-redis-test-1  | 1:C 02 May 2025 02:39:16.751 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+infra-redis-test-1  | 1:C 02 May 2025 02:39:16.751 * Redis version=7.4.3, bits=64, commit=00000000, modified=0, pid=1, just started
+infra-redis-test-1  | 1:C 02 May 2025 02:39:16.751 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+infra-redis-test-1  | 1:M 02 May 2025 02:39:16.751 * monotonic clock: POSIX clock_gettime
+infra-redis-test-1  | 1:M 02 May 2025 02:39:16.754 * Running mode=standalone, port=6379.
+infra-redis-test-1  | 1:M 02 May 2025 02:39:16.755 * Server initialized
+infra-redis-test-1  | 1:M 02 May 2025 02:39:16.755 * Ready to accept connections tcp
 infra-backend-test-1  | /usr/local/lib/python3.12/site-packages/filterpy/common/helpers.py:367: SyntaxWarning: invalid escape sequence '\S'
 infra-backend-test-1  |   P = \Sum {A[i] B[i].T} for i in 0..N
-infra-backend-test-1  | 2025-04-28 03:08:00,966 - backend.utils.connection_manager - INFO - ConnectionManager initialized.
-infra-backend-test-1  | INFO:     Started server process [20]
+infra-backend-test-1  | 2025-05-02 02:39:25,472 - backend.utils.connection_manager - INFO - ConnectionManager initialized.
+infra-backend-test-1  | INFO:     Started server process [1]
 infra-backend-test-1  | INFO:     Waiting for application startup.
-infra-backend-test-1  | 2025-04-28 03:08:00,986 - backend.app - INFO - Application startup...
-infra-backend-test-1  | 2025-04-28 03:08:00,986 - backend.app - INFO - Broadcast task started.
-infra-backend-test-1  | 2025-04-28 03:08:00,986 - backend.services.broadcast - INFO - Starting plane update broadcast task...
+infra-backend-test-1  | 2025-05-02 02:39:25,490 - backend.app - INFO - Application startup...
+infra-backend-test-1  | 2025-05-02 02:39:25,490 - backend.app - INFO - Broadcast task started.
+infra-backend-test-1  | 2025-05-02 02:39:25,490 - backend.services.broadcast - INFO - Starting plane update broadcast task...
 infra-backend-test-1  | INFO:     Application startup complete.
-infra-backend-test-1  | INFO:     192.168.240.3:48102 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:02,633 - backend.utils.redis_async - INFO - Setting key room:LNTJ:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_ping","created_ts":1745809682.6330783}
-infra-backend-test-1  | INFO:     192.168.240.3:48106 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48106) - "WebSocket /api/v0/rooms/ws/LNTJ/host_ping" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:02,644 - backend.utils.connection_manager - INFO - Player 'host_ping' connected to room 'LNTJ'.
+infra-backend-test-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+infra-backend-test-1  | 2025-05-02 02:39:25,503 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:25,503 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:25,503 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:26,504 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:26,505 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:26,506 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | INFO:     172.30.0.3:42996 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:27,272 - backend.utils.redis_async - INFO - Setting key room:KDTX:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_ping","created_ts":1746153567.271871}
+infra-backend-test-1  | INFO:     172.30.0.3:43000 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43000) - "WebSocket /api/v0/rooms/ws/KDTX/host_ping" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:27,281 - backend.utils.connection_manager - INFO - Player 'host_ping' connected to room 'KDTX'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:02,647 - backend.services.room_service - INFO - Initializing round data for room 'LNTJ'.
-infra-backend-test-1  | 2025-04-28 03:08:02,647 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:02,647 - backend.utils.redis_async - INFO - Setting key room:LNTJ:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:02,648 - backend.routes.rooms - INFO - Ensured round data exists for room LNTJ. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:12,671 - backend.routes.rooms - DEBUG - Received WS message from host_ping: pong
+infra-backend-test-1  | 2025-05-02 02:39:27,283 - backend.services.room_service - INFO - Initializing round data for room 'KDTX'.
+infra-backend-test-1  | 2025-05-02 02:39:27,283 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:27,283 - backend.utils.redis_async - INFO - Setting key room:KDTX:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:27,283 - backend.routes.rooms - INFO - Ensured round data exists for room KDTX. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:27,496 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:27,496 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:27,496 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:28,497 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:28,497 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:28,497 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:29,500 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:29,500 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:29,500 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:30,503 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:30,504 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:30,505 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:31,505 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:31,506 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:31,506 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:32,503 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:32,504 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:32,504 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:33,507 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:33,508 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:33,508 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:34,742 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:34,755 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:34,756 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:35,561 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:35,564 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:35,565 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:36,549 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:36,550 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:36,550 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:37,301 - backend.routes.rooms - DEBUG - Received WS message from host_ping: pong
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:12,684 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_ping
-infra-backend-test-1  | 2025-04-28 03:08:12,686 - backend.utils.connection_manager - INFO - Player 'host_ping' disconnected from room 'LNTJ'.
-infra-backend-test-1  | 2025-04-28 03:08:12,686 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_ping in room LNTJ
-infra-backend-test-1  | 2025-04-28 03:08:12,686 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_ping.
-infra-backend-test-1  | 2025-04-28 03:08:12,686 - backend.routes.rooms - INFO - Pinger task cancelled for host_ping
-infra-backend-test-1  | 2025-04-28 03:08:12,686 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_ping.
-infra-backend-test-1  | 2025-04-28 03:08:12,687 - backend.routes.rooms - DEBUG - Player host_ping already disconnected by manager, skipping final disconnect actions.
-infra-backend-test-1  | INFO:     192.168.240.3:48144 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:12,765 - backend.utils.redis_async - INFO - Setting key room:DZIZ:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_left","created_ts":1745809692.7650115}
-infra-backend-test-1  | INFO:     192.168.240.3:48148 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     192.168.240.3:48148 - "POST /api/v0/rooms/DZIZ/join HTTP/1.1" 200 OK
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48148) - "WebSocket /api/v0/rooms/ws/DZIZ/host_left" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:12,787 - backend.utils.connection_manager - INFO - Player 'host_left' connected to room 'DZIZ'.
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_ping
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.utils.connection_manager - INFO - Player 'host_ping' disconnected from room 'KDTX'.
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_ping in room KDTX
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_ping.
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.routes.rooms - INFO - Pinger task cancelled for host_ping
+infra-backend-test-1  | 2025-05-02 02:39:37,309 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_ping.
+infra-backend-test-1  | 2025-05-02 02:39:37,310 - backend.routes.rooms - DEBUG - Player host_ping already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | INFO:     172.30.0.3:43028 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:37,392 - backend.utils.redis_async - INFO - Setting key room:BSLJ:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_left","created_ts":1746153577.3923273}
+infra-backend-test-1  | INFO:     172.30.0.3:43032 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     172.30.0.3:43032 - "POST /api/v0/rooms/BSLJ/join HTTP/1.1" 200 OK
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43032) - "WebSocket /api/v0/rooms/ws/BSLJ/host_left" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:37,409 - backend.utils.connection_manager - INFO - Player 'host_left' connected to room 'BSLJ'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:12,789 - backend.services.room_service - INFO - Initializing round data for room 'DZIZ'.
-infra-backend-test-1  | 2025-04-28 03:08:12,789 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:12,789 - backend.utils.redis_async - INFO - Setting key room:DZIZ:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-redis-test-1    | 1:C 28 Apr 2025 03:07:50.864 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
-infra-redis-test-1    | 1:C 28 Apr 2025 03:07:50.864 * Redis version=7.4.3, bits=64, commit=00000000, modified=0, pid=1, just started
-infra-redis-test-1    | 1:C 28 Apr 2025 03:07:50.864 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
-infra-redis-test-1    | 1:M 28 Apr 2025 03:07:50.864 * monotonic clock: POSIX clock_gettime
-infra-redis-test-1    | 1:M 28 Apr 2025 03:07:50.867 * Running mode=standalone, port=6379.
-infra-redis-test-1    | 1:M 28 Apr 2025 03:07:50.868 * Server initialized
-infra-redis-test-1    | 1:M 28 Apr 2025 03:07:50.868 * Ready to accept connections tcp
-infra-backend-test-1  | 2025-04-28 03:08:12,791 - backend.routes.rooms - INFO - Ensured round data exists for room DZIZ. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48156) - "WebSocket /api/v0/rooms/ws/DZIZ/leaver_left" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:12,797 - backend.utils.connection_manager - INFO - Player 'leaver_left' connected to room 'DZIZ'.
+infra-backend-test-1  | 2025-05-02 02:39:37,410 - backend.services.room_service - INFO - Initializing round data for room 'BSLJ'.
+infra-backend-test-1  | 2025-05-02 02:39:37,411 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:37,411 - backend.utils.redis_async - INFO - Setting key room:BSLJ:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:37,413 - backend.routes.rooms - INFO - Ensured round data exists for room BSLJ. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43040) - "WebSocket /api/v0/rooms/ws/BSLJ/leaver_left" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:37,421 - backend.utils.connection_manager - INFO - Player 'leaver_left' connected to room 'BSLJ'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:12,797 - backend.routes.rooms - INFO - Ensured round data exists for room DZIZ. Current state: waiting_for_selection
-infra-backend-test-1  | 2025-04-28 03:08:12,799 - backend.routes.rooms - DEBUG - Received WS message from leaver_left: leave
-infra-backend-test-1  | 2025-04-28 03:08:12,799 - backend.routes.rooms - INFO - Leave received from leaver_left
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for leaver_left in room DZIZ
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for leaver_left.
+infra-backend-test-1  | 2025-05-02 02:39:37,422 - backend.routes.rooms - INFO - Ensured round data exists for room BSLJ. Current state: waiting_for_selection
+infra-backend-test-1  | 2025-05-02 02:39:37,425 - backend.routes.rooms - DEBUG - Received WS message from leaver_left: leave
+infra-backend-test-1  | 2025-05-02 02:39:37,425 - backend.routes.rooms - INFO - Leave received from leaver_left
+infra-backend-test-1  | 2025-05-02 02:39:37,426 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_left
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.utils.connection_manager - INFO - Player 'host_left' disconnected from room 'BSLJ'.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_left in room BSLJ
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_left.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for leaver_left in room BSLJ
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for leaver_left.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.routes.rooms - INFO - Pinger task cancelled for leaver_left
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for leaver_left.
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.routes.rooms - DEBUG - Performing manager disconnect for leaver_left during final cleanup.
-infra-backend-test-1  | 2025-04-28 03:08:12,800 - backend.utils.connection_manager - INFO - Player 'leaver_left' disconnected from room 'DZIZ'.
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_left
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.utils.connection_manager - INFO - Player 'host_left' disconnected from room 'DZIZ'.
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_left in room DZIZ
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_left.
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - INFO - Pinger task cancelled for host_left
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_left.
-infra-backend-test-1  | 2025-04-28 03:08:12,801 - backend.routes.rooms - DEBUG - Player host_left already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - INFO - Pinger task cancelled for host_left
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - INFO - Pinger task cancelled for leaver_left
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_left.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Player host_left already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:12,802 - backend.routes.rooms - INFO - Updated player leaver_left status to disconnected in Redis during final cleanup.
-infra-backend-test-1  | INFO:     192.168.240.3:48160 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:12,842 - backend.routes.rooms - WARNING - WebSocket connection rejected: Room ZZZZ not found.
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48162) - "WebSocket /api/v0/rooms/ws/ZZZZ/ghost" 403
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for leaver_left.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.routes.rooms - DEBUG - Performing manager disconnect for leaver_left during final cleanup.
+infra-backend-test-1  | 2025-05-02 02:39:37,427 - backend.utils.connection_manager - INFO - Player 'leaver_left' disconnected from room 'BSLJ'.
+infra-backend-test-1  | 2025-05-02 02:39:37,430 - backend.routes.rooms - INFO - Updated player leaver_left status to disconnected in Redis during final cleanup.
+infra-backend-test-1  | INFO:     172.30.0.3:43044 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:37,468 - backend.routes.rooms - WARNING - WebSocket connection rejected: Room ZZZZ not found.
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43046) - "WebSocket /api/v0/rooms/ws/ZZZZ/ghost" 403
 infra-backend-test-1  | INFO:     connection rejected (403 Forbidden)
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48166 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:12,889 - backend.utils.redis_async - INFO - Setting key room:JHQS:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_inv","created_ts":1745809692.8897872}
-infra-backend-test-1  | INFO:     192.168.240.3:48168 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | 2025-04-28 03:08:12,893 - backend.routes.rooms - WARNING - WebSocket connection rejected: Player ghost_player not found in room JHQS. (Join endpoint should have created player first)
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48168) - "WebSocket /api/v0/rooms/ws/JHQS/ghost_player" 403
+infra-backend-test-1  | INFO:     172.30.0.3:43050 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:37,513 - backend.utils.redis_async - INFO - Setting key room:ABEL:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_inv","created_ts":1746153577.512953}
+infra-backend-test-1  | INFO:     172.30.0.3:43052 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | 2025-05-02 02:39:37,517 - backend.routes.rooms - WARNING - WebSocket connection rejected: Player ghost_player not found in room ABEL. (Join endpoint should have created player first)
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43052) - "WebSocket /api/v0/rooms/ws/ABEL/ghost_player" 403
 infra-backend-test-1  | INFO:     connection rejected (403 Forbidden)
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48174 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:12,956 - backend.utils.redis_async - INFO - Setting key room:LCVE:meta with data {"mode":"Exact","round_timeout_seconds":15,"host_nickname":"host_delta","created_ts":1745809692.956314}
-infra-backend-test-1  | INFO:     192.168.240.3:48178 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48178) - "WebSocket /api/v0/rooms/ws/LCVE/host_delta" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:12,961 - backend.utils.connection_manager - INFO - Player 'host_delta' connected to room 'LCVE'.
+infra-backend-test-1  | 2025-05-02 02:39:37,548 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 0 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:37,548 - backend.services.broadcast - DEBUG - Fetched 0 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:37,548 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | INFO:     172.30.0.3:43058 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:37,574 - backend.utils.redis_async - INFO - Setting key room:XJLV:meta with data {"mode":"Exact","round_timeout_seconds":15,"host_nickname":"host_delta","created_ts":1746153577.5740483}
+infra-backend-test-1  | INFO:     172.30.0.3:43062 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43062) - "WebSocket /api/v0/rooms/ws/XJLV/host_delta" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:37,578 - backend.utils.connection_manager - INFO - Player 'host_delta' connected to room 'XJLV'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:12,961 - backend.services.room_service - INFO - Initializing round data for room 'LCVE'.
-infra-backend-test-1  | 2025-04-28 03:08:12,961 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:12,961 - backend.utils.redis_async - INFO - Setting key room:LCVE:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:12,962 - backend.routes.rooms - INFO - Ensured round data exists for room LCVE. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:22,979 - backend.routes.rooms - DEBUG - Received WS message from host_delta: pong
-infra-backend-test-1  | 2025-04-28 03:08:26,184 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_delta
-infra-backend-test-1  | 2025-04-28 03:08:26,185 - backend.utils.connection_manager - INFO - Player 'host_delta' disconnected from room 'LCVE'.
-infra-backend-test-1  | 2025-04-28 03:08:26,185 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_delta in room LCVE
-infra-backend-test-1  | 2025-04-28 03:08:26,185 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_delta.
-infra-backend-test-1  | 2025-04-28 03:08:26,185 - backend.routes.rooms - INFO - Pinger task cancelled for host_delta
-infra-backend-test-1  | 2025-04-28 03:08:26,186 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_delta.
-infra-backend-test-1  | 2025-04-28 03:08:26,186 - backend.routes.rooms - DEBUG - Player host_delta already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:37,579 - backend.services.room_service - INFO - Initializing round data for room 'XJLV'.
+infra-backend-test-1  | 2025-05-02 02:39:37,579 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:37,579 - backend.utils.redis_async - INFO - Setting key room:XJLV:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:37,579 - backend.routes.rooms - INFO - Ensured round data exists for room XJLV. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:38,556 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 2 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:38,556 - backend.services.broadcast - DEBUG - Fetched 2 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:38,557 - backend.services.broadcast - DEBUG - Delta calculated: 2 updated, 0 removed.
+infra-backend-test-1  | 2025-05-02 02:39:38,557 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[{"hex_ident":"abc123","lat":42.0,"lon":-71.0,"alt":20000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153577.5814316,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null},{"hex_ident":"def456","lat":43.0,"lon":-72.0,"alt":22000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153577.5814316,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null}],"removed":[]}},"ts":1746153578557.065}
+infra-backend-test-1  | 2025-05-02 02:39:38,557 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['XJLV']
+infra-backend-test-1  | 2025-05-02 02:39:38,557 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'XJLV' with 2 updated / 0 removed
+infra-backend-test-1  | 2025-05-02 02:39:39,555 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 2 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:39,558 - backend.services.broadcast - DEBUG - Fetched 2 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:39,559 - backend.services.broadcast - DEBUG - Delta calculated: 1 updated, 0 removed.
+infra-backend-test-1  | 2025-05-02 02:39:39,559 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[{"hex_ident":"abc123","lat":42.0,"lon":-71.0,"alt":25000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153578.789381,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null}],"removed":[]}},"ts":1746153579559.4382}
+infra-backend-test-1  | 2025-05-02 02:39:39,559 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['XJLV']
+infra-backend-test-1  | 2025-05-02 02:39:39,560 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'XJLV' with 1 updated / 0 removed
+infra-backend-test-1  | 2025-05-02 02:39:40,560 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:40,562 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:40,563 - backend.services.broadcast - DEBUG - Delta calculated: 0 updated, 1 removed.
+infra-backend-test-1  | 2025-05-02 02:39:40,563 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[],"removed":["def456"]}},"ts":1746153580563.2693}
+infra-backend-test-1  | 2025-05-02 02:39:40,563 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['XJLV']
+infra-backend-test-1  | 2025-05-02 02:39:40,565 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'XJLV' with 0 updated / 1 removed
+infra-backend-test-1  | 2025-05-02 02:39:40,576 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_delta
+infra-backend-test-1  | 2025-05-02 02:39:40,576 - backend.utils.connection_manager - INFO - Player 'host_delta' disconnected from room 'XJLV'.
+infra-backend-test-1  | 2025-05-02 02:39:40,576 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_delta in room XJLV
+infra-backend-test-1  | 2025-05-02 02:39:40,576 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_delta.
+infra-backend-test-1  | 2025-05-02 02:39:40,576 - backend.routes.rooms - INFO - Pinger task cancelled for host_delta
+infra-backend-test-1  | 2025-05-02 02:39:40,577 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_delta.
+infra-backend-test-1  | 2025-05-02 02:39:40,577 - backend.routes.rooms - DEBUG - Player host_delta already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48228 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:26,463 - backend.utils.redis_async - INFO - Setting key room:QPOW:meta with data {"mode":"Distance","round_timeout_seconds":15,"host_nickname":"int_host","created_ts":1745809706.4627495}
-infra-backend-test-1  | INFO:     192.168.240.3:48230 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48230) - "WebSocket /api/v0/rooms/ws/QPOW/int_host" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,470 - backend.utils.connection_manager - INFO - Player 'int_host' connected to room 'QPOW'.
+infra-backend-test-1  | INFO:     172.30.0.3:43082 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:40,663 - backend.utils.redis_async - INFO - Setting key room:PZHV:meta with data {"mode":"Distance","round_timeout_seconds":15,"host_nickname":"int_host","created_ts":1746153580.6638064}
+infra-backend-test-1  | INFO:     172.30.0.3:43084 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43084) - "WebSocket /api/v0/rooms/ws/PZHV/int_host" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:40,669 - backend.utils.connection_manager - INFO - Player 'int_host' connected to room 'PZHV'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,471 - backend.services.room_service - INFO - Initializing round data for room 'QPOW'.
-infra-backend-test-1  | 2025-04-28 03:08:26,471 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,472 - backend.utils.redis_async - INFO - Setting key room:QPOW:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,473 - backend.routes.rooms - INFO - Ensured round data exists for room QPOW. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for int_host
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.utils.connection_manager - INFO - Player 'int_host' disconnected from room 'QPOW'.
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for int_host in room QPOW
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for int_host.
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - INFO - Pinger task cancelled for int_host
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for int_host.
-infra-backend-test-1  | 2025-04-28 03:08:26,476 - backend.routes.rooms - DEBUG - Player int_host already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:40,673 - backend.services.room_service - INFO - Initializing round data for room 'PZHV'.
+infra-backend-test-1  | 2025-05-02 02:39:40,673 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,673 - backend.utils.redis_async - INFO - Setting key room:PZHV:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,674 - backend.routes.rooms - INFO - Ensured round data exists for room PZHV. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for int_host
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.utils.connection_manager - INFO - Player 'int_host' disconnected from room 'PZHV'.
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for int_host in room PZHV
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for int_host.
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - INFO - Pinger task cancelled for int_host
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for int_host.
+infra-backend-test-1  | 2025-05-02 02:39:40,678 - backend.routes.rooms - DEBUG - Player int_host already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48236 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:26,518 - backend.utils.redis_async - INFO - Setting key room:MFBY:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host2","created_ts":1745809706.51789}
-infra-backend-test-1  | INFO:     192.168.240.3:48238 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     192.168.240.3:48238 - "POST /api/v0/rooms/MFBY/join HTTP/1.1" 200 OK
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48238) - "WebSocket /api/v0/rooms/ws/MFBY/host2" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,526 - backend.utils.connection_manager - INFO - Player 'host2' connected to room 'MFBY'.
+infra-backend-test-1  | INFO:     172.30.0.3:43090 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:40,726 - backend.utils.redis_async - INFO - Setting key room:FYAW:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host2","created_ts":1746153580.7261708}
+infra-backend-test-1  | INFO:     172.30.0.3:43092 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     172.30.0.3:43092 - "POST /api/v0/rooms/FYAW/join HTTP/1.1" 200 OK
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43092) - "WebSocket /api/v0/rooms/ws/FYAW/host2" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:40,733 - backend.utils.connection_manager - INFO - Player 'host2' connected to room 'FYAW'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,526 - backend.services.room_service - INFO - Initializing round data for room 'MFBY'.
-infra-backend-test-1  | 2025-04-28 03:08:26,526 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,527 - backend.utils.redis_async - INFO - Setting key room:MFBY:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,527 - backend.routes.rooms - INFO - Ensured round data exists for room MFBY. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48246) - "WebSocket /api/v0/rooms/ws/MFBY/join2" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,533 - backend.utils.connection_manager - INFO - Player 'join2' connected to room 'MFBY'.
+infra-backend-test-1  | 2025-05-02 02:39:40,734 - backend.services.room_service - INFO - Initializing round data for room 'FYAW'.
+infra-backend-test-1  | 2025-05-02 02:39:40,734 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,734 - backend.utils.redis_async - INFO - Setting key room:FYAW:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,735 - backend.routes.rooms - INFO - Ensured round data exists for room FYAW. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43100) - "WebSocket /api/v0/rooms/ws/FYAW/join2" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:40,739 - backend.utils.connection_manager - INFO - Player 'join2' connected to room 'FYAW'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,534 - backend.routes.rooms - INFO - Ensured round data exists for room MFBY. Current state: waiting_for_selection
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for join2
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.utils.connection_manager - INFO - Player 'join2' disconnected from room 'MFBY'.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for join2 in room MFBY
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for join2.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Pinger task cancelled for join2
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for join2.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Player join2 already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:40,741 - backend.routes.rooms - INFO - Ensured round data exists for room FYAW. Current state: waiting_for_selection
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for join2
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.utils.connection_manager - INFO - Player 'join2' disconnected from room 'FYAW'.
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for join2 in room FYAW
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for join2.
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - INFO - Pinger task cancelled for join2
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for join2.
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - DEBUG - Player join2 already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host2
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.utils.connection_manager - INFO - Player 'host2' disconnected from room 'MFBY'.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host2 in room MFBY
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host2.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - INFO - Pinger task cancelled for host2
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host2.
-infra-backend-test-1  | 2025-04-28 03:08:26,536 - backend.routes.rooms - DEBUG - Player host2 already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host2
+infra-backend-test-1  | 2025-05-02 02:39:40,744 - backend.utils.connection_manager - INFO - Player 'host2' disconnected from room 'FYAW'.
+infra-backend-test-1  | 2025-05-02 02:39:40,745 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host2 in room FYAW
+infra-backend-test-1  | 2025-05-02 02:39:40,745 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host2.
+infra-backend-test-1  | 2025-05-02 02:39:40,745 - backend.routes.rooms - INFO - Pinger task cancelled for host2
+infra-backend-test-1  | 2025-05-02 02:39:40,746 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host2.
+infra-backend-test-1  | 2025-05-02 02:39:40,746 - backend.routes.rooms - DEBUG - Player host2 already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48250 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:26,582 - backend.utils.redis_async - INFO - Setting key room:MQEX:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host_sel","created_ts":1745809706.5824947}
-infra-backend-test-1  | INFO:     192.168.240.3:48254 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48254) - "WebSocket /api/v0/rooms/ws/MQEX/host_sel" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,587 - backend.utils.connection_manager - INFO - Player 'host_sel' connected to room 'MQEX'.
+infra-backend-test-1  | INFO:     172.30.0.3:43104 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:40,788 - backend.utils.redis_async - INFO - Setting key room:ITXH:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host_sel","created_ts":1746153580.787915}
+infra-backend-test-1  | INFO:     172.30.0.3:43108 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43108) - "WebSocket /api/v0/rooms/ws/ITXH/host_sel" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:40,792 - backend.utils.connection_manager - INFO - Player 'host_sel' connected to room 'ITXH'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,588 - backend.services.room_service - INFO - Initializing round data for room 'MQEX'.
-infra-backend-test-1  | 2025-04-28 03:08:26,588 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,588 - backend.utils.redis_async - INFO - Setting key room:MQEX:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,588 - backend.routes.rooms - INFO - Ensured round data exists for room MQEX. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:26,590 - backend.routes.rooms - DEBUG - Received WS message from host_sel: selectPlane
-infra-backend-test-1  | 2025-04-28 03:08:26,591 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
-infra-backend-test-1  | 2025-04-28 03:08:26,591 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='a1b2c3' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,592 - backend.utils.redis_async - INFO - Setting key room:MQEX:round with data {"state":"waiting_for_selection","selected_plane_hex":"a1b2c3","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,593 - backend.routes.rooms - INFO - Host host_sel selected plane a1b2c3 for room MQEX. Correct: BOS, Direction: destination.
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_sel
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.utils.connection_manager - INFO - Player 'host_sel' disconnected from room 'MQEX'.
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_sel in room MQEX
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_sel.
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - INFO - Pinger task cancelled for host_sel
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_sel.
-infra-backend-test-1  | 2025-04-28 03:08:26,693 - backend.routes.rooms - DEBUG - Player host_sel already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:40,792 - backend.services.room_service - INFO - Initializing round data for room 'ITXH'.
+infra-backend-test-1  | 2025-05-02 02:39:40,792 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,793 - backend.utils.redis_async - INFO - Setting key room:ITXH:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,793 - backend.routes.rooms - INFO - Ensured round data exists for room ITXH. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:40,795 - backend.routes.rooms - DEBUG - Received WS message from host_sel: selectPlane
+infra-backend-test-1  | 2025-05-02 02:39:40,796 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-05-02 02:39:40,796 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='a1b2c3' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,797 - backend.utils.redis_async - INFO - Setting key room:ITXH:round with data {"state":"waiting_for_selection","selected_plane_hex":"a1b2c3","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,797 - backend.routes.rooms - INFO - Host host_sel selected plane a1b2c3 for room ITXH. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_sel
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.utils.connection_manager - INFO - Player 'host_sel' disconnected from room 'ITXH'.
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_sel in room ITXH
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for host_sel.
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - INFO - Pinger task cancelled for host_sel
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_sel.
+infra-backend-test-1  | 2025-05-02 02:39:40,898 - backend.routes.rooms - DEBUG - Player host_sel already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48260 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:26,737 - backend.utils.redis_async - INFO - Setting key room:OBBH:meta with data {"mode":"Exact","round_timeout_seconds":15,"host_nickname":"host_start","created_ts":1745809706.7375872}
-infra-backend-test-1  | INFO:     192.168.240.3:48264 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48264) - "WebSocket /api/v0/rooms/ws/OBBH/host_start" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,742 - backend.utils.connection_manager - INFO - Player 'host_start' connected to room 'OBBH'.
+infra-backend-test-1  | INFO:     172.30.0.3:43114 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:40,956 - backend.utils.redis_async - INFO - Setting key room:BTRU:meta with data {"mode":"Exact","round_timeout_seconds":15,"host_nickname":"host_start","created_ts":1746153580.9564712}
+infra-backend-test-1  | INFO:     172.30.0.3:43118 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43118) - "WebSocket /api/v0/rooms/ws/BTRU/host_start" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:40,961 - backend.utils.connection_manager - INFO - Player 'host_start' connected to room 'BTRU'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,743 - backend.services.room_service - INFO - Initializing round data for room 'OBBH'.
-infra-backend-test-1  | 2025-04-28 03:08:26,743 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,743 - backend.utils.redis_async - INFO - Setting key room:OBBH:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,744 - backend.routes.rooms - INFO - Ensured round data exists for room OBBH. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:26,746 - backend.routes.rooms - DEBUG - Received WS message from host_start: selectPlane
-infra-backend-test-1  | 2025-04-28 03:08:26,747 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
-infra-backend-test-1  | 2025-04-28 03:08:26,747 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='d4e5f6' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,747 - backend.utils.redis_async - INFO - Setting key room:OBBH:round with data {"state":"waiting_for_selection","selected_plane_hex":"d4e5f6","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,747 - backend.routes.rooms - INFO - Host host_start selected plane d4e5f6 for room OBBH. Correct: BOS, Direction: destination.
-infra-backend-test-1  | 2025-04-28 03:08:26,847 - backend.routes.rooms - DEBUG - Received WS message from host_start: startRound
-infra-backend-test-1  | 2025-04-28 03:08:26,848 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='d4e5f6' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809706.8479428 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:26,848 - backend.utils.redis_async - INFO - Setting key room:OBBH:round with data {"state":"accepting_guesses","selected_plane_hex":"d4e5f6","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809706.8479428,"guesses":{},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:26,849 - backend.routes.rooms - INFO - Host host_start started round 1 for plane d4e5f6 in room OBBH.
-infra-backend-test-1  | 2025-04-28 03:08:26,850 - backend.routes.rooms - INFO - Starting round timer for 15s in room OBBH.
+infra-backend-test-1  | 2025-05-02 02:39:40,961 - backend.services.room_service - INFO - Initializing round data for room 'BTRU'.
+infra-backend-test-1  | 2025-05-02 02:39:40,961 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,962 - backend.utils.redis_async - INFO - Setting key room:BTRU:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,962 - backend.routes.rooms - INFO - Ensured round data exists for room BTRU. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:40,964 - backend.routes.rooms - DEBUG - Received WS message from host_start: selectPlane
+infra-backend-test-1  | 2025-05-02 02:39:40,965 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-05-02 02:39:40,965 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='d4e5f6' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:40,965 - backend.utils.redis_async - INFO - Setting key room:BTRU:round with data {"state":"waiting_for_selection","selected_plane_hex":"d4e5f6","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:40,965 - backend.routes.rooms - INFO - Host host_start selected plane d4e5f6 for room BTRU. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-05-02 02:39:41,064 - backend.routes.rooms - DEBUG - Received WS message from host_start: startRound
+infra-backend-test-1  | 2025-05-02 02:39:41,065 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='d4e5f6' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153581.06544 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:41,065 - backend.utils.redis_async - INFO - Setting key room:BTRU:round with data {"state":"accepting_guesses","selected_plane_hex":"d4e5f6","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153581.06544,"guesses":{},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:41,066 - backend.routes.rooms - INFO - Host host_start started round 1 for plane d4e5f6 in room BTRU.
+infra-backend-test-1  | 2025-05-02 02:39:41,066 - backend.routes.rooms - INFO - Starting round timer for 15s in room BTRU.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_start
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.utils.connection_manager - INFO - Player 'host_start' disconnected from room 'OBBH'.
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_start in room OBBH
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_start.
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.routes.rooms - INFO - Pinger task cancelled for host_start
-infra-backend-test-1  | 2025-04-28 03:08:26,853 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_start.
-infra-backend-test-1  | 2025-04-28 03:08:26,854 - backend.routes.rooms - DEBUG - Player host_start already disconnected by manager, skipping final disconnect actions.
-infra-backend-test-1  | INFO:     192.168.240.3:48270 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:26,901 - backend.utils.redis_async - INFO - Setting key room:OQBS:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_guess","created_ts":1745809706.9011266}
-infra-backend-test-1  | INFO:     192.168.240.3:48274 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     192.168.240.3:48274 - "POST /api/v0/rooms/OQBS/join HTTP/1.1" 200 OK
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48274) - "WebSocket /api/v0/rooms/ws/OQBS/host_guess" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,911 - backend.utils.connection_manager - INFO - Player 'host_guess' connected to room 'OQBS'.
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_start
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.utils.connection_manager - INFO - Player 'host_start' disconnected from room 'BTRU'.
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_start in room BTRU
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_start.
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - INFO - Pinger task cancelled for host_start
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_start.
+infra-backend-test-1  | 2025-05-02 02:39:41,068 - backend.routes.rooms - DEBUG - Player host_start already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | INFO:     172.30.0.3:43124 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:41,113 - backend.utils.redis_async - INFO - Setting key room:GRXH:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_guess","created_ts":1746153581.1129782}
+infra-backend-test-1  | INFO:     172.30.0.3:43128 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     172.30.0.3:43128 - "POST /api/v0/rooms/GRXH/join HTTP/1.1" 200 OK
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43128) - "WebSocket /api/v0/rooms/ws/GRXH/host_guess" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:41,120 - backend.utils.connection_manager - INFO - Player 'host_guess' connected to room 'GRXH'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,912 - backend.services.room_service - INFO - Initializing round data for room 'OQBS'.
-infra-backend-test-1  | 2025-04-28 03:08:26,912 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,912 - backend.utils.redis_async - INFO - Setting key room:OQBS:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,913 - backend.routes.rooms - INFO - Ensured round data exists for room OQBS. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48282) - "WebSocket /api/v0/rooms/ws/OQBS/player_guess" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:26,916 - backend.utils.connection_manager - INFO - Player 'player_guess' connected to room 'OQBS'.
+infra-backend-test-1  | 2025-05-02 02:39:41,121 - backend.services.room_service - INFO - Initializing round data for room 'GRXH'.
+infra-backend-test-1  | 2025-05-02 02:39:41,121 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:41,121 - backend.utils.redis_async - INFO - Setting key room:GRXH:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:41,122 - backend.routes.rooms - INFO - Ensured round data exists for room GRXH. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43136) - "WebSocket /api/v0/rooms/ws/GRXH/player_guess" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:41,124 - backend.utils.connection_manager - INFO - Player 'player_guess' connected to room 'GRXH'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:26,916 - backend.routes.rooms - INFO - Ensured round data exists for room OQBS. Current state: waiting_for_selection
-infra-backend-test-1  | 2025-04-28 03:08:26,918 - backend.routes.rooms - DEBUG - Received WS message from host_guess: selectPlane
-infra-backend-test-1  | 2025-04-28 03:08:26,919 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
-infra-backend-test-1  | 2025-04-28 03:08:26,919 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:26,919 - backend.utils.redis_async - INFO - Setting key room:OQBS:round with data {"state":"waiting_for_selection","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:26,920 - backend.routes.rooms - INFO - Host host_guess selected plane a7b8c9 for room OQBS. Correct: BOS, Direction: destination.
-infra-backend-test-1  | 2025-04-28 03:08:27,020 - backend.routes.rooms - DEBUG - Received WS message from host_guess: startRound
-infra-backend-test-1  | 2025-04-28 03:08:27,021 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809707.021144 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:27,021 - backend.utils.redis_async - INFO - Setting key room:OQBS:round with data {"state":"accepting_guesses","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809707.021144,"guesses":{},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:27,022 - backend.routes.rooms - INFO - Host host_guess started round 1 for plane a7b8c9 in room OQBS.
-infra-backend-test-1  | 2025-04-28 03:08:27,022 - backend.routes.rooms - INFO - Starting round timer for 10s in room OQBS.
-infra-backend-test-1  | 2025-04-28 03:08:27,024 - backend.routes.rooms - DEBUG - Received WS message from player_guess: guess
-infra-backend-test-1  | 2025-04-28 03:08:27,024 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for OQBS
-infra-backend-test-1  | 2025-04-28 03:08:27,026 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for OQBS: state='accepting_guesses' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809707.021144 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:27,026 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for player_guess. Guesses in object: {'player_guess': PlayerGuess(nickname='player_guess', guess='LHR', timestamp=1745809707.0261986)}
-infra-backend-test-1  | 2025-04-28 03:08:27,026 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809707.021144 guesses={'player_guess': PlayerGuess(nickname='player_guess', guess='LHR', timestamp=1745809707.0261986)} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:27,026 - backend.utils.redis_async - INFO - Setting key room:OQBS:round with data {"state":"accepting_guesses","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809707.021144,"guesses":{"player_guess":{"nickname":"player_guess","guess":"LHR","timestamp":1745809707.0261986}},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:27,027 - backend.routes.rooms - INFO - Player player_guess guessed 'LHR' for round 1.
-infra-backend-test-1  | 2025-04-28 03:08:27,028 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'player_guess'})
-infra-backend-test-1  | 2025-04-28 03:08:27,730 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for player_guess
-infra-backend-test-1  | 2025-04-28 03:08:27,730 - backend.utils.connection_manager - INFO - Player 'player_guess' disconnected from room 'OQBS'.
-infra-backend-test-1  | 2025-04-28 03:08:27,731 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for player_guess in room OQBS
-infra-backend-test-1  | 2025-04-28 03:08:27,731 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for player_guess.
-infra-backend-test-1  | 2025-04-28 03:08:27,731 - backend.routes.rooms - INFO - Pinger task cancelled for player_guess
-infra-backend-test-1  | 2025-04-28 03:08:27,733 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_guess
-infra-backend-test-1  | 2025-04-28 03:08:27,733 - backend.utils.connection_manager - INFO - Player 'host_guess' disconnected from room 'OQBS'.
-infra-backend-test-1  | 2025-04-28 03:08:27,733 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_guess in room OQBS
-infra-backend-test-1  | 2025-04-28 03:08:27,733 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_guess.
-infra-backend-test-1  | 2025-04-28 03:08:27,733 - backend.routes.rooms - INFO - Pinger task cancelled for host_guess
-infra-backend-test-1  | 2025-04-28 03:08:27,734 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for player_guess.
-infra-backend-test-1  | 2025-04-28 03:08:27,734 - backend.routes.rooms - DEBUG - Player player_guess already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:41,125 - backend.routes.rooms - INFO - Ensured round data exists for room GRXH. Current state: waiting_for_selection
+infra-backend-test-1  | 2025-05-02 02:39:41,127 - backend.routes.rooms - DEBUG - Received WS message from host_guess: selectPlane
+infra-backend-test-1  | 2025-05-02 02:39:41,127 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-05-02 02:39:41,128 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:41,128 - backend.utils.redis_async - INFO - Setting key room:GRXH:round with data {"state":"waiting_for_selection","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:41,128 - backend.routes.rooms - INFO - Host host_guess selected plane a7b8c9 for room GRXH. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-05-02 02:39:41,227 - backend.routes.rooms - DEBUG - Received WS message from host_guess: startRound
+infra-backend-test-1  | 2025-05-02 02:39:41,228 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153581.228227 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:41,228 - backend.utils.redis_async - INFO - Setting key room:GRXH:round with data {"state":"accepting_guesses","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153581.228227,"guesses":{},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:41,228 - backend.routes.rooms - INFO - Host host_guess started round 1 for plane a7b8c9 in room GRXH.
+infra-backend-test-1  | 2025-05-02 02:39:41,228 - backend.routes.rooms - INFO - Starting round timer for 10s in room GRXH.
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.routes.rooms - DEBUG - Received WS message from player_guess: guess
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for GRXH
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for GRXH: state='accepting_guesses' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153581.228227 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for player_guess. New guesses to save: {'player_guess': PlayerGuess(nickname='player_guess', guess='LHR', timestamp=1746153581.2306974)}
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='a7b8c9' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153581.228227 guesses={'player_guess': PlayerGuess(nickname='player_guess', guess='LHR', timestamp=1746153581.2306974)} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:41,230 - backend.utils.redis_async - INFO - Setting key room:GRXH:round with data {"state":"accepting_guesses","selected_plane_hex":"a7b8c9","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153581.228227,"guesses":{"player_guess":{"nickname":"player_guess","guess":"LHR","timestamp":1746153581.2306974}},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:41,231 - backend.routes.rooms - INFO - Player player_guess guessed 'LHR' for round 1.
+infra-backend-test-1  | 2025-05-02 02:39:41,231 - backend.routes.rooms - INFO - [HANDLER DEBUG] Re-reading round data for GRXH after saving guess.
+infra-backend-test-1  | 2025-05-02 02:39:41,232 - backend.routes.rooms - INFO - [HANDLER DEBUG] Checking all guessed for player_guess: Connected={'player_guess', 'host_guess'}, Guessed={'player_guess'}, IsSubset=False
+infra-backend-test-1  | 2025-05-02 02:39:41,232 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'player_guess'})
+infra-backend-test-1  | 2025-05-02 02:39:41,557 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:41,558 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:41,558 - backend.services.broadcast - DEBUG - Delta calculated: 1 updated, 1 removed.
+infra-backend-test-1  | 2025-05-02 02:39:41,558 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[{"hex_ident":"a7b8c9","lat":51.0,"lon":0.0,"alt":15000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153581.1182477,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null}],"removed":["abc123"]}},"ts":1746153581558.768}
+infra-backend-test-1  | 2025-05-02 02:39:41,559 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['GRXH']
+infra-backend-test-1  | 2025-05-02 02:39:41,559 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'GRXH' with 1 updated / 1 removed
+infra-backend-test-1  | 2025-05-02 02:39:41,947 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for player_guess
+infra-backend-test-1  | 2025-05-02 02:39:41,951 - backend.utils.connection_manager - INFO - Player 'player_guess' disconnected from room 'GRXH'.
+infra-backend-test-1  | 2025-05-02 02:39:41,952 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for player_guess in room GRXH
+infra-backend-test-1  | 2025-05-02 02:39:41,953 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for player_guess.
+infra-backend-test-1  | 2025-05-02 02:39:41,954 - backend.routes.rooms - INFO - Pinger task cancelled for player_guess
+infra-backend-test-1  | 2025-05-02 02:39:41,960 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for player_guess.
+infra-backend-test-1  | 2025-05-02 02:39:41,961 - backend.routes.rooms - DEBUG - Player player_guess already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:27,735 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_guess.
-infra-backend-test-1  | 2025-04-28 03:08:27,735 - backend.routes.rooms - DEBUG - Player host_guess already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:41,964 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_guess
+infra-backend-test-1  | 2025-05-02 02:39:41,964 - backend.utils.connection_manager - INFO - Player 'host_guess' disconnected from room 'GRXH'.
+infra-backend-test-1  | 2025-05-02 02:39:41,965 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_guess in room GRXH
+infra-backend-test-1  | 2025-05-02 02:39:41,966 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_guess.
+infra-backend-test-1  | 2025-05-02 02:39:41,967 - backend.routes.rooms - INFO - Pinger task cancelled for host_guess
+infra-backend-test-1  | 2025-05-02 02:39:41,969 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_guess.
+infra-backend-test-1  | 2025-05-02 02:39:41,971 - backend.routes.rooms - DEBUG - Player host_guess already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48290 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:27,790 - backend.utils.redis_async - INFO - Setting key room:MMTW:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host_timeout","created_ts":1745809707.7908213}
-infra-backend-test-1  | INFO:     192.168.240.3:48294 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48294) - "WebSocket /api/v0/rooms/ws/MMTW/host_timeout" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:27,795 - backend.utils.connection_manager - INFO - Player 'host_timeout' connected to room 'MMTW'.
+infra-backend-test-1  | INFO:     172.30.0.3:43140 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:42,046 - backend.utils.redis_async - INFO - Setting key room:XDPD:meta with data {"mode":"Exact","round_timeout_seconds":10,"host_nickname":"host_timeout","created_ts":1746153582.0462692}
+infra-backend-test-1  | INFO:     172.30.0.3:43144 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43144) - "WebSocket /api/v0/rooms/ws/XDPD/host_timeout" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:42,050 - backend.utils.connection_manager - INFO - Player 'host_timeout' connected to room 'XDPD'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:27,795 - backend.services.room_service - INFO - Initializing round data for room 'MMTW'.
-infra-backend-test-1  | 2025-04-28 03:08:27,795 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:27,796 - backend.utils.redis_async - INFO - Setting key room:MMTW:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:27,796 - backend.routes.rooms - INFO - Ensured round data exists for room MMTW. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | 2025-04-28 03:08:27,798 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: selectPlane
-infra-backend-test-1  | 2025-04-28 03:08:27,799 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
-infra-backend-test-1  | 2025-04-28 03:08:27,799 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:27,799 - backend.utils.redis_async - INFO - Setting key room:MMTW:round with data {"state":"waiting_for_selection","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:27,799 - backend.routes.rooms - INFO - Host host_timeout selected plane deadbe for room MMTW. Correct: BOS, Direction: destination.
-infra-backend-test-1  | 2025-04-28 03:08:27,899 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: startRound
-infra-backend-test-1  | 2025-04-28 03:08:27,899 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809707.8997142 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:27,899 - backend.utils.redis_async - INFO - Setting key room:MMTW:round with data {"state":"accepting_guesses","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809707.8997142,"guesses":{},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:27,900 - backend.routes.rooms - INFO - Host host_timeout started round 1 for plane deadbe in room MMTW.
-infra-backend-test-1  | 2025-04-28 03:08:27,900 - backend.routes.rooms - INFO - Starting round timer for 10s in room MMTW.
-infra-backend-test-1  | 2025-04-28 03:08:37,807 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: pong
-infra-backend-test-1  | 2025-04-28 03:08:37,901 - backend.routes.rooms - INFO - Round timer expired for room MMTW. Ending round.
-infra-backend-test-1  | 2025-04-28 03:08:37,901 - backend.routes.rooms - INFO - Attempting to end round for room MMTW, initiated by timer.
-infra-backend-test-1  | 2025-04-28 03:08:37,904 - backend.routes.rooms - INFO - Ending round 1 for room MMTW. Calculating scores.
-infra-backend-test-1  | 2025-04-28 03:08:37,906 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.SHOWING_RESULTS: 'showing_results'> selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809707.8997142 guesses={} results=[RoundResultDetail(nickname='host_timeout', guess=None, correct_code='BOS', score_awarded=0, current_total_score=0)] round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:37,906 - backend.utils.redis_async - INFO - Setting key room:MMTW:round with data {"state":"showing_results","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809707.8997142,"guesses":{},"results":[{"nickname":"host_timeout","guess":null,"correct_code":"BOS","score_awarded":0,"current_total_score":0}],"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:37,907 - backend.routes.rooms - INFO - Broadcasted roundResult for round 1 in room MMTW.
-infra-backend-test-1  | 2025-04-28 03:08:37,914 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_timeout
-infra-backend-test-1  | 2025-04-28 03:08:37,915 - backend.utils.connection_manager - INFO - Player 'host_timeout' disconnected from room 'MMTW'.
-infra-backend-test-1  | 2025-04-28 03:08:37,915 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_timeout in room MMTW
-infra-backend-test-1  | 2025-04-28 03:08:37,915 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_timeout.
-infra-backend-test-1  | 2025-04-28 03:08:37,916 - backend.routes.rooms - INFO - Pinger task cancelled for host_timeout
-infra-backend-test-1  | 2025-04-28 03:08:37,918 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_timeout.
-infra-backend-test-1  | 2025-04-28 03:08:37,919 - backend.routes.rooms - DEBUG - Player host_timeout already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:42,051 - backend.services.room_service - INFO - Initializing round data for room 'XDPD'.
+infra-backend-test-1  | 2025-05-02 02:39:42,051 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:42,051 - backend.utils.redis_async - INFO - Setting key room:XDPD:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:42,052 - backend.routes.rooms - INFO - Ensured round data exists for room XDPD. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | 2025-05-02 02:39:42,055 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: selectPlane
+infra-backend-test-1  | 2025-05-02 02:39:42,055 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-05-02 02:39:42,056 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:42,056 - backend.utils.redis_async - INFO - Setting key room:XDPD:round with data {"state":"waiting_for_selection","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:42,056 - backend.routes.rooms - INFO - Host host_timeout selected plane deadbe for room XDPD. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-05-02 02:39:42,157 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: startRound
+infra-backend-test-1  | 2025-05-02 02:39:42,157 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153582.1578434 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:42,158 - backend.utils.redis_async - INFO - Setting key room:XDPD:round with data {"state":"accepting_guesses","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153582.1578434,"guesses":{},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:42,158 - backend.routes.rooms - INFO - Host host_timeout started round 1 for plane deadbe in room XDPD.
+infra-backend-test-1  | 2025-05-02 02:39:42,158 - backend.routes.rooms - INFO - Starting round timer for 10s in room XDPD.
+infra-backend-test-1  | 2025-05-02 02:39:42,559 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:42,560 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:42,560 - backend.services.broadcast - DEBUG - Delta calculated: 1 updated, 1 removed.
+infra-backend-test-1  | 2025-05-02 02:39:42,561 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[{"hex_ident":"deadbe","lat":42.0,"lon":-71.0,"alt":30000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153582.0482273,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null}],"removed":["a7b8c9"]}},"ts":1746153582561.3396}
+infra-backend-test-1  | 2025-05-02 02:39:42,561 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['XDPD']
+infra-backend-test-1  | 2025-05-02 02:39:42,562 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'XDPD' with 1 updated / 1 removed
+infra-backend-test-1  | 2025-05-02 02:39:43,561 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:43,570 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:43,572 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:44,568 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:44,571 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:44,576 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:45,567 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:45,571 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:45,572 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:46,568 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:46,570 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:46,570 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:47,567 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:47,567 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:47,567 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:48,567 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:48,567 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:48,568 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:49,572 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:49,574 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:49,575 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:50,568 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:50,569 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:50,569 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:51,572 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:51,578 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:51,578 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:52,087 - backend.routes.rooms - DEBUG - Received WS message from host_timeout: pong
+infra-backend-test-1  | 2025-05-02 02:39:52,159 - backend.routes.rooms - INFO - Round timer expired for room XDPD. Ending round.
+infra-backend-test-1  | 2025-05-02 02:39:52,159 - backend.routes.rooms - INFO - Attempting to end round for room XDPD, initiated by timer.
+infra-backend-test-1  | 2025-05-02 02:39:52,162 - backend.routes.rooms - INFO - Ending round 1 for room XDPD. Calculating scores.
+infra-backend-test-1  | 2025-05-02 02:39:52,166 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.SHOWING_RESULTS: 'showing_results'> selected_plane_hex='deadbe' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153582.1578434 guesses={} results=[RoundResultDetail(nickname='host_timeout', guess=None, correct_code='BOS', score_awarded=0, current_total_score=0)] round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,166 - backend.utils.redis_async - INFO - Setting key room:XDPD:round with data {"state":"showing_results","selected_plane_hex":"deadbe","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153582.1578434,"guesses":{},"results":[{"nickname":"host_timeout","guess":null,"correct_code":"BOS","score_awarded":0,"current_total_score":0}],"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:52,169 - backend.routes.rooms - INFO - Broadcasted roundResult for round 1 in room XDPD.
+infra-backend-test-1  | 2025-05-02 02:39:52,176 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_timeout
+infra-backend-test-1  | 2025-05-02 02:39:52,176 - backend.utils.connection_manager - INFO - Player 'host_timeout' disconnected from room 'XDPD'.
+infra-backend-test-1  | 2025-05-02 02:39:52,176 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_timeout in room XDPD
+infra-backend-test-1  | 2025-05-02 02:39:52,177 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_timeout.
+infra-backend-test-1  | 2025-05-02 02:39:52,177 - backend.routes.rooms - INFO - Pinger task cancelled for host_timeout
+infra-backend-test-1  | 2025-05-02 02:39:52,177 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_timeout.
+infra-backend-test-1  | 2025-05-02 02:39:52,178 - backend.routes.rooms - DEBUG - Player host_timeout already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | INFO:     192.168.240.3:48322 - "GET /healthz HTTP/1.1" 200 OK
-infra-backend-test-1  | 2025-04-28 03:08:38,019 - backend.utils.redis_async - INFO - Setting key room:FRTU:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_all","created_ts":1745809718.0194697}
-infra-backend-test-1  | INFO:     192.168.240.3:48326 - "POST /api/v0/rooms HTTP/1.1" 201 Created
-infra-backend-test-1  | INFO:     192.168.240.3:48326 - "POST /api/v0/rooms/FRTU/join HTTP/1.1" 200 OK
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48326) - "WebSocket /api/v0/rooms/ws/FRTU/host_all" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:38,028 - backend.utils.connection_manager - INFO - Player 'host_all' connected to room 'FRTU'.
+infra-backend-test-1  | INFO:     172.30.0.3:43172 - "GET /healthz HTTP/1.1" 200 OK
+infra-backend-test-1  | 2025-05-02 02:39:52,284 - backend.utils.redis_async - INFO - Setting key room:KNXQ:meta with data {"mode":"Distance","round_timeout_seconds":10,"host_nickname":"host_all","created_ts":1746153592.2845888}
+infra-backend-test-1  | INFO:     172.30.0.3:43176 - "POST /api/v0/rooms HTTP/1.1" 201 Created
+infra-backend-test-1  | INFO:     172.30.0.3:43176 - "POST /api/v0/rooms/KNXQ/join HTTP/1.1" 200 OK
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43176) - "WebSocket /api/v0/rooms/ws/KNXQ/host_all" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:52,296 - backend.utils.connection_manager - INFO - Player 'host_all' connected to room 'KNXQ'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:38,029 - backend.services.room_service - INFO - Initializing round data for room 'FRTU'.
-infra-backend-test-1  | 2025-04-28 03:08:38,029 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:38,029 - backend.utils.redis_async - INFO - Setting key room:FRTU:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:38,030 - backend.routes.rooms - INFO - Ensured round data exists for room FRTU. Current state: RoundStateEnum.WAITING_FOR_SELECTION
-infra-backend-test-1  | INFO:     ('192.168.240.3', 48334) - "WebSocket /api/v0/rooms/ws/FRTU/player_all" [accepted]
-infra-backend-test-1  | 2025-04-28 03:08:38,034 - backend.utils.connection_manager - INFO - Player 'player_all' connected to room 'FRTU'.
+infra-backend-test-1  | 2025-05-02 02:39:52,297 - backend.services.room_service - INFO - Initializing round data for room 'KNXQ'.
+infra-backend-test-1  | 2025-05-02 02:39:52,297 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.WAITING_FOR_SELECTION: 'waiting_for_selection'> selected_plane_hex=None correct_airport_code=None guess_direction=None round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:52,297 - backend.utils.redis_async - INFO - Setting key room:KNXQ:round with data {"state":"waiting_for_selection","selected_plane_hex":null,"correct_airport_code":null,"guess_direction":null,"round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:52,297 - backend.routes.rooms - INFO - Ensured round data exists for room KNXQ. Current state: RoundStateEnum.WAITING_FOR_SELECTION
+infra-backend-test-1  | INFO:     ('172.30.0.3', 43184) - "WebSocket /api/v0/rooms/ws/KNXQ/player_all" [accepted]
+infra-backend-test-1  | 2025-05-02 02:39:52,302 - backend.utils.connection_manager - INFO - Player 'player_all' connected to room 'KNXQ'.
 infra-backend-test-1  | INFO:     connection open
-infra-backend-test-1  | 2025-04-28 03:08:38,035 - backend.routes.rooms - INFO - Ensured round data exists for room FRTU. Current state: waiting_for_selection
-infra-backend-test-1  | 2025-04-28 03:08:38,037 - backend.routes.rooms - DEBUG - Received WS message from host_all: selectPlane
-infra-backend-test-1  | 2025-04-28 03:08:38,037 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
-infra-backend-test-1  | 2025-04-28 03:08:38,037 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
-infra-backend-test-1  | 2025-04-28 03:08:38,038 - backend.utils.redis_async - INFO - Setting key room:FRTU:round with data {"state":"waiting_for_selection","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
-infra-backend-test-1  | 2025-04-28 03:08:38,038 - backend.routes.rooms - INFO - Host host_all selected plane c0ffee for room FRTU. Correct: BOS, Direction: destination.
-infra-backend-test-1  | 2025-04-28 03:08:38,138 - backend.routes.rooms - DEBUG - Received WS message from host_all: startRound
-infra-backend-test-1  | 2025-04-28 03:08:38,138 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809718.1388905 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:38,139 - backend.utils.redis_async - INFO - Setting key room:FRTU:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809718.1388905,"guesses":{},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:38,140 - backend.routes.rooms - INFO - Host host_all started round 1 for plane c0ffee in room FRTU.
-infra-backend-test-1  | 2025-04-28 03:08:38,140 - backend.routes.rooms - INFO - Starting round timer for 10s in room FRTU.
-infra-backend-test-1  | 2025-04-28 03:08:38,142 - backend.routes.rooms - DEBUG - Received WS message from player_all: guess
-infra-backend-test-1  | 2025-04-28 03:08:38,142 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for FRTU
-infra-backend-test-1  | 2025-04-28 03:08:38,142 - backend.routes.rooms - DEBUG - Received WS message from host_all: guess
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for FRTU
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for FRTU: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809718.1388905 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for player_all. Guesses in object: {'player_all': PlayerGuess(nickname='player_all', guess='BOS', timestamp=1745809718.143516)}
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809718.1388905 guesses={'player_all': PlayerGuess(nickname='player_all', guess='BOS', timestamp=1745809718.143516)} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.utils.redis_async - INFO - Setting key room:FRTU:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809718.1388905,"guesses":{"player_all":{"nickname":"player_all","guess":"BOS","timestamp":1745809718.143516}},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:38,143 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for FRTU: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809718.1388905 guesses={} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:38,144 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for host_all. Guesses in object: {'host_all': PlayerGuess(nickname='host_all', guess='BOS', timestamp=1745809718.144222)}
-infra-backend-test-1  | 2025-04-28 03:08:38,144 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1745809718.1388905 guesses={'host_all': PlayerGuess(nickname='host_all', guess='BOS', timestamp=1745809718.144222)} results=None round_number=1
-infra-backend-test-1  | 2025-04-28 03:08:38,144 - backend.utils.redis_async - INFO - Setting key room:FRTU:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1745809718.1388905,"guesses":{"host_all":{"nickname":"host_all","guess":"BOS","timestamp":1745809718.144222}},"results":null,"round_number":1}
-infra-backend-test-1  | 2025-04-28 03:08:38,144 - backend.routes.rooms - INFO - Player player_all guessed 'BOS' for round 1.
-infra-backend-test-1  | 2025-04-28 03:08:38,145 - backend.routes.rooms - INFO - Player host_all guessed 'BOS' for round 1.
-infra-backend-test-1  | 2025-04-28 03:08:38,145 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'player_all'})
-infra-backend-test-1  | 2025-04-28 03:08:38,145 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'host_all'})
-infra-backend-test-1  | 2025-04-28 03:08:43,170 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for player_all
-infra-backend-test-1  | 2025-04-28 03:08:43,172 - backend.utils.connection_manager - INFO - Player 'player_all' disconnected from room 'FRTU'.
-infra-backend-test-1  | 2025-04-28 03:08:43,173 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for player_all in room FRTU
-infra-backend-test-1  | 2025-04-28 03:08:43,173 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for player_all.
-infra-backend-test-1  | 2025-04-28 03:08:43,173 - backend.routes.rooms - INFO - Pinger task cancelled for player_all
-infra-backend-test-1  | 2025-04-28 03:08:43,174 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for player_all.
-infra-backend-test-1  | 2025-04-28 03:08:43,174 - backend.routes.rooms - DEBUG - Player player_all already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:52,302 - backend.routes.rooms - INFO - Ensured round data exists for room KNXQ. Current state: waiting_for_selection
+infra-backend-test-1  | 2025-05-02 02:39:52,304 - backend.routes.rooms - DEBUG - Received WS message from host_all: selectPlane
+infra-backend-test-1  | 2025-05-02 02:39:52,305 - backend.routes.rooms - WARNING - Using placeholder logic for selectPlane: Correct=BOS, Dir=destination
+infra-backend-test-1  | 2025-05-02 02:39:52,305 - backend.services.room_service - INFO - Current round data: state='waiting_for_selection' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=None guesses={} results=None round_number=0
+infra-backend-test-1  | 2025-05-02 02:39:52,305 - backend.utils.redis_async - INFO - Setting key room:KNXQ:round with data {"state":"waiting_for_selection","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":null,"guesses":{},"results":null,"round_number":0}
+infra-backend-test-1  | 2025-05-02 02:39:52,306 - backend.routes.rooms - INFO - Host host_all selected plane c0ffee for room KNXQ. Correct: BOS, Direction: destination.
+infra-backend-test-1  | 2025-05-02 02:39:52,405 - backend.routes.rooms - DEBUG - Received WS message from host_all: startRound
+infra-backend-test-1  | 2025-05-02 02:39:52,406 - backend.services.room_service - INFO - Current round data: state=<RoundStateEnum.ACCEPTING_GUESSES: 'accepting_guesses'> selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153592.406536 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,408 - backend.utils.redis_async - INFO - Setting key room:KNXQ:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153592.406536,"guesses":{},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:52,408 - backend.routes.rooms - INFO - Host host_all started round 1 for plane c0ffee in room KNXQ.
+infra-backend-test-1  | 2025-05-02 02:39:52,408 - backend.routes.rooms - INFO - Starting round timer for 10s in room KNXQ.
+infra-backend-test-1  | 2025-05-02 02:39:52,410 - backend.routes.rooms - DEBUG - Received WS message from player_all: guess
+infra-backend-test-1  | 2025-05-02 02:39:52,410 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for KNXQ
+infra-backend-test-1  | 2025-05-02 02:39:52,410 - backend.routes.rooms - DEBUG - Received WS message from host_all: guess
+infra-backend-test-1  | 2025-05-02 02:39:52,410 - backend.routes.rooms - INFO - [HANDLER DEBUG] Attempting to get round data for KNXQ
+infra-backend-test-1  | 2025-05-02 02:39:52,411 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for KNXQ: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153592.406536 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,411 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for host_all. New guesses to save: {'host_all': PlayerGuess(nickname='host_all', guess='BOS', timestamp=1746153592.411797)}
+infra-backend-test-1  | 2025-05-02 02:39:52,411 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153592.406536 guesses={'host_all': PlayerGuess(nickname='host_all', guess='BOS', timestamp=1746153592.411797)} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,412 - backend.utils.redis_async - INFO - Setting key room:KNXQ:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153592.406536,"guesses":{"host_all":{"nickname":"host_all","guess":"BOS","timestamp":1746153592.411797}},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:52,412 - backend.routes.rooms - INFO - [HANDLER DEBUG] Got round data for KNXQ: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153592.406536 guesses={} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,412 - backend.routes.rooms - INFO - [HANDLER DEBUG] About to call set_round_data for player_all. New guesses to save: {'player_all': PlayerGuess(nickname='player_all', guess='BOS', timestamp=1746153592.412302)}
+infra-backend-test-1  | 2025-05-02 02:39:52,412 - backend.services.room_service - INFO - Current round data: state='accepting_guesses' selected_plane_hex='c0ffee' correct_airport_code='BOS' guess_direction='destination' round_start_time=1746153592.406536 guesses={'player_all': PlayerGuess(nickname='player_all', guess='BOS', timestamp=1746153592.412302)} results=None round_number=1
+infra-backend-test-1  | 2025-05-02 02:39:52,412 - backend.utils.redis_async - INFO - Setting key room:KNXQ:round with data {"state":"accepting_guesses","selected_plane_hex":"c0ffee","correct_airport_code":"BOS","guess_direction":"destination","round_start_time":1746153592.406536,"guesses":{"player_all":{"nickname":"player_all","guess":"BOS","timestamp":1746153592.412302}},"results":null,"round_number":1}
+infra-backend-test-1  | 2025-05-02 02:39:52,413 - backend.routes.rooms - INFO - Player player_all guessed 'BOS' for round 1.
+infra-backend-test-1  | 2025-05-02 02:39:52,413 - backend.routes.rooms - INFO - [HANDLER DEBUG] Re-reading round data for KNXQ after saving guess.
+infra-backend-test-1  | 2025-05-02 02:39:52,413 - backend.routes.rooms - INFO - Player host_all guessed 'BOS' for round 1.
+infra-backend-test-1  | 2025-05-02 02:39:52,413 - backend.routes.rooms - INFO - [HANDLER DEBUG] Re-reading round data for KNXQ after saving guess.
+infra-backend-test-1  | 2025-05-02 02:39:52,414 - backend.routes.rooms - INFO - [HANDLER DEBUG] Checking all guessed for host_all: Connected={'player_all', 'host_all'}, Guessed={'player_all'}, IsSubset=False
+infra-backend-test-1  | 2025-05-02 02:39:52,414 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'player_all'})
+infra-backend-test-1  | 2025-05-02 02:39:52,414 - backend.routes.rooms - INFO - [HANDLER DEBUG] Checking all guessed for player_all: Connected={'player_all', 'host_all'}, Guessed={'player_all'}, IsSubset=False
+infra-backend-test-1  | 2025-05-02 02:39:52,414 - backend.routes.rooms - DEBUG - Waiting for more guesses. Connected: 2, Guessed: 1 ({'player_all'})
+infra-backend-test-1  | 2025-05-02 02:39:52,569 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:52,570 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:52,570 - backend.services.broadcast - DEBUG - Delta calculated: 1 updated, 1 removed.
+infra-backend-test-1  | 2025-05-02 02:39:52,570 - backend.services.broadcast - DEBUG - Preparing to broadcast delta: {"type":"delta","payload":{"planes":{"updated":[{"hex_ident":"c0ffee","lat":50.0,"lon":8.0,"alt":32000.0,"lat_v":0.0,"lon_v":0.0,"alt_v":0.0,"last_update_ts":1746153592.2916565,"trail":[],"callsign":null,"origin_country":null,"category":null,"origin":null,"destination":null}],"removed":["deadbe"]}},"ts":1746153592570.4119}
+infra-backend-test-1  | 2025-05-02 02:39:52,570 - backend.services.broadcast - DEBUG - Broadcasting delta to rooms: ['KNXQ']
+infra-backend-test-1  | 2025-05-02 02:39:52,570 - backend.services.broadcast - INFO - [BCAST INFO] Delta broadcasted to room 'KNXQ' with 1 updated / 1 removed
+infra-backend-test-1  | 2025-05-02 02:39:53,571 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:53,572 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:53,572 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:54,574 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:54,576 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:54,576 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:55,573 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:55,575 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:55,576 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:56,576 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:56,577 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:56,578 - backend.services.broadcast - DEBUG - No changes detected in plane states.
+infra-backend-test-1  | 2025-05-02 02:39:57,419 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for player_all
+infra-backend-test-1  | 2025-05-02 02:39:57,419 - backend.utils.connection_manager - INFO - Player 'player_all' disconnected from room 'KNXQ'.
+infra-backend-test-1  | 2025-05-02 02:39:57,419 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for player_all in room KNXQ
+infra-backend-test-1  | 2025-05-02 02:39:57,420 - backend.routes.rooms - DEBUG - Cancelling 1 background tasks for player_all.
+infra-backend-test-1  | 2025-05-02 02:39:57,420 - backend.routes.rooms - INFO - Pinger task cancelled for player_all
+infra-backend-test-1  | 2025-05-02 02:39:57,422 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for player_all.
+infra-backend-test-1  | 2025-05-02 02:39:57,422 - backend.routes.rooms - DEBUG - Player player_all already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
-infra-backend-test-1  | 2025-04-28 03:08:43,179 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_all
-infra-backend-test-1  | 2025-04-28 03:08:43,180 - backend.utils.connection_manager - INFO - Player 'host_all' disconnected from room 'FRTU'.
-infra-backend-test-1  | 2025-04-28 03:08:43,180 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_all in room FRTU
-infra-backend-test-1  | 2025-04-28 03:08:43,180 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_all.
-infra-backend-test-1  | 2025-04-28 03:08:43,181 - backend.routes.rooms - INFO - Pinger task cancelled for host_all
-infra-backend-test-1  | 2025-04-28 03:08:43,181 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_all.
-infra-backend-test-1  | 2025-04-28 03:08:43,181 - backend.routes.rooms - DEBUG - Player host_all already disconnected by manager, skipping final disconnect actions.
+infra-backend-test-1  | 2025-05-02 02:39:57,423 - backend.routes.rooms - INFO - Receive loop: WebSocket disconnected for host_all
+infra-backend-test-1  | 2025-05-02 02:39:57,423 - backend.utils.connection_manager - INFO - Player 'host_all' disconnected from room 'KNXQ'.
+infra-backend-test-1  | 2025-05-02 02:39:57,423 - backend.routes.rooms - INFO - Cleaning up WebSocket connection for host_all in room KNXQ
+infra-backend-test-1  | 2025-05-02 02:39:57,424 - backend.routes.rooms - DEBUG - Cancelling 2 background tasks for host_all.
+infra-backend-test-1  | 2025-05-02 02:39:57,424 - backend.routes.rooms - INFO - Pinger task cancelled for host_all
+infra-backend-test-1  | 2025-05-02 02:39:57,424 - backend.routes.rooms - DEBUG - Finished awaiting cancelled tasks for host_all.
+infra-backend-test-1  | 2025-05-02 02:39:57,424 - backend.routes.rooms - DEBUG - Player host_all already disconnected by manager, skipping final disconnect actions.
 infra-backend-test-1  | INFO:     connection closed
+infra-backend-test-1  | 2025-05-02 02:39:57,575 - backend.services.broadcast - DEBUG - [BCAST DEBUG] SCAN returned 1 keys (cursor=0)
+infra-backend-test-1  | 2025-05-02 02:39:57,575 - backend.services.broadcast - DEBUG - Fetched 1 current plane states via SCAN paging.
+infra-backend-test-1  | 2025-05-02 02:39:57,575 - backend.services.broadcast - DEBUG - No changes detected in plane states.

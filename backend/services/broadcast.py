@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field
 from backend.ingest.main import PlaneState  # Assuming PlaneState is defined here
 
 # Import the specific payload schema and WSMessage wrapper
-from backend.schemas.ws import DeltaPayload, WSMessage
+from backend.schemas.ws import WSMessage
 from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
+# Temporarily elevate module log level to DEBUG during integration diagnostics
+logger.setLevel(logging.DEBUG)
 
 # How often to fetch and prepare updates (in seconds)
 BROADCAST_INTERVAL_SECONDS = 1.0
@@ -23,6 +25,52 @@ BROADCAST_INTERVAL_SECONDS = 1.0
 class PlaneDeltaUpdate(BaseModel):
     updated: List[PlaneState] = Field(default_factory=list)
     removed: List[str] = Field(default_factory=list)  # List of hex_idents
+
+
+# -----------------------------------------------------------------------------
+# Internal helpers
+# -----------------------------------------------------------------------------
+
+
+async def _get_current_plane_state_map(
+    redis_client: RedisClient,
+) -> Dict[str, PlaneState]:
+    """Return a mapping of ``hex_ident -> PlaneState`` for all ``plane:*`` keys.
+
+    Notes:
+        We *cannot* rely on :pymeth:`redis.asyncio.Redis.scan_iter` because it
+        hangs indefinitely when the connection pool is initialised with
+        ``decode_responses=True`` – see redis-py issue GH-2389.  A safe
+        workaround is to page manually via SCAN.
+
+    Args:
+        redis_client: Wrapper that provides pooled Redis connections.
+
+    Returns:
+        Dict mapping ICAO24 hex identifiers to their deserialised
+        :class:`backend.ingest.main.PlaneState` representation.
+    """
+
+    current_state: Dict[str, PlaneState] = {}
+
+    # Manual paging – SCAN returns (new_cursor, List[keys]).
+    cursor = 0
+    async with await redis_client.get_connection() as conn:
+        while True:
+            cursor, keys = await conn.scan(cursor=cursor, match="plane:*", count=1000)
+            logger.debug("[BCAST DEBUG] SCAN returned %d keys (cursor=%d)", len(keys), cursor)
+            for key in keys:
+                # Keys can be bytes when decode_responses=False – normalise.
+                key_str = key.decode() if isinstance(key, (bytes, bytearray)) else str(key)
+
+                plane = await redis_client.get_model(key_str, PlaneState)
+                if plane:
+                    current_state[plane.hex_ident] = plane
+            if cursor == 0:
+                break
+
+    logger.debug("Fetched %d current plane states via SCAN paging.", len(current_state))
+    return current_state
 
 
 async def broadcast_plane_updates(redis_client: RedisClient, manager: ConnectionManager) -> None:
@@ -45,33 +93,8 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             start_time = asyncio.get_event_loop().time()
 
             # --- Task 42: Fetch Current Plane States ---
-            current_planes_list: List[PlaneState] = []
-            current_keys = set()
-            # Get the underlying connection to use scan_iter
-            conn = await redis_client.get_connection()
-            async for key in conn.scan_iter("plane:*"):  # Use conn.scan_iter
-                current_keys.add(key)
-                try:
-                    # Use get_model, not get_json, and provide the model type
-                    plane = await redis_client.get_model(key, PlaneState)
-                    if plane:
-                        current_planes_list.append(plane)
-                    # Remove the inner try/except for parsing, get_model handles it
-                    # try:
-                    #     plane = PlaneState(**plane_dict)
-                    #     current_planes_list.append(plane)
-                    # except Exception as parse_error:  # Catch Pydantic validation errors etc.
-                    #     logger.warning(
-                    #         f"Failed to parse PlaneState for key {key}: {parse_error}"
-                    #     )
-                    else:
-                        # get_model returns None if key doesn't exist or fails parsing
-                        logger.debug(f"Plane data not found or failed parse for key {key}.")
-                except Exception as e:
-                    logger.error(f"Error processing plane key {key}: {e}")
-
-            current_state_map: Dict[str, PlaneState] = {p.hex_ident: p for p in current_planes_list}
-            logger.debug(f"Fetched {len(current_state_map)} current plane states.")
+            # Use safe paging helper (avoids redis-py scan_iter bug)
+            current_state_map = await _get_current_plane_state_map(redis_client)
 
             # --- Task 43: Calculate Delta --- #
             updated_planes: List[PlaneState] = []
@@ -105,11 +128,15 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
 
             # --- Task 44: Broadcast Delta --- #
             if delta.updated or delta.removed:
-                # Construct the actual WSMessage payload
-                delta_payload_data = DeltaPayload(
-                    planes=delta.model_dump()  # Use the PlaneDeltaUpdate structure
-                )
-                ws_message = WSMessage(type="delta", payload=delta_payload_data)
+                # Serialise PlaneState models to primitives for safe JSON encoding
+                planes_updated_serialised = [p.model_dump() for p in delta.updated]
+                payload_dict = {
+                    "planes": {
+                        "updated": planes_updated_serialised,
+                        "removed": delta.removed,
+                    }
+                }
+                ws_message = WSMessage(type="delta", payload=payload_dict)
 
                 logger.debug(
                     f"Preparing to broadcast delta: {ws_message.model_dump_json(exclude_none=True)}"
@@ -130,7 +157,10 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                                 message=ws_message.model_dump(exclude_none=True),
                                 room_code=room_code,
                             )
-                            logger.debug(f"Delta broadcast successful to room '{room_code}'.")
+                            logger.info(
+                                f"[BCAST INFO] Delta broadcasted to room '{room_code}' with "
+                                f"{len(delta.updated)} updated / {len(delta.removed)} removed"
+                            )
                         except Exception as broadcast_error:
                             # Log error specific to this room, but continue broadcasting to others
                             logger.error(

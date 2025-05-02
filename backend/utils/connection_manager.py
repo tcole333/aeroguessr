@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import defaultdict
 from typing import Dict, Optional
@@ -8,12 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections for game rooms."""
+    """Manages active WebSocket connections and room-specific locks."""
 
     def __init__(self) -> None:
         """Initializes the connection manager."""
         # Structure: {room_code: {nickname: WebSocket}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = defaultdict(dict)
+        # Lock management for room state modifications (e.g., guesses)
+        self.room_locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         logger.info("ConnectionManager initialized.")
 
     async def connect(self, websocket: WebSocket, room_code: str, nickname: str) -> None:
@@ -42,6 +45,10 @@ class ConnectionManager:
             # Clean up room if empty
             if not self.active_connections[room_code]:
                 del self.active_connections[room_code]
+                # Clean up lock if room becomes empty
+                if room_code in self.room_locks:
+                    del self.room_locks[room_code]
+                    logger.debug(f"Cleaned up lock for empty room '{room_code}'.")
             logger.info(f"Player '{nickname}' disconnected from room '{room_code}'.")
         else:
             logger.warning(
@@ -51,6 +58,11 @@ class ConnectionManager:
     def get_room_connections(self, room_code: str) -> Dict[str, WebSocket]:
         """Returns the dictionary of connections for a specific room."""
         return self.active_connections.get(room_code, {})
+
+    def get_room_lock(self, room_code: str) -> asyncio.Lock:
+        """Returns the asyncio.Lock associated with the given room code."""
+        # defaultdict ensures lock is created on first access for a room
+        return self.room_locks[room_code]
 
     async def send_personal_message(self, message: dict, websocket: WebSocket) -> None:
         """
