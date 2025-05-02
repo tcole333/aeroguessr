@@ -14,8 +14,6 @@ from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
-# Temporarily elevate module log level to DEBUG during integration diagnostics
-logger.setLevel(logging.DEBUG)
 
 # How often to fetch and prepare updates (in seconds)
 BROADCAST_INTERVAL_SECONDS = 1.0

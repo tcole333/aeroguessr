@@ -13,6 +13,8 @@ ignore = [
     "ANN102", # Missing type annotation for `cls` in classmethod
     # Allow missing return type annotations for tests for now
     # "ANN201", # Missing return type annotation for public function/method
+    "B008", # Do not perform function call `Depends` in argument defaults;
+
 ]
 
 # Allow unused variables when underscore-prefixed.

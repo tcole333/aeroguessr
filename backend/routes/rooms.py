@@ -9,6 +9,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Path,
     Request,
     Response,
     WebSocket,
@@ -25,6 +26,7 @@ from backend.schemas.room import (
     RoomCreateResponse,
     RoomJoinRequest,
     RoomJoinResponse,
+    RoomState,
     generate_room_code,
 )
 from backend.schemas.ws import (
@@ -55,7 +57,7 @@ logger.setLevel(logging.DEBUG)
 # Initialize outside lifespan for potential direct access if needed,
 # but manage connections within lifespan.
 # TODO: Review if global instances are the best approach vs. dependency injection.
-redis_client = RedisClient()
+redis_client_global = RedisClient()
 # Use the same ConnectionManager instance used by room WebSocket endpoints to
 # ensure background broadcast tasks and routes share connection tracking.
 # This avoids issues where plane `delta` messages are prepared but not delivered
@@ -66,12 +68,12 @@ manager = ConnectionManager()
 
 # Dependency function to get Redis client
 # (Could be moved to a dedicated deps.py file later)
-async def get_redis_client() -> RedisClient:
+async def get_redis() -> RedisClient:
     # This assumes RedisClient can be instantiated directly.
     # If it needs setup (like connecting pool), that should happen elsewhere
     # (e.g., FastAPI lifespan events) and this function would yield the client.
     # For now, direct instantiation works with the current RedisClient structure.
-    return RedisClient()
+    return redis_client_global
 
 
 # Dependency function to get the global ConnectionManager instance
@@ -103,7 +105,7 @@ async def create_room(
     request: Request,
     room_data: RoomCreateRequest,
     response: Response,
-    redis_client: RedisClient = Depends(get_redis_client),  # noqa: B008
+    redis: RedisClient = Depends(get_redis),
 ) -> RoomCreateResponse:
     """
     Creates a new game room and registers the host in Redis.
@@ -112,7 +114,7 @@ async def create_room(
         request: The incoming request object (used to build the WS URL).
         room_data: Data for the new room including host nickname, mode, and timeout.
         response: The outgoing response object (used to set Location header).
-        redis_client: Injected RedisClient instance.
+        redis: Injected RedisClient instance.
 
     Returns:
         The room code and WebSocket URL for the host.
@@ -124,7 +126,7 @@ async def create_room(
     for _ in range(max_retries):
         room_code = generate_room_code()
         meta_key = f"room:{room_code}:meta"
-        if not await redis_client.exists(meta_key):
+        if not await redis.exists(meta_key):
             break  # Found a unique code
     else:
         # This is very unlikely with 4-char codes, but handle defensively
@@ -154,10 +156,10 @@ async def create_room(
 
     try:
         # Store room metadata (Keep direct Redis call for non-player meta)
-        await redis_client.set_json(meta_key, new_room_meta, expire_seconds=room_ttl)
+        await redis.set_json(meta_key, new_room_meta, expire_seconds=room_ttl)
 
         # Use room_service to add the host player
-        await room_service.add_player(redis=redis_client, room_code=room_code, player=host_player)
+        await room_service.add_player(redis=redis, room_code=room_code, player=host_player)
         # TTL for the players hash is handled within add_player
 
     except Exception as e:
@@ -198,7 +200,7 @@ async def join_room(
     request: Request,
     room_code: str,
     join_data: RoomJoinRequest,
-    redis_client: RedisClient = Depends(get_redis_client),  # noqa: B008
+    redis: RedisClient = Depends(get_redis),
 ) -> RoomJoinResponse:
     """
     Allows a player to join an existing room.
@@ -207,7 +209,7 @@ async def join_room(
         request: The incoming request object.
         room_code: The 4-letter code of the room to join.
         join_data: Data containing the player's desired nickname.
-        redis_client: Injected RedisClient instance.
+        redis: Injected RedisClient instance.
 
     Returns:
         The WebSocket URL for the player to connect to.
@@ -222,7 +224,7 @@ async def join_room(
     room_ttl = 3600  # 1 hour
 
     # 1. Check if room exists
-    if not await redis_client.exists(meta_key):
+    if not await redis.exists(meta_key):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Room '{room_code}' not found."
         )
@@ -230,7 +232,7 @@ async def join_room(
     # 2. Check if nickname is already taken in this room
     # Use room_service to check for existing player
     existing_player = await room_service.get_player(
-        redis=redis_client, room_code=room_code, nickname=join_data.nickname
+        redis=redis, room_code=room_code, nickname=join_data.nickname
     )
     if existing_player:
         # TODO: Allow rejoining if nickname matches an existing *disconnected* player?
@@ -248,12 +250,12 @@ async def join_room(
 
     try:
         # Use room_service to add the new player
-        await room_service.add_player(redis=redis_client, room_code=room_code, player=new_player)
+        await room_service.add_player(redis=redis, room_code=room_code, player=new_player)
 
         # 4. Refresh TTLs to keep room alive (Only meta TTL needs explicit refresh here)
         # Player hash TTL is handled by add_player
-        await redis_client.expire(meta_key, room_ttl)
-        # await redis_client.expire(players_key, room_ttl) # No longer needed
+        await redis.expire(meta_key, room_ttl)
+        # await redis.expire(players_key, room_ttl) # No longer needed
 
     except Exception as e:
         raise HTTPException(
@@ -273,15 +275,15 @@ async def websocket_endpoint(
     websocket: WebSocket,
     room_code: str,
     nickname: str,
-    redis_client: RedisClient = Depends(get_redis_client),  # noqa: B008
-    conn_manager: ConnectionManager = Depends(get_connection_manager),  # noqa: B008
+    redis: RedisClient = Depends(get_redis),
+    conn_manager: ConnectionManager = Depends(get_connection_manager),
 ) -> None:
     """Handle WebSocket connections for players in a room using ConnectionManager."""
     meta_key = f"room:{room_code}:meta"
     # players_key = f"room:{room_code}:players"
 
     # --- Connection Validation (Before accepting) --- #
-    room_meta: RoomMeta | None = await redis_client.get_model(meta_key, RoomMeta)
+    room_meta: RoomMeta | None = await redis.get_model(meta_key, RoomMeta)
     if not room_meta:
         logger.warning(f"WebSocket connection rejected: Room {room_code} not found.")
         # Close the connection explicitly before returning
@@ -289,9 +291,7 @@ async def websocket_endpoint(
         return
 
     # Use room_service to get player data
-    player = await room_service.get_player(
-        redis=redis_client, room_code=room_code, nickname=nickname
-    )
+    player = await room_service.get_player(redis=redis, room_code=room_code, nickname=nickname)
     if not player:
         logger.warning(
             f"WebSocket connection rejected: Player {nickname} not found in room {room_code}. "
@@ -342,12 +342,12 @@ async def websocket_endpoint(
                 f"Auto-transfer timeout (5 min) reached for room {room_code}. Selecting new host."
             )
             # Check if host reconnected in the meantime
-            current_meta = await room_service.get_room_meta(redis_client, room_code)
+            current_meta = await room_service.get_room_meta(redis, room_code)
             if not current_meta:
                 logger.error(f"Cannot auto-transfer host: Room {room_code} no longer exists.")
                 return
             host_player = await room_service.get_player(
-                redis_client, room_code, current_meta.host_nickname
+                redis, room_code, current_meta.host_nickname
             )
             if host_player and host_player.connected:
                 logger.info(
@@ -356,7 +356,7 @@ async def websocket_endpoint(
                 return
 
             # Select a new host randomly from connected players
-            all_players = await room_service.get_all_players(redis_client, room_code)
+            all_players = await room_service.get_all_players(redis, room_code)
             connected_players = [
                 p
                 for p in all_players.values()
@@ -371,7 +371,7 @@ async def websocket_endpoint(
 
             new_host = random.choice(connected_players)  # Needs import random
             current_meta.host_nickname = new_host.nickname
-            await room_service.set_room_meta(redis_client, room_code, current_meta)
+            await room_service.set_room_meta(redis, room_code, current_meta)
             logger.info(f"Auto-transferring host to {new_host.nickname} in room {room_code}.")
 
             # Broadcast newHost message
@@ -406,7 +406,7 @@ async def websocket_endpoint(
         # Prevent multiple simultaneous ends (e.g., timer and last guess)
         # This requires careful state management or locking if truly concurrent
         # For now, assume get/set is fast enough for typical race conditions
-        round_data = await room_service.get_round_data(redis_client, room_code)
+        round_data = await room_service.get_round_data(redis, room_code)
         if not round_data or round_data.state != RoundStateEnum.ACCEPTING_GUESSES:
             logger.warning(
                 (
@@ -434,17 +434,17 @@ async def websocket_endpoint(
             f"Ending round {round_data.round_number} for room {room_code}. Calculating scores."
         )
         results: List[RoundResultDetail] = []
-        all_players = await room_service.get_all_players(redis_client, room_code)
+        all_players = await room_service.get_all_players(redis, room_code)
         correct_code = round_data.correct_airport_code
         room_meta_local = await room_service.get_room_meta(
-            redis_client, room_code
+            redis, room_code
         )  # Fetch fresh meta for scoring mode
 
         if not room_meta_local:
             logger.error(f"Cannot end round: RoomMeta not found for {room_code}")
             # Transition to waiting? Or handle error differently?
             round_data.state = RoundStateEnum.WAITING_FOR_SELECTION
-            await room_service.set_round_data(redis_client, room_code, round_data)
+            await room_service.set_round_data(redis, room_code, round_data)
             return
 
         if not correct_code:
@@ -455,7 +455,7 @@ async def websocket_endpoint(
                 )
             )
             round_data.state = RoundStateEnum.WAITING_FOR_SELECTION
-            await room_service.set_round_data(redis_client, room_code, round_data)
+            await room_service.set_round_data(redis, room_code, round_data)
             return
 
         scoring_mode = room_meta_local.mode
@@ -483,7 +483,7 @@ async def websocket_endpoint(
                 # Update player score in Redis
                 if score_awarded != 0:
                     updated_player = await room_service.update_player_score(
-                        redis=redis_client,
+                        redis=redis,
                         room_code=room_code,
                         nickname=p_nick,
                         score_change=score_awarded,
@@ -515,7 +515,7 @@ async def websocket_endpoint(
         # --- Update Round State & Broadcast --- #
         round_data.state = RoundStateEnum.SHOWING_RESULTS
         round_data.results = results
-        await room_service.set_round_data(redis_client, room_code, round_data)
+        await room_service.set_round_data(redis, room_code, round_data)
 
         # Broadcast roundResult message
         result_payload = RoundResultPayload(results=results)
@@ -537,7 +537,7 @@ async def websocket_endpoint(
         # Maybe start a short task here?
         async def _reset_for_next_round(delay: int = 5) -> None:
             await asyncio.sleep(delay)
-            rd = await room_service.get_round_data(redis_client, room_code)
+            rd = await room_service.get_round_data(redis, room_code)
             if rd and rd.state == RoundStateEnum.SHOWING_RESULTS:
                 logger.info(f"Resetting state to WAITING_FOR_SELECTION for room {room_code}")
                 rd.state = RoundStateEnum.WAITING_FOR_SELECTION
@@ -547,7 +547,7 @@ async def websocket_endpoint(
                 rd.round_start_time = None
                 rd.guesses = {}
                 rd.results = None
-                await room_service.set_round_data(redis_client, room_code, rd)
+                await room_service.set_round_data(redis, room_code, rd)
                 # Maybe broadcast a state update?
 
         reset_task = asyncio.create_task(_reset_for_next_round())
@@ -571,7 +571,7 @@ async def websocket_endpoint(
 
     # Initialize round data on connect if it doesn't exist
     try:
-        current_round_data = await room_service.initialize_round_data(redis_client, room_code)
+        current_round_data = await room_service.initialize_round_data(redis, room_code)
         logger.info(
             (
                 f"Ensured round data exists for room {room_code}. Current state: "
@@ -586,7 +586,7 @@ async def websocket_endpoint(
 
     # Get RoomMeta once - needed for host checks and timeout
     # Add get_room_meta helper to room_service
-    room_meta = await room_service.get_room_meta(redis_client, room_code)
+    room_meta = await room_service.get_room_meta(redis, room_code)
     if not room_meta:
         logger.error(
             (f"RoomMeta not found for {room_code} " f"during connection setup. Disconnecting.")
@@ -597,7 +597,7 @@ async def websocket_endpoint(
 
     # Update player status using room_service
     updated_player = await room_service.update_player_status(
-        redis=redis_client, room_code=room_code, nickname=nickname, connected=True
+        redis=redis, room_code=room_code, nickname=nickname, connected=True
     )
     if not updated_player:
         # Should not happen if initial get_player succeeded, but handle defensively
@@ -619,7 +619,7 @@ async def websocket_endpoint(
 
     # Send initial state sync to the newly connected player
     # Use room_service to get all players
-    all_players_dict = await room_service.get_all_players(redis=redis_client, room_code=room_code)
+    all_players_dict = await room_service.get_all_players(redis=redis, room_code=room_code)
     sync_message = WSMessage(
         type="stateSync",
         payload=FullRoomState(
@@ -638,7 +638,7 @@ async def websocket_endpoint(
 
         # Update player status using room_service
         await room_service.update_player_status(
-            redis=redis_client, room_code=room_code, nickname=nickname, connected=False
+            redis=redis, room_code=room_code, nickname=nickname, connected=False
         )
 
         # Broadcast playerLeft message to others in the room
@@ -697,7 +697,7 @@ async def websocket_endpoint(
                         await _send_error("INVALID_PAYLOAD", f"Invalid selectPlane payload: {e}")
                         continue
 
-                    current_round_data = await room_service.get_round_data(redis_client, room_code)
+                    current_round_data = await room_service.get_round_data(redis, room_code)
                     if not current_round_data:
                         await _send_error(
                             "ROUND_DATA_MISSING", "Internal error: Round data not found."
@@ -715,7 +715,7 @@ async def websocket_endpoint(
                     # TODO: Replace placeholder with actual plane data lookup and origin/dest logic
                     #       Requires PlaneState schema and potentially flight phase analysis.
                     plane_key = f"plane:{plane_hex}"
-                    if not await redis_client.exists(plane_key):
+                    if not await redis.exists(plane_key):
                         await _send_error(
                             "PLANE_NOT_FOUND",
                             f"Selected plane {plane_hex} not found in tracking data.",
@@ -737,7 +737,7 @@ async def websocket_endpoint(
                     # Keep state as WAITING_FOR_SELECTION until startRound
                     # current_round_data.state = RoundStateEnum.PLANE_SELECTED # Add if needed
 
-                    await room_service.set_round_data(redis_client, room_code, current_round_data)
+                    await room_service.set_round_data(redis, room_code, current_round_data)
                     logger.info(
                         f"Host {nickname} selected plane {plane_hex} for room {room_code}. "
                         f"Correct: {correct_airport_code}, Direction: {guess_direction}."
@@ -751,7 +751,7 @@ async def websocket_endpoint(
                         await _send_error("NOT_HOST", "Only the host can start a round.")
                         continue
 
-                    current_round_data = await room_service.get_round_data(redis_client, room_code)
+                    current_round_data = await room_service.get_round_data(redis, room_code)
                     # Verify state and that a plane is selected
                     if not current_round_data:
                         await _send_error(
@@ -775,7 +775,7 @@ async def websocket_endpoint(
                     current_round_data.results = None  # Clear previous results
                     current_round_data.round_number += 1  # Increment round number
 
-                    await room_service.set_round_data(redis_client, room_code, current_round_data)
+                    await room_service.set_round_data(redis, room_code, current_round_data)
                     logger.info(
                         f"Host {nickname} started round {current_round_data.round_number} "
                         f"for plane {current_round_data.selected_plane_hex} in room {room_code}."
@@ -826,7 +826,7 @@ async def websocket_endpoint(
                             continue
                         # Validate target player exists and is connected
                         target_player = await room_service.get_player(
-                            redis_client, room_code, target_nickname
+                            redis, room_code, target_nickname
                         )
                         if not target_player or not target_player.connected:
                             logger.warning(
@@ -843,7 +843,7 @@ async def websocket_endpoint(
 
                         # Update RoomMeta
                         room_meta.host_nickname = target_nickname
-                        await room_service.set_room_meta(redis_client, room_code, room_meta)
+                        await room_service.set_room_meta(redis, room_code, room_meta)
                         logger.info(
                             (
                                 f"Host {nickname} transferred host role to {target_nickname} in "
@@ -882,7 +882,7 @@ async def websocket_endpoint(
 
                     try:
                         # Ensure the current host is actually disconnected
-                        current_meta = await room_service.get_room_meta(redis_client, room_code)
+                        current_meta = await room_service.get_room_meta(redis, room_code)
                         if not current_meta:
                             raise Exception("Room metadata not found during claimHost.")
                         if nickname == current_meta.host_nickname:
@@ -890,7 +890,7 @@ async def websocket_endpoint(
                             continue
 
                         original_host_player = await room_service.get_player(
-                            redis_client, room_code, current_meta.host_nickname
+                            redis, room_code, current_meta.host_nickname
                         )
                         if original_host_player and original_host_player.connected:
                             logger.warning(
@@ -908,7 +908,7 @@ async def websocket_endpoint(
                         # Make the current player the new host
                         new_host_nickname = nickname
                         current_meta.host_nickname = new_host_nickname
-                        await room_service.set_room_meta(redis_client, room_code, current_meta)
+                        await room_service.set_room_meta(redis, room_code, current_meta)
                         logger.info(
                             (
                                 f"Player {nickname} successfully claimed host role in room "
@@ -944,9 +944,7 @@ async def websocket_endpoint(
                                 f"[HANDLER DEBUG] ({nickname}) Attempting to get round data "
                                 "inside lock."
                             )
-                            current_round_data = await room_service.get_round_data(
-                                redis_client, room_code
-                            )
+                            current_round_data = await room_service.get_round_data(redis, room_code)
                             logger.info(
                                 f"[HANDLER DEBUG] ({nickname}) Got round data inside lock: "
                                 f"{current_round_data}"
@@ -986,7 +984,7 @@ async def websocket_endpoint(
                                 f"New guesses: {updated_guesses}"
                             )
                             success = await room_service.set_round_data(
-                                redis_client, room_code, data_to_save
+                                redis, room_code, data_to_save
                             )
 
                             if not success:
@@ -1003,7 +1001,7 @@ async def websocket_endpoint(
 
                             # --- Check All Guessed (using the data we just wrote) --- #
                             all_players_in_room = await room_service.get_all_players(
-                                redis_client, room_code
+                                redis, room_code
                             )
                             connected_players = {
                                 p.nickname for p in all_players_in_room.values() if p.connected
@@ -1067,12 +1065,12 @@ async def websocket_endpoint(
                 # We only need to update last_seen, connected status remains True here
                 # Optimization: Consider updating last_seen less frequently if needed.
                 updated_player = await room_service.get_player(
-                    redis=redis_client, room_code=room_code, nickname=nickname
+                    redis=redis, room_code=room_code, nickname=nickname
                 )
                 if updated_player:
                     updated_player.last_seen_ts = time.time()
                     await room_service.add_player(
-                        redis=redis_client, room_code=room_code, player=updated_player
+                        redis=redis, room_code=room_code, player=updated_player
                     )
                     player = updated_player  # Keep local player object in sync # noqa: F841
                 else:
@@ -1202,7 +1200,7 @@ async def websocket_endpoint(
             # Also perform Redis status update only if manager disconnect was just done
             try:
                 updated = await room_service.update_player_status(
-                    redis=redis_client, room_code=room_code, nickname=nickname, connected=False
+                    redis=redis, room_code=room_code, nickname=nickname, connected=False
                 )
                 if updated:
                     logger.info(
@@ -1241,3 +1239,67 @@ async def websocket_endpoint(
 
 
 # --- Background Task: Ping ---
+
+
+@router.get(
+    "/{code}",
+    response_model=RoomState,
+    summary="Get Full Room Details (Debug)",
+    tags=["rooms", "debug"],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Room not found"},
+    },
+)
+async def get_room_details(
+    code: str = Path(
+        ...,
+        description="The 4-letter room code.",
+        min_length=4,
+        max_length=4,
+        pattern="^[A-Z]{4}$",
+    ),
+    redis: RedisClient = Depends(get_redis),
+) -> RoomState:
+    """
+    Retrieves the complete state of a specific game room from Redis.
+
+    Intended primarily for debugging and development purposes.
+
+    - **code**: The unique 4-letter code identifying the room.
+    - **Returns**: The full state of the room including metadata, players, scores, and round status.
+    - **Raises**: `HTTPException` (404) if the room code is not found in Redis.
+    """
+    try:
+        room_meta = await room_service.get_room_meta(redis, code)
+        if not room_meta:
+            # Let FastAPI handle this HTTPException directly
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room with code '{code}' not found.",
+            )
+
+        # Fetch other data only if room_meta was found
+        players = await room_service.get_all_players(redis, code)
+        round_data = await room_service.get_round_data(redis, code)
+
+    except HTTPException:  # Explicitly re-raise HTTPExceptions
+        raise
+    except Exception as e:  # Catch other unexpected errors
+        logger.error(f"Unexpected error fetching room details for {code}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected internal error occurred.",
+        ) from e
+
+    # Assemble the response model (only if successful)
+    room_state = RoomState(
+        code=code,
+        mode=room_meta.mode,
+        round_timeout_seconds=room_meta.round_timeout_seconds,
+        host_nickname=room_meta.host_nickname,
+        created_ts=room_meta.created_ts,
+        players=players,  # get_all_players returns Dict[str, Player]
+        current_round=round_data,  # get_round_data returns Optional[RoundData]
+    )
+
+    return room_state

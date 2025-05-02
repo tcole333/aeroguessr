@@ -99,6 +99,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HTTPValidationError"
+  /api/v0/rooms/{code}:
+    get:
+      tags:
+        - rooms
+        - rooms
+        - debug
+      summary: Get Full Room Details (Debug)
+      description: "Retrieves the complete state of a specific game room from Redis.
+
+
+        Intended primarily for debugging and development purposes.
+
+
+        - **code**: The unique 4-letter code identifying the room.
+
+        - **Returns**: The full state of the room including metadata, players, scores,
+        and round status.
+
+        - **Raises**: `HTTPException` (404) if the room code is not found in Redis."
+      operationId: get_room_details_api_v0_rooms__code__get
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 4
+            maxLength: 4
+            pattern: ^[A-Z]{4}$
+            description: The 4-letter room code.
+            title: Code
+          description: The 4-letter room code.
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+        "404":
+          description: Room not found
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
 components:
   schemas:
     HTTPValidationError:
@@ -110,6 +157,55 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    Player:
+      properties:
+        nickname:
+          type: string
+          title: Nickname
+          description: Unique nickname chosen by the player.
+        score:
+          type: integer
+          title: Score
+          description: Player's current score.
+          default: 0
+        connected:
+          type: boolean
+          title: Connected
+          description: Whether the player is currently connected via WebSocket.
+          default: false
+        last_seen_ts:
+          anyOf:
+            - type: number
+            - type: "null"
+          title: Last Seen Ts
+          description: Timestamp of the last activity or connection.
+      type: object
+      required:
+        - nickname
+      title: Player
+      description: Represents a player within a game room.
+      example:
+        connected: true
+        last_seen_ts: 1746154529.836359
+        nickname: PilotPete
+        score: 150
+    PlayerGuess:
+      properties:
+        nickname:
+          type: string
+          title: Nickname
+        guess:
+          type: string
+          title: Guess
+        timestamp:
+          type: number
+          title: Timestamp
+      type: object
+      required:
+        - nickname
+        - guess
+      title: PlayerGuess
+      description: Stores a player's guess for a round.
     RoomCreateRequest:
       properties:
         host_nickname:
@@ -185,6 +281,179 @@ components:
       description: Response body after successfully joining a game room.
       example:
         ws_url: ws://localhost:8000/ws/WXYZ/JoinerJane
+    RoomState:
+      properties:
+        mode:
+          $ref: "#/components/schemas/ScoringMode"
+          description: Scoring mode for the room.
+          default: Exact
+        round_timeout_seconds:
+          type: integer
+          maximum: 120.0
+          minimum: 10.0
+          title: Round Timeout Seconds
+          description: Duration of each guessing round in seconds.
+          default: 30
+        host_nickname:
+          type: string
+          title: Host Nickname
+          description: Nickname of the player currently hosting the room.
+        created_ts:
+          type: number
+          title: Created Ts
+          description: Timestamp when the room was created.
+        code:
+          type: string
+          title: Code
+          description: The 4-letter code identifying the room.
+        players:
+          additionalProperties:
+            $ref: "#/components/schemas/Player"
+          type: object
+          title: Players
+          description: Players currently in the room, keyed by nickname.
+        current_round:
+          anyOf:
+            - $ref: "#/components/schemas/RoundData"
+            - type: "null"
+          description: Data for the currently active round, if any.
+      type: object
+      required:
+        - host_nickname
+        - code
+      title: RoomState
+      description: Represents the complete state of a game room, suitable for debug
+        view or state sync.
+      example:
+        code: WXYZ
+        created_ts: 1746154529.8409421
+        current_round:
+          correct_airport_code: JFK
+          guess_direction: destination
+          guesses:
+            JoinerJane:
+              guess: LGA
+              nickname: JoinerJane
+              timestamp: 1746154524.840943
+          round_number: 3
+          round_start_time: 1746154519.840943
+          selected_plane_hex: a1b2c3
+          state: accepting_guesses
+        host_nickname: HostHarry
+        mode: Distance
+        players:
+          HostHarry:
+            connected: true
+            last_seen_ts: 1746154529.8409421
+            nickname: HostHarry
+            score: 100
+          JoinerJane:
+            connected: true
+            last_seen_ts: 1746154519.8409421
+            nickname: JoinerJane
+            score: 50
+        round_timeout_seconds: 45
+    RoundData:
+      properties:
+        state:
+          $ref: "#/components/schemas/RoundStateEnum"
+          description: The current phase of the round.
+          default: waiting_for_selection
+        selected_plane_hex:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Selected Plane Hex
+          description: ICAO hex code of the plane selected for this round.
+        correct_airport_code:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Correct Airport Code
+          description: The correct origin/destination airport code for the selected
+            plane.
+        guess_direction:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Guess Direction
+          description: Whether players are guessing 'origin' or 'destination'.
+        round_start_time:
+          anyOf:
+            - type: number
+            - type: "null"
+          title: Round Start Time
+          description: Timestamp when the guessing period started.
+        guesses:
+          additionalProperties:
+            $ref: "#/components/schemas/PlayerGuess"
+          type: object
+          title: Guesses
+          description: "Guesses submitted by players {nickname: PlayerGuess}."
+        results:
+          anyOf:
+            - items:
+                $ref: "#/components/schemas/RoundResultDetail"
+              type: array
+            - type: "null"
+          title: Results
+          description: Scoring results after the round ends.
+        round_number:
+          type: integer
+          title: Round Number
+          description: Counter for the current round number.
+          default: 0
+      type: object
+      title: RoundData
+      description: Data stored in Redis for the current state of a game round (`room:{code}:round`).
+      example:
+        correct_airport_code: JFK
+        guess_direction: destination
+        guesses:
+          PilotPete:
+            guess: LGA
+            nickname: PilotPete
+            timestamp: 1746154524.838122
+        round_number: 3
+        round_start_time: 1746154519.838121
+        selected_plane_hex: a1b2c3
+        state: accepting_guesses
+    RoundResultDetail:
+      properties:
+        nickname:
+          type: string
+          title: Nickname
+        guess:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Guess
+        correct_code:
+          type: string
+          title: Correct Code
+        score_awarded:
+          type: integer
+          title: Score Awarded
+        current_total_score:
+          type: integer
+          title: Current Total Score
+      type: object
+      required:
+        - nickname
+        - guess
+        - correct_code
+        - score_awarded
+        - current_total_score
+      title: RoundResultDetail
+      description: Detailed result for a single player in a round.
+    RoundStateEnum:
+      type: string
+      enum:
+        - waiting_for_selection
+        - accepting_guesses
+        - showing_results
+      title: RoundStateEnum
+      description: Possible states for a game round.
     ScoringMode:
       type: string
       enum:

@@ -11,7 +11,7 @@ from httpx_ws.transport import ASGIWebSocketTransport
 
 # Import the FastAPI app instance
 from backend.app import app
-from backend.routes.rooms import get_redis_client  # Import the dependency getter
+from backend.routes.rooms import get_redis
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
@@ -53,15 +53,15 @@ async def redis_client(
     # Define the override function for this specific test
     async def override_get_redis_for_test() -> RedisClient:
         logger.info(
-            f"[Dependency Override] get_redis_client called. Returning client wrapping "
+            f"[Dependency Override] get_redis called. Returning client wrapping "
             f"FakeRedis ID: {id(client_wrapper.redis)}. Loop ID: {id(asyncio.get_running_loop())}"
         )
         return client_wrapper
 
     # Apply the override
     logger.info(f"[Fixture redis_client] Applying override. Loop ID: {loop_id}")
-    original_override = app.dependency_overrides.get(get_redis_client)
-    app.dependency_overrides[get_redis_client] = override_get_redis_for_test
+    original_override = app.dependency_overrides.get(get_redis)
+    app.dependency_overrides[get_redis] = override_get_redis_for_test
 
     try:
         # Clear redis before the test runs
@@ -77,10 +77,10 @@ async def redis_client(
         # Restore the original override (or remove) after the test
         logger.info(f"[Fixture redis_client] Restoring override. Loop ID: {loop_id}")
         if original_override:
-            app.dependency_overrides[get_redis_client] = original_override
+            app.dependency_overrides[get_redis] = original_override
         else:
-            if get_redis_client in app.dependency_overrides:
-                del app.dependency_overrides[get_redis_client]
+            if get_redis in app.dependency_overrides:
+                del app.dependency_overrides[get_redis]
         logger.info(f"[Fixture redis_client] END. Loop ID: {loop_id}")
 
 
