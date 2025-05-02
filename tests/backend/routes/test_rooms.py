@@ -299,3 +299,48 @@ async def test_get_room_details_service_error(test_client: AsyncClient) -> None:
 
 
 # Remove WebSocket test stub - covered in test_websocket.py
+
+# --- Tests for DELETE /api/v0/rooms/{code} --- #
+
+
+async def test_delete_room_success(test_client: AsyncClient, redis_client: RedisClient) -> None:
+    """Room keys removed and 204 returned."""
+    # create room first
+    create_resp = await test_client.post("/api/v0/rooms", json={"host_nickname": "DelHost"})
+    assert create_resp.status_code == status.HTTP_201_CREATED
+    code = create_resp.json()["room_code"]
+
+    # ensure metadata key exists
+    assert await redis_client.exists(f"room:{code}:meta")
+
+    # delete
+    del_resp = await test_client.delete(f"/api/v0/rooms/{code}")
+    assert del_resp.status_code == status.HTTP_204_NO_CONTENT
+
+    # keys should be gone
+    assert not await redis_client.exists(f"room:{code}:meta")
+    assert not await redis_client.exists(f"room:{code}:players")
+    assert not await redis_client.exists(f"room:{code}:round")
+
+
+async def test_delete_room_not_found(test_client: AsyncClient) -> None:
+    code = "ZZZZ"
+    resp = await test_client.delete(f"/api/v0/rooms/{code}")
+    assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_delete_room_service_error(test_client: AsyncClient) -> None:
+    code = "ABCD"
+    with (
+        patch("backend.routes.rooms.room_service.get_room_meta") as g_meta,
+        patch("backend.routes.rooms.room_service.delete_room") as del_room,
+    ):
+        g_meta.return_value = RoomMeta(
+            mode=ScoringMode.EXACT,
+            round_timeout_seconds=30,
+            host_nickname="x",
+            created_ts=time.time(),
+        )
+        del_room.side_effect = Exception("Redis fail")
+        resp = await test_client.delete(f"/api/v0/rooms/{code}")
+        assert resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

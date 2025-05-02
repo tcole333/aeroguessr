@@ -224,3 +224,28 @@ async def initialize_round_data(redis: RedisClient, room_code: str) -> RoundData
 
 
 # TODO: Add functions for managing round state (get_round_data, set_round_data)
+
+
+async def delete_room(redis: RedisClient, room_code: str) -> None:
+    """Delete all Redis keys associated with a game room.
+
+    Args:
+        redis: Redis client wrapper.
+        room_code: 4-letter room code.
+
+    Raises:
+        Exception: Propagates unexpected Redis errors.
+    """
+    meta_key = f"room:{room_code}:meta"
+    players_key = f"room:{room_code}:players"
+    round_key = f"room:{room_code}:round"
+
+    try:
+        async with await redis.get_connection() as conn:
+            await conn.delete(meta_key, players_key, round_key)  # type: ignore[attr-defined]
+        logger.info(
+            "Deleted room %s (keys: %s, %s, %s)", room_code, meta_key, players_key, round_key
+        )
+    except Exception as exc:  # noqa: BLE001 – bubble up after logging
+        logger.error("Failed to delete room %s: %s", room_code, exc, exc_info=True)
+        raise

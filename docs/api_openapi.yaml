@@ -146,6 +146,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HTTPValidationError"
+    delete:
+      tags:
+        - rooms
+        - rooms
+      summary: End (delete) a game room
+      description: "Delete all Redis keys for a room.
+
+
+        Primarily for host/admin cleanup; no authentication enforced yet."
+      operationId: delete_room_endpoint_api_v0_rooms__code__delete
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 4
+            maxLength: 4
+            pattern: ^[A-Z]{4}$
+            description: The 4-letter room code.
+            title: Code
+          description: The 4-letter room code.
+      responses:
+        "204":
+          description: Successful Response
+        "404":
+          description: Room not found
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
 components:
   schemas:
     HTTPValidationError:
@@ -186,7 +219,7 @@ components:
       description: Represents a player within a game room.
       example:
         connected: true
-        last_seen_ts: 1746154529.836359
+        last_seen_ts: 1746155444.248609
         nickname: PilotPete
         score: 150
     PlayerGuess:
@@ -326,7 +359,7 @@ components:
         view or state sync.
       example:
         code: WXYZ
-        created_ts: 1746154529.8409421
+        created_ts: 1746155444.252245
         current_round:
           correct_airport_code: JFK
           guess_direction: destination
@@ -334,9 +367,9 @@ components:
             JoinerJane:
               guess: LGA
               nickname: JoinerJane
-              timestamp: 1746154524.840943
+              timestamp: 1746155439.252246
           round_number: 3
-          round_start_time: 1746154519.840943
+          round_start_time: 1746155434.252246
           selected_plane_hex: a1b2c3
           state: accepting_guesses
         host_nickname: HostHarry
@@ -344,12 +377,12 @@ components:
         players:
           HostHarry:
             connected: true
-            last_seen_ts: 1746154529.8409421
+            last_seen_ts: 1746155444.252245
             nickname: HostHarry
             score: 100
           JoinerJane:
             connected: true
-            last_seen_ts: 1746154519.8409421
+            last_seen_ts: 1746155434.252245
             nickname: JoinerJane
             score: 50
         round_timeout_seconds: 45
@@ -413,9 +446,9 @@ components:
           PilotPete:
             guess: LGA
             nickname: PilotPete
-            timestamp: 1746154524.838122
+            timestamp: 1746155439.25055
         round_number: 3
-        round_start_time: 1746154519.838121
+        round_start_time: 1746155434.250549
         selected_plane_hex: a1b2c3
         state: accepting_guesses
     RoundResultDetail:

@@ -1303,3 +1303,32 @@ async def get_room_details(
     )
 
     return room_state
+
+
+@router.delete(
+    "/{code}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="End (delete) a game room",
+    tags=["rooms"],
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Room not found"}},
+)
+async def delete_room_endpoint(
+    code: str = Path(
+        ..., description="The 4-letter room code.", min_length=4, max_length=4, pattern="^[A-Z]{4}$"
+    ),
+    redis: RedisClient = Depends(get_redis),
+) -> None:
+    """Delete all Redis keys for a room.
+
+    Primarily for host/admin cleanup; no authentication enforced yet.
+    """
+    room_meta = await room_service.get_room_meta(redis, code)
+    if not room_meta:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found.")
+    try:
+        await room_service.delete_room(redis, code)
+    except Exception as exc:  # Unexpected errors
+        logger.error("Failed to delete room %s: %s", code, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete room."
+        ) from exc
