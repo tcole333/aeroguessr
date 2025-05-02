@@ -31,8 +31,8 @@ Legend: ✅ Complete   ⚠️ Partial/In progress   ❌ Missing
 | -------------------------------- | ----------------------------- | ---------------------------------------------------- | ------------ |
 | `POST /api/v0/rooms`             | Required                      | Implemented in `backend.routes.rooms.create_room`.   | None.        |
 | `POST /api/v0/rooms/{code}/join` | Required                      | Implemented (`join_room`).                           | None.        |
-| `GET /api/v0/rooms/{code}`       | Debug-only                    | **Missing**. Low-risk but add for parity with PRD.   |
-| `DELETE /api/v0/rooms/{code}`    | End room                      | **Missing**. Needed for host to end game.            |
+| `GET /api/v0/rooms/{code}`       | Debug-only                    | ✅ Implemented (v0.1, tests added).                  |
+| `DELETE /api/v0/rooms/{code}`    | End room                      | ✅ Implemented (v0.1, tests added).                  |
 | `GET /api/v0/airports/search`    | Removed after preload per PRD | Not implemented. OK.                                 |
 | `GET /healthz`                   | Required                      | Implemented. Could add Redis ping for deeper health. |
 
