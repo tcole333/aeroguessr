@@ -15,6 +15,7 @@ Implement new FastAPI route **`<METHOD> /api/vX/<resource>`**.
 
 ### Steps
 
+- [ ] Identify alignment with @PRD
 - [ ] Create/extend Pydantic schema(s).
 - [ ] Implement route logic (`async def`) in router.
 - [ ] Implement business logic in service layer.

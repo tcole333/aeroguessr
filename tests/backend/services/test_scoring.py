@@ -51,7 +51,7 @@ def test_calculate_distance_score_exact_match(mock_get_coords: MagicMock) -> Non
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km")  # Mock the actual distance calc
+@patch("backend.utils.geo.haversine_km")
 def test_calculate_distance_score_close_guess(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -69,7 +69,7 @@ def test_calculate_distance_score_close_guess(
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km")
+@patch("backend.utils.geo.haversine_km")
 def test_calculate_distance_score_far_guess(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -86,7 +86,7 @@ def test_calculate_distance_score_far_guess(
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km")
+@patch("backend.utils.geo.haversine_km")
 def test_calculate_distance_score_invalid_guess(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -103,7 +103,7 @@ def test_calculate_distance_score_invalid_guess(
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km", return_value=1000.0)
+@patch("backend.utils.geo.haversine_km", return_value=1000.0)
 def test_calculate_distance_score_boundary(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -119,7 +119,7 @@ def test_calculate_distance_score_boundary(
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km", return_value=999.9)
+@patch("backend.utils.geo.haversine_km", return_value=999.9)
 def test_calculate_distance_score_just_below_boundary(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -134,7 +134,7 @@ def test_calculate_distance_score_just_below_boundary(
     "backend.services.scoring.get_airport_coords",
     side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
 )
-@patch("backend.services.scoring.calculate_distance_km", return_value=0.0)
+@patch("backend.utils.geo.haversine_km", return_value=0.0)
 def test_calculate_distance_score_zero_distance(
     mock_calc_dist: MagicMock, mock_get_coords: MagicMock
 ) -> None:
@@ -144,3 +144,23 @@ def test_calculate_distance_score_zero_distance(
     # Score = max(0, 100 - 0 / 10) = 100
     assert scoring.calculate_distance_score("BOS", "JFK") == 100  # Using JFK, but mocked dist=0
     mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["JFK"])
+
+
+def test_exact_score() -> None:
+    assert scoring.calculate_exact_score("BOS", "bos") == 100
+    assert scoring.calculate_exact_score("BOS", "JFK") == 0
+
+
+def test_distance_score_short() -> None:
+    # Boston ➔ JFK ≈ 299 km ⇒ 100 - 29.9 ≈ 70
+    score = scoring.calculate_distance_score("BOS", "JFK")
+    assert 68 <= score <= 72
+
+
+def test_distance_score_long() -> None:
+    # BOS ➔ LAX ≈ 4175 km ⇒ score≈100-417=0 (clamped)
+    assert scoring.calculate_distance_score("BOS", "LAX") == 0
+
+
+def test_distance_score_unknown() -> None:
+    assert scoring.calculate_distance_score("BOS", "XXX") == 0

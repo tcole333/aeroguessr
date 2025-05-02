@@ -37,9 +37,9 @@ def clear_global_state() -> None:
 def mock_redis_client() -> AsyncMock:
     """Provides a mock RedisClient with async get/set methods."""
     mock = AsyncMock(spec=RedisClient)
-    mock.set_json = AsyncMock()
-    # Add get_json mock, default to returning None (no existing state)
-    mock.get_json = AsyncMock(return_value=None)
+    mock.set_json = AsyncMock()  # Keep for backwards compatibility
+    mock.get_model = AsyncMock(return_value=None)  # Default to no existing state
+    mock.get_json = AsyncMock(return_value=None)  # Keep for backwards compatibility
     return mock
 
 
@@ -104,7 +104,7 @@ async def test_handle_first_message(
     assert hex_id not in ingest_main.last_timestamps
 
     # Ensure Redis get_json returns None for the first message
-    mock_redis_client.get_json.return_value = None
+    mock_redis_client.get_model.return_value = None
 
     await ingest_main.handle_message(sample_raw_message, mock_redis_client)
 
@@ -119,7 +119,7 @@ async def test_handle_first_message(
     mock_fetch_aeroapi.assert_called_once_with(hex_id, mock_redis_client)
 
     # Check Redis calls
-    mock_redis_client.get_json.assert_called_once_with(f"plane:{hex_id}")
+    mock_redis_client.get_model.assert_called_once_with(f"plane:{hex_id}", PlaneState)
     mock_redis_client.set_json.assert_called_once()
     call_args = mock_redis_client.set_json.call_args
 
@@ -181,7 +181,7 @@ async def test_handle_subsequent_message(
     sample_aeroapi_route = RouteData(origin_icao="KAAA", destination_icao="KBBB")
     mock_fetch_opensky.return_value = sample_opensky_enrichment
     mock_fetch_aeroapi.return_value = sample_aeroapi_route
-    mock_redis_client.get_json.return_value = None  # No state exists initially
+    mock_redis_client.get_model.return_value = None  # No state exists initially
     await ingest_main.handle_message(sample_raw_message, mock_redis_client)
 
     # Check enrichment was fetched on first call
@@ -195,9 +195,9 @@ async def test_handle_subsequent_message(
     mock_fetch_opensky.reset_mock()
     mock_fetch_aeroapi.reset_mock()
     mock_redis_client.set_json.reset_mock()
-    mock_redis_client.get_json.reset_mock()
+    mock_redis_client.get_model.reset_mock()
     # Mock get_json to return the first saved state for the second call
-    mock_redis_client.get_json.return_value = first_saved_state.model_dump()
+    mock_redis_client.get_model.return_value = first_saved_state
 
     assert hex_id in ingest_main.active_smoothers
     smoother = ingest_main.active_smoothers[hex_id]
@@ -237,7 +237,7 @@ async def test_handle_subsequent_message(
         assert ingest_main.last_timestamps[hex_id] == second_message.timestamp
 
         # Check Redis interaction
-        mock_redis_client.get_json.assert_called_once_with(f"plane:{hex_id}")
+        mock_redis_client.get_model.assert_called_once_with(f"plane:{hex_id}", PlaneState)
         mock_redis_client.set_json.assert_called_once()
         call_args = mock_redis_client.set_json.call_args
         second_saved_state: PlaneState = call_args.args[1]
@@ -295,10 +295,8 @@ async def test_handle_message_trail_capping(
     # Send 31 messages
     for i in range(31):
         # Mock get_json to return the previous state (or None for the first call)
-        mock_redis_client.get_json.return_value = (
-            current_state.model_dump() if current_state else None
-        )
-        mock_redis_client.get_json.reset_mock()  # Reset count for each call
+        mock_redis_client.get_model.return_value = current_state
+        mock_redis_client.get_model.reset_mock()  # Reset count for each call
 
         # Create a slightly different message each time
         msg_time = time.time()

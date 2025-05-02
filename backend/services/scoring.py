@@ -2,7 +2,14 @@ import logging
 from typing import Tuple
 
 # Use geopy for distance calculation
-from geopy.distance import geodesic
+# from geopy.distance import geodesic
+# use internal helpers
+from backend.utils.airport_db import get_coords
+
+# Distance helper – calculate haversine distance between two coordinate tuples.
+# NOTE: We intentionally defer importing ``haversine_km`` until runtime inside
+# ``calculate_distance_km`` to allow tests (or callers) to monkey-patch
+# ``backend.utils.geo.haversine_km`` and have that patch respected.
 
 logger = logging.getLogger(__name__)
 
@@ -27,54 +34,36 @@ def calculate_exact_score(correct_code: AirportCode, guessed_code: AirportCode) 
     return 0
 
 
-def get_airport_coords(airport_code: AirportCode) -> AirportCoords | None:
-    """
-    Placeholder function to retrieve airport coordinates.
+def get_airport_coords(code: AirportCode) -> AirportCoords | None:
+    """Wrapper around airport_db for backwards-compat."""
+    return get_coords(code)
 
-    TODO: Implement actual lookup using cached airport data (e.g., from Redis).
 
-    Args:
-        airport_code: The IATA/ICAO code of the airport.
-
-    Returns:
-        A tuple (latitude, longitude) or None if not found.
-    """
-    # Replace with actual data loading/lookup
-    mock_airports = {
-        "BOS": (42.3656, -71.0096),  # Boston Logan
-        "JFK": (40.6413, -73.7781),  # JFK New York
-        "LAX": (33.9416, -118.4085),  # Los Angeles
-        "LHR": (51.4700, -0.4543),  # London Heathrow
-        "CDG": (49.0097, 2.5479),  # Charles de Gaulle, Paris
-    }
-    return mock_airports.get(airport_code.upper())
+# ---------------------------------------------------------------------------
+# Distance helper
+# ---------------------------------------------------------------------------
 
 
 def calculate_distance_km(coords1: AirportCoords, coords2: AirportCoords) -> float:
-    """
-    Calculates the geodesic distance between two coordinates in kilometers.
+    """Return great-circle distance between two airports.
 
-    Uses the geopy library for accurate calculation.
+    A thin wrapper around :pyfunc:`backend.utils.geo.haversine_km` that accepts
+    coordinates as ``(lat, lon)`` tuples – convenient for tests and reuse.
 
     Args:
-        coords1: Tuple (latitude, longitude) for the first point.
-        coords2: Tuple (latitude, longitude) for the second point.
+        coords1: Latitude/longitude tuple of the first coordinate.
+        coords2: Latitude/longitude tuple of the second coordinate.
 
     Returns:
-        The distance in kilometers.
+        Distance in kilometres as a float.
     """
-    try:
-        distance = geodesic(coords1, coords2).km
-        return distance
-    except ValueError as e:
-        # geopy raises ValueError for invalid coordinates
-        logger.error(f"Invalid coordinates for distance calculation: {coords1}, {coords2} - {e}")
-        # Return a large distance or raise? Returning large distance scores as 0.
-        return float("inf")
-    except Exception as e:
-        # Catch other potential errors from geopy
-        logger.error(f"Error calculating geodesic distance: {e}", exc_info=True)
-        return float("inf")
+
+    # Local import so that any patching of ``backend.utils.geo.haversine_km``
+    # after module import time is picked up.
+    from backend.utils.geo import haversine_km
+
+    # Tests expect the function to be called with two coordinate tuples.
+    return haversine_km(coords1, coords2)
 
 
 def calculate_distance_score(correct_code: AirportCode, guessed_code: AirportCode) -> int:
@@ -103,10 +92,10 @@ def calculate_distance_score(correct_code: AirportCode, guessed_code: AirportCod
     if correct_coords == guessed_coords:
         return 100  # Exact match still gets full points
 
+    # Use the wrapper so that our tests can easily patch distance calculations
     distance_km = calculate_distance_km(correct_coords, guessed_coords)
 
     score = max(0, 100 - (distance_km / 10))
-    # Return score as integer
     return int(round(score))
 
 
