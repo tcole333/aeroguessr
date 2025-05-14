@@ -1,5 +1,6 @@
 import time
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -37,19 +38,17 @@ class Player(BaseModel):
 
 
 class RoomMeta(BaseModel):
-    """Metadata associated with a game room."""
+    """Metadata about a game room stored in Redis."""
 
-    mode: ScoringMode = Field(default=ScoringMode.EXACT, description="Scoring mode for the room.")
-    round_timeout_seconds: int = Field(
-        default=30, ge=10, le=120, description="Duration of each guessing round in seconds."
-    )
-    host_nickname: str = Field(
-        ..., description="Nickname of the player currently hosting the room."
-    )
+    mode: ScoringMode = Field(..., description="Scoring mode for the room.")
+    round_timeout_seconds: int = Field(..., description="Duration of each guessing round.")
+    host_nickname: str = Field(..., description="Nickname of the current host.")
     created_ts: float = Field(
         default_factory=time.time, description="Timestamp when the room was created."
     )
-    # Room code itself is typically the key in Redis, not stored within the metadata value.
+    host_disconnected_ts: Optional[float] = Field(
+        default=None, description="Timestamp when the host disconnected, None if connected."
+    )
 
     class Config:
         """Pydantic configuration."""
@@ -57,10 +56,11 @@ class RoomMeta(BaseModel):
         use_enum_values = True  # Store enum values as strings
         json_schema_extra = {
             "example": {
-                "mode": "Distance",
-                "round_timeout_seconds": 45,
-                "host_nickname": "HostHarry",
+                "mode": "Exact",
+                "round_timeout_seconds": 30,
+                "host_nickname": "PlayerOne",
                 "created_ts": time.time(),
+                "host_disconnected_ts": None,  # Add to example
             }
         }
 

@@ -17,8 +17,11 @@ services:
     working_dir: /app
     volumes:
       - ..:/app
-    # Start the uvicorn server for API testing
+    # Revert to original uvicorn command
     command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    # Run pytest directly in the container for integration tests
+    # command: >
+    #   bash -c "\n    #   echo '--- Waiting for Redis ---' &&\n    #   while ! redis-cli -h redis-test ping; do sleep 1; done &&\n    #   echo '--- Redis Ready ---' &&\n    #   echo '--- Running Pytest ---' &&\n    #   cd /app && PYTHONPATH=/app poetry run pytest -vv -m integration\n    #   "
     environment:
       # Ensure backend connects to the test Redis instance
       REDIS_URL: redis://redis-test:6379/0
@@ -29,6 +32,8 @@ services:
       FAKE_ADSB: "1"
       PYTHONUNBUFFERED: 1
       LOG_LEVEL: DEBUG
+      # Set short timeout for integration tests
+      HOST_DISCONNECT_CLAIM_WINDOW_SECONDS: 2
     depends_on:
       redis-test:
         condition: service_healthy

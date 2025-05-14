@@ -29,19 +29,36 @@ ws-schema:
 # container logs to ``logs.txt`` for post-mortem before tearing down.
 integration-test:
 	@echo "--- Building and starting integration test services ---"
-	@docker compose -f infra/docker-compose.test.yml build
+	@docker compose -f infra/docker-compose.test.yml build backend-test redis-test
 	@docker compose -f infra/docker-compose.test.yml up -d
+	@echo "--- Waiting for backend service to be healthy ---"
+	@# Add a wait loop for the health check - waits up to 30s
+	@timeout=30; \
+	start_time=$$(date +%s); \
+	while ! curl -sf http://localhost:8000/healthz > /dev/null; do \
+	    if [ $$(($$(date +%s) - $$start_time)) -ge $$timeout ]; then \
+	        echo "ERROR: Backend service did not become healthy after $$timeout seconds."; \
+	        docker compose -f infra/docker-compose.test.yml logs --no-color > logs.txt || true; \
+	        docker compose -f infra/docker-compose.test.yml down -v --remove-orphans || true; \
+	        exit 1; \
+	    fi; \
+	    echo -n '.'; \
+	    sleep 1; \
+	done
+	@echo " Backend Healthy!"
 	@echo "--- Running integration tests ---"
+	@# Run pytest using exec. Store exit code.
 	@set -e; \
-	TEST_CMD="cd /app && PYTHONPATH=/app poetry run pytest -q -m integration"; \
-	docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "$$TEST_CMD" || (\
-		echo "Integration tests FAILED – collecting container logs to logs.txt"; \
-		docker compose -f infra/docker-compose.test.yml logs --no-color > logs.txt; \
-		docker compose -f infra/docker-compose.test.yml down; \
-		exit 1); \
-		true
+	TEST_CMD="cd /app && PYTHONPATH=/app poetry run pytest -vv -m integration"; \
+	pytest_exit_code=0; \
+	docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "$$TEST_CMD" || pytest_exit_code=$$?;
+	@echo "--- Collecting container logs ---"
+	@docker compose -f infra/docker-compose.test.yml logs --no-color > logs.txt
 	@echo "--- Tearing down integration test services ---"
-	@docker compose -f infra/docker-compose.test.yml down
+	@docker compose -f infra/docker-compose.test.yml down -v --remove-orphans
+	@echo "--- Integration test run finished (Exit code: $$pytest_exit_code) ---"
+	@# Exit with the captured pytest exit code
+	@exit $$pytest_exit_code
 
 # Convenience target to run sample ADS-B generator for local dev
 sample-replay:

@@ -3,6 +3,8 @@
 <!-- Add badges here: e.g., Build Status, Coverage, License -->
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)](https://codecov.io/gh/your-username/plane-game-v4)
 
 <!-- ![Build Status](...) -->
 <!-- ![Code Coverage](...) -->
@@ -122,6 +124,75 @@ poetry run uvicorn backend.app:app --reload
 When `FAKE_ADSB=1`, `backend.ingest.main` automatically spins up the sample
 feed even if you don't call `make sample-replay`. The Make target is provided
 for quick manual testing or if you want the generator to run independently.
+
+### 6.4 Testing Details
+
+#### 6.4.1 Unit Tests
+
+- **Location:** `tests/backend/`
+- **Fixtures:** Defined in `tests/backend/conftest.py`:
+  - `fake_redis_instance`: Provides a fresh in-memory FakeRedis for each test.
+  - `redis_client`: Overrides the Redis dependency, flushes data, and injects into the app.
+  - `test_client`: Async HTTP/WebSocket client against the FastAPI `app`.
+- **Run locally:**
+
+```bash
+poetry run pytest tests/backend
+```
+
+- **CI behavior:** Runs non-integration tests with coverage, matching the GitHub Actions command:
+
+```bash
+poetry run pytest --cov=backend \
+  --cov-report=xml --cov-report=term-missing \
+  -m "not integration" tests/
+```
+
+#### 6.4.2 Integration Tests
+
+- **Location:** `tests/integration/`
+- **Marker:** Decorated with `@pytest.mark.integration` in test files.
+- **Requirements:** Docker & Docker Compose
+- **Recommended (Makefile):**
+
+```bash
+make integration-test
+```
+
+- **Manual steps:**
+  1. Start services:
+     ```bash
+     docker compose -f infra/docker-compose.test.yml up -d
+
+````
+  2. Run integration tests:
+     ```bash
+docker compose -f infra/docker-compose.test.yml exec \
+  backend-test bash -c "cd /app && \
+  PYTHONPATH=/app poetry run pytest -q -m integration"
+````
+
+3. Tear down services:
+   ```bash
+   docker compose -f infra/docker-compose.test.yml down
+
+````
+
+#### 6.4.3 CI Pipeline
+- **Definition:** `.github/workflows/test.yml`
+- **Triggers:** Push/PR to `main`, manual dispatch
+- **Key steps:**
+  1. Starts a Redis service container for tests
+  2. Installs dependencies via Poetry
+  3. Runs unit tests (non-integration) with coverage reports
+  4. Uploads coverage to Codecov
+  5. Enforces minimum coverage threshold (50%)
+- **Badges:**
+```markdown
+[![Tests](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml/badge.svg)]
+(https://github.com/your-username/plane-game-v4/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)]
+````
 
 ## 7. FAQ & Gotchas
 

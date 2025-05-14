@@ -101,6 +101,11 @@ async def test_round_timeout_triggers_result(
         alt_v=0,
         last_update_ts=time.time(),
         trail=[],
+        origin="KLAX",
+        destination="KJFK",
+        callsign=None,
+        origin_country=None,
+        category=None,
     )
     await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
 
@@ -182,6 +187,11 @@ async def test_round_result_when_all_players_guessed(
             alt_v=0,
             last_update_ts=time.time(),
             trail=[],
+            origin="EDDF",
+            destination="EGLL",
+            callsign=None,
+            origin_country=None,
+            category=None,
         ).model_dump_json(),
         ex=60,
     )

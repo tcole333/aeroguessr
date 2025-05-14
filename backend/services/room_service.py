@@ -154,15 +154,28 @@ async def get_room_meta(redis: RedisClient, room_code: str) -> RoomMeta | None:
         raise  # Re-raise to indicate failure
 
 
-async def set_room_meta(redis: RedisClient, room_code: str, room_meta: RoomMeta) -> None:
-    """Set the RoomMeta data for a given room code, applying room TTL."""
+async def set_room_meta(redis: RedisClient, room_code: str, room_meta: RoomMeta) -> bool:
+    """Set the RoomMeta data for a given room code, applying room TTL.
+
+    Args:
+        redis: Redis client instance.
+        room_code: The four-letter room code.
+        room_meta: The RoomMeta instance to persist.
+
+    Returns:
+        True if the underlying Redis *SET* succeeded, False otherwise.
+    """
     meta_key = f"room:{room_code}:meta"
-    room_ttl_seconds = 3600  # Consider getting this from config
+    room_ttl_seconds = 3600  # TODO: derive from settings later
     try:
-        await redis.set_json(meta_key, room_meta, expire_seconds=room_ttl_seconds)
-        logger.debug(f"Set RoomMeta for room '{room_code}'.")
+        success: bool = await redis.set_json(meta_key, room_meta, expire_seconds=room_ttl_seconds)
+        if success:
+            logger.debug("Set RoomMeta for room '%s'.", room_code)
+        else:
+            logger.error("Redis SET command failed for RoomMeta key: %s", meta_key)
+        return success
     except Exception as e:
-        logger.error(f"Failed to set RoomMeta for room '{room_code}': {e}", exc_info=True)
+        logger.error("Failed to set RoomMeta for room '%s': %s", room_code, e, exc_info=True)
         raise
 
 
@@ -196,8 +209,16 @@ async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundDa
     round_key = f"room:{room_code}:round"
     room_ttl_seconds = 3600  # Consider getting this from config or RoomMeta
     try:
-        logger.info(f"Current round data: {round_data}")
+        logger.info(
+            f"SETTING ROUND DATA for key {round_key}. Current round data object (Python): "
+            f"{round_data.model_dump(mode='python')}"
+        )
+        logger.info(
+            f"SETTING ROUND DATA for key {round_key}. Current round data object (JSON Str): "
+            f"{round_data.model_dump_json(indent=2)}"
+        )
         success = await redis.set_json(round_key, round_data, expire_seconds=room_ttl_seconds)
+        logger.info(f"Redis SET command for {round_key} returned: {success}")
         if success:
             logger.debug(f"Set round data for room '{room_code}' to state {round_data.state}")
         else:

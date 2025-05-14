@@ -2,10 +2,13 @@
 
 import asyncio
 import logging
+import sys  # Add sys import
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Dict
 
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from backend.routes import rooms  # Import the rooms router
 from backend.routes.rooms import manager as connection_manager
@@ -15,7 +18,47 @@ from backend.routes.rooms import manager as connection_manager
 from backend.services.broadcast import broadcast_plane_updates
 from backend.utils.redis_async import RedisClient
 
+# --- Remove Basic Logging Configuration ---
+# logging.basicConfig(level=logging.INFO, stream=sys.stderr,
+# format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# --- End Basic Logging Configuration Removal ---
+
+# --- Explicit Logger Configuration ---
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Set level for this specific logger
+
+# Create handler
+stream_handler = logging.StreamHandler(sys.stderr)
+
+# Create formatter and add it to the handler
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+stream_handler.setFormatter(formatter)
+
+# Add the handler to the logger
+# Avoid adding handlers multiple times if the module is reloaded (e.g., with --reload)
+if not logger.hasHandlers():
+    logger.addHandler(stream_handler)
+# logger.propagate = False # Optional: Prevents messages from reaching root logger
+
+# --- End Explicit Logger Configuration ---
+
+
+# --- Custom Exception Handler for Validation Errors --- #
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # Log the detailed validation errors
+    error_details = (
+        f"Validation error for request {request.method} {request.url.path}: {exc.errors()}"
+    )
+    logger.error(error_details)  # Re-enable logger call
+    # print(f"STDERR_DEBUG: {error_details}", file=sys.stderr) # Remove direct print
+    # Return the default 422 response structure that FastAPI uses
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
+
 
 # --- Global State / Dependencies --- #
 # Initialize outside lifespan for potential direct access if needed,
@@ -79,6 +122,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,  # Register the lifespan context manager
 )
+
+# Register the custom exception handler
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 
 # --- API Endpoints --- #

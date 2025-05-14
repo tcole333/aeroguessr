@@ -1,0 +1,63 @@
+--- Building and starting integration test services ---
+#1 [internal] load build definition from Dockerfile.test
+#1 sha256:29c54c4588cd8fd213e2ef537dd2be4fdfbe107cbefce7d464f207e0035474ce
+#1 transferring dockerfile: 74B done
+#1 DONE 0.0s
+
+#2 [internal] load .dockerignore
+#2 sha256:c57eec0b067268358158e8d3462490a2619bee6df4c4b665c70b4b46b98da8f2
+#2 transferring context: 2B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 sha256:81dc3670cc427d3d853f960edf147b31f31219a9cd3104c0ca06bfc73a488c12
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.12-slim
+#4 sha256:aa621850e0cf00c215daaf019dce31689f31974c670ebdb3627b2dedd5f28d5a
+#4 DONE 0.0s
+
+#9 [internal] load build context
+#9 sha256:9ec509319dc8dfc18cc85cd91206947c53d684f1810b50781e8fb91b63fbb147
+#9 transferring context: 73B 0.0s done
+#9 DONE 0.0s
+
+#8 [5/7] RUN poetry config virtualenvs.create false
+#8 sha256:4e8cc0fad936893a954071010fe5395a18df9c634c5eb2d61448fdb5fb567dda
+#8 CACHED
+
+#5 [2/7] WORKDIR /app
+#5 sha256:1ebb519b0b094ad0f9e71eb3ca3af564b7b844f9735a2dc49a0d3f19f1cc8056
+#5 CACHED
+
+#6 [3/7] RUN apt-get update && apt-get install -y curl git redis-tools && apt-get clean
+#6 sha256:bb00f51bf30cfd3147ce50d5a9e099a7ca58fbcfa584b8f83734ee198d256fe5
+#6 CACHED
+
+#10 [6/7] COPY pyproject.toml ./
+#10 sha256:4d32758f034f420a5076445a14b257f92cc8a4bdd2bddbfcf733c03ec6d0dadb
+#10 CACHED
+
+#7 [4/7] RUN curl -sSL https://install.python-poetry.org | python3 -
+#7 sha256:9a811f72a60f76d7f8627384b3bbf99ea0f18cdc2ae5935e3a4073ad0411ddbb
+#7 CACHED
+
+#11 [7/7] RUN poetry lock --no-interaction &&     poetry install --with=dev --no-root
+#11 sha256:56eeb30f952c852c60c76c85ae1489371e6722023ca4693cfa3b42cab1d9960b
+#11 CACHED
+
+#12 exporting to image
+#12 sha256:e8c613e07b0b7ff33893b694f7759a10d42e180f2b4dc349fb57dc6b71dcab00
+#12 exporting layers done
+#12 writing image sha256:45bd2a584005b6207c6553b4a60ddff005379666aa94b4464cfffe4fdff94a03 done
+#12 naming to docker.io/library/infra_backend-test done
+#12 DONE 0.0s
+--- Waiting for backend service to be healthy ---
+-n .
+-n .
+-n .
+ Backend Healthy!
+--- Running integration tests ---
+--- Collecting container logs ---
+--- Tearing down integration test services ---
+--- Integration test run finished (Exit code: ) ---

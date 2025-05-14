@@ -1,4 +1,5 @@
 import time  # Needed for timestamp in WSMessage
+from enum import Enum  # Import Enum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -7,13 +8,54 @@ from pydantic import BaseModel, Field
 try:
     from .core import Player, RoomMeta
     from .game import RoundResultDetail
+    from .ingest import PlaneState
 except ImportError:
     # Placeholder if core.py isn't available or for type checking contexts
     # This might indicate a need to restructure schemas later
     Player = Dict  # type: ignore
     RoomMeta = Dict  # type: ignore
+    PlaneState = Dict  # type: ignore
 
 
+# --- Error Codes Enum --- #
+
+
+class ErrorCode(str, Enum):
+    """Standardized error codes for WebSocket error messages."""
+
+    # Generic
+    UNKNOWN_ERROR = "UNKNOWN_ERROR"
+    INVALID_MESSAGE_FORMAT = "INVALID_MESSAGE_FORMAT"
+    INVALID_PAYLOAD = "INVALID_PAYLOAD"
+    INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
+
+    # Room / Connection
+    ROOM_NOT_FOUND = "ROOM_NOT_FOUND"
+    NICKNAME_TAKEN = "NICKNAME_TAKEN"
+    NOT_IN_ROOM = "NOT_IN_ROOM"
+
+    # Host Actions
+    NOT_HOST = "NOT_HOST"
+    PLAYER_NOT_FOUND = "PLAYER_NOT_FOUND"
+    CANNOT_TRANSFER_TO_SELF = "CANNOT_TRANSFER_TO_SELF"
+
+    # Claim Host Flow
+    CLAIM_HOST_NOT_ALLOWED = "CLAIM_HOST_NOT_ALLOWED"  # Generic fallback
+    CLAIM_HOST_STILL_CONNECTED = "CLAIM_HOST_STILL_CONNECTED"  # Host reconnected
+    CLAIM_HOST_TOO_EARLY = "CLAIM_HOST_TOO_EARLY"  # Claim window not open yet
+
+    # Game Flow
+    INVALID_STATE_FOR_ACTION = "INVALID_STATE_FOR_ACTION"
+    PLANE_NOT_FOUND = "PLANE_NOT_FOUND"
+    PLANE_ALREADY_USED = "PLANE_ALREADY_USED"
+    GUESS_OUTSIDE_ROUND = "GUESS_OUTSIDE_ROUND"
+    ALREADY_GUESSED = "ALREADY_GUESSED"
+
+
+# --- Base Message & Common Payloads --- #
+
+
+# Add PingPongPayload back
 class PingPongPayload(BaseModel):
     """Payload for ping and pong messages."""
 
@@ -29,7 +71,9 @@ class PingPongPayload(BaseModel):
 class WSMessage(BaseModel):
     type: str = Field(..., description="The type of the WebSocket message.")
     # Allow flexible payload types
-    payload: Dict | List | BaseModel | None = Field(..., description="The message payload.")
+    payload: Dict | List | PingPongPayload | BaseModel | None = Field(
+        ..., description="The message payload."
+    )
     ts: float = Field(
         default_factory=lambda: time.time() * 1000,
         description="Timestamp (epoch milliseconds) when the message was generated.",
@@ -209,7 +253,7 @@ class TransferHostPayload(BaseModel):
 class ClaimHostPayload(BaseModel):
     """Payload for the player claimHost message (currently empty)."""
 
-    # No payload needed currently
+    # No payload needed currently, server identifies sender via connection
     pass
 
 
@@ -237,7 +281,7 @@ class PlaneSelectedConfirmPayload(BaseModel):
 class ErrorPayload(BaseModel):
     """Payload for the server error message."""
 
-    code: str = Field(..., description="Short error code (e.g., 'INVALID_STATE').")
+    code: ErrorCode = Field(..., description="Standardized error code.")  # Use Enum
     message: str = Field(..., description="User-friendly error message.")
 
     class Config:
@@ -261,7 +305,7 @@ except ImportError:
 class DeltaPayload(BaseModel):
     """Payload for the server delta message, containing state changes."""
 
-    planes: Optional[Dict[str, List[PlaneState | str]]] = Field(
+    planes: Optional[Dict[str, List[PlaneState | str]]] = Field(  # type: ignore
         default=None,
         description=(
             "Changes in plane states. 'updated' contains full PlaneState objects, "
@@ -307,3 +351,35 @@ class DeltaPayload(BaseModel):
 # Example of creating ping/pong messages:
 # ping_msg = WSMessage(type="ping", payload=PingPongPayload(seq=1))
 # pong_msg = WSMessage(type="pong", payload=PingPongPayload(seq=1))
+
+# --- Message Type Enum --- #
+
+
+# Define an Enum for message types for better control and validation
+class WSMessageType(str, Enum):
+    """Enumeration of WebSocket message types."""
+
+    # Client -> Server
+    PING = "ping"  # Added
+    GUESS = "guess"
+    SELECT_PLANE = "selectPlane"
+    START_ROUND = "startRound"  # Host command
+    SKIP_ROUND = "skipRound"  # Host command
+    TRANSFER_HOST = "transferHost"  # Host command
+    CLAIM_HOST = "claimHost"  # Player command
+    LEAVE = "leave"
+
+    # Server -> Client
+    PONG = "pong"  # Added
+    STATE_SYNC = "stateSync"  # Initial state or reconnect
+    DELTA = "delta"  # Incremental state updates (planes, scores)
+    ROUND_START = "roundStart"
+    ROUND_RESULT = "roundResult"
+    PLAYER_JOINED = "playerJoined"
+    PLAYER_LEFT = "playerLeft"
+    NEW_HOST = "newHost"
+    PLANE_SELECTED_CONFIRM = "planeSelectedConfirm"  # Confirmation to host
+    ERROR = "error"
+
+
+# --- Type Hint for Specific Message Payloads --- #

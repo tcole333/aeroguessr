@@ -18,7 +18,7 @@ class RoomCreateRequest(BaseModel):
     """Request body for creating a new game room."""
 
     host_nickname: str = Field(
-        ..., min_length=3, max_length=20, description="Nickname for the player hosting the room."
+        ..., min_length=3, max_length=30, description="Nickname for the player hosting the room."
     )
     mode: ScoringMode = Field(default=ScoringMode.EXACT, description="Scoring mode for the room.")
     round_timeout_seconds: int = Field(
@@ -62,7 +62,7 @@ class RoomJoinRequest(BaseModel):
     """Request body for joining an existing game room."""
 
     nickname: str = Field(
-        ..., min_length=3, max_length=20, description="Nickname for the player joining the room."
+        ..., min_length=3, max_length=30, description="Nickname for the player joining the room."
     )
 
     class Config:
