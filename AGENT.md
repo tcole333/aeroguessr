@@ -223,32 +223,48 @@ For development or testing without live ADS-B data, you can use the sample data 
 
 ## 10. Committing Changes and Pull Requests
 
-- Follow Conventional Commit message standards (e.g., `feat:`, `fix:`, `docs:`, `refactor:`, `test:`).
+- Follow Conventional Commit message standards (e.g., `feat:`, `fix:`, `docs:`, `refactor:`, `test:`). Refer to `docs/project-standards.md` for details.
+- **Branching Strategy:** Use trunk-based development. Create feature branches off `main` and use short-lived Pull Requests (PRs) to merge back into `main`.
 - Ensure all tests pass (`make integration-test`, unit tests).
 - Ensure linters pass (`pre-commit run --all-files`).
 - Update documentation if you change:
   - API behavior (`make openapi` and commit `docs/api_openapi.yaml`).
   - WebSocket schema (`make ws-schema` and commit `docs/ws_schema.yaml`).
   - Major architectural decisions (add an ADR in `ADR/`).
-  - Add TODOs/FIXMEs (update `TECH_DEBT.md`).
-  - README context (`project_context.mdc` if LLM context section changes).
+  - Add TODOs/FIXMEs: These require a matching entry in `TECH_DEBT.md` following the template in `docs/project-standards.md`. CI may enforce this.
+  - README context or other LLM-assisting documentation (e.g., `project_context.mdc` if used).
 - Create a Pull Request (PR) targeting the `main` branch.
 - Ensure all CI checks pass on the PR.
+- **Release Tagging:** Releases are tagged `vX.Y.Z` on `main` following Semantic Versioning, as detailed in `docs/project-standards.md`.
 
 ## 11. Key Project Rules Summary
 
-(Refer to `docs/project-standards.md` and embedded rules in `.cursor/instructions.md` for full details)
+(Refer to `docs/project-standards.md` for full details, especially Section 1 for LLM/Agent rules)
 
-- Explain code changes.
-- Update tests and documentation with logic changes.
-- Modified files must pass `pre-commit` checks.
-- `sample_data/` functionality must mirror live ADS-B behavior when `FAKE_ADSB=1`.
-- Update `docs/ws_schema.yaml` and PRD for WebSocket payload changes.
-- Do not remove existing functionality without instruction.
-- Ask for clarification if requirements are unclear.
-- Prioritize readability, maintainability, simplicity.
-- After API changes, run `make openapi` and include `docs/api_openapi.yaml` in commit.
-- Record major architectural decisions in `ADR/`.
-- New TODOs/FIXMEs in code need a `TECH_DEBT.md` entry.
+- Explain the intent behind significant code changes in 1-2 sentences **before** generating the code.
+- For every logic change, ensure corresponding tests **and** documentation (docstrings, READMEs, schema files) are updated or created.
+- All modified files must pass `pre-commit run --all-files` checks locally.
+- `sample_data/` functionality must mirror live ADS-B behavior when `FAKE_ADSB=1` (controlled by the `FAKE_ADSB` environment variable).
+- If WebSocket payload schema changes, update `docs/ws_schema.yaml` and relevant PRD sections. (See `make ws-schema`).
+- Do not remove existing functionality unless explicitly instructed.
+- If uncertain about requirements or implementation details, ask for clarification **before** proceeding.
+- Prioritize readability, maintainability, and simplicity in generated code. Follow project-specific patterns (see `docs/project-standards.md`).
+- After API changes, run `make openapi` to regenerate `docs/api_openapi.yaml` **and include it in the commit**.
+- Record major architectural decisions in a new ADR file under `ADR/`.
+- Each new `TODO`/`FIXME` comment in code requires a matching entry in `TECH_DEBT.md` (see template in `docs/project-standards.md`).
+- Keep LLM-assisting context files (like README sections for LLMs, or `project_context.mdc` if used) up-to-date with significant changes.
+
+## 12. Advanced Standards and LLM-Specific Guidelines
+
+For more detailed project standards, LLM/agent-specific interaction rules, file-type-specific instructions, and reusable prompt templates, refer to the comprehensive [Project Coding & Documentation Standards](./docs/project-standards.md).
+
+Key areas covered in `docs/project-standards.md` include:
+
+- **LLM Interaction Rules:** Detailed guidelines on behavior, context upkeep, and file-type specific instructions for AI agents.
+- **Documentation Framework:** Structure of READMEs, `TECH_DEBT.md` templates, and schema policies.
+- **Development Workflow & Governance:** Branching strategy, commit conventions, release versioning.
+- **Reusable Prompt Templates:** Standardized templates for debugging, refactoring, and feature implementation (e.g., for use with Cursor).
+
+Familiarity with `docs/project-standards.md` is highly recommended for efficient and compliant contributions, especially for AI-assisted development.
 
 This guide should serve as a good starting point. Refer to the specific files and documents linked for more detailed information.
