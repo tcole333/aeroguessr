@@ -8,6 +8,20 @@ from pydantic import BaseModel, Field
 AirportCode = str
 
 
+class SoloSelectionContext(BaseModel):
+    """State for a solo player's current selection."""
+
+    selected_plane_hex: Optional[str] = Field(
+        default=None, description="ICAO hex code of the player's selected plane."
+    )
+    correct_airport_code: Optional[AirportCode] = Field(
+        default=None, description="The airport code considered correct for scoring."
+    )
+    guess_direction: Optional[str] = Field(
+        default=None, description="Whether the guess should be for origin or destination."
+    )
+
+
 class RoundStateEnum(str, Enum):
     """Possible states for a game round."""
 

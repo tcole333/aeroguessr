@@ -1,9 +1,10 @@
 import logging
 import time
+import uuid
 from typing import Dict
 
-from backend.schemas.core import Player, RoomMeta
-from backend.schemas.game import RoundData
+from backend.schemas.core import Player, RoomMeta, ScoringMode
+from backend.schemas.game import RoundData, SoloSelectionContext
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,24 @@ async def add_player(redis: RedisClient, room_code: str, player: Player) -> Play
     await redis.hset_model(players_key, player.nickname, player)
     await redis.expire(players_key, room_ttl)
     return player
+
+
+async def create_solo_room_instance(
+    nickname: str, redis_client: RedisClient
+) -> tuple[str, RoomMeta]:
+    """Create an isolated solo room and return its code and metadata."""
+    solo_code = f"solo:{uuid.uuid4().hex[:8]}"
+    meta = RoomMeta(
+        mode=ScoringMode.EXACT,
+        round_timeout_seconds=0,
+        host_nickname=nickname,
+        is_solo=True,
+    )
+    meta_key = f"room:{solo_code}:meta"
+    await redis_client.set_json(meta_key, meta, expire_seconds=3600)
+    # Add the solo player as the only player in the room
+    await add_player(redis_client, solo_code, Player(nickname=nickname))
+    return solo_code, meta
 
 
 async def update_player_status(
@@ -136,6 +155,28 @@ async def remove_player(redis: RedisClient, room_code: str, nickname: str) -> bo
             exc_info=True,
         )
         raise  # Re-raise
+
+
+# --- Solo Selection Context Helpers --- #
+
+
+async def set_solo_player_selection_context(
+    redis: RedisClient, room_code: str, context: SoloSelectionContext
+) -> bool:
+    key = f"room:{room_code}:solo_context"
+    return await redis.set_json(key, context, expire_seconds=3600)
+
+
+async def get_solo_player_selection_context(
+    redis: RedisClient, room_code: str
+) -> SoloSelectionContext | None:
+    key = f"room:{room_code}:solo_context"
+    return await redis.get_model(key, SoloSelectionContext)
+
+
+async def clear_solo_player_selection_context(redis: RedisClient, room_code: str) -> None:
+    key = f"room:{room_code}:solo_context"
+    await redis.delete(key)
 
 
 # --- Room Metadata Helpers --- #
@@ -259,12 +300,23 @@ async def delete_room(redis: RedisClient, room_code: str) -> None:
     meta_key = f"room:{room_code}:meta"
     players_key = f"room:{room_code}:players"
     round_key = f"room:{room_code}:round"
+    solo_context_key = f"room:{room_code}:solo_context"
 
     try:
         async with await redis.get_connection() as conn:
-            await conn.delete(meta_key, players_key, round_key)  # type: ignore[attr-defined]
+            await conn.delete(
+                meta_key,
+                players_key,
+                round_key,
+                solo_context_key,
+            )  # type: ignore[attr-defined]
         logger.info(
-            "Deleted room %s (keys: %s, %s, %s)", room_code, meta_key, players_key, round_key
+            "Deleted room %s (keys: %s, %s, %s, %s)",
+            room_code,
+            meta_key,
+            players_key,
+            round_key,
+            solo_context_key,
         )
     except Exception as exc:  # noqa: BLE001 – bubble up after logging
         logger.error("Failed to delete room %s: %s", room_code, exc, exc_info=True)

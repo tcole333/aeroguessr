@@ -22,7 +22,12 @@ from starlette.websockets import WebSocketState
 
 from backend.ingest.main import PlaneState
 from backend.schemas.core import Player, RoomMeta, ScoringMode
-from backend.schemas.game import PlayerGuess, RoundResultDetail, RoundStateEnum
+from backend.schemas.game import (
+    PlayerGuess,
+    RoundResultDetail,
+    RoundStateEnum,
+    SoloSelectionContext,
+)
 from backend.schemas.room import (
     RoomCreateRequest,
     RoomCreateResponse,
@@ -235,6 +240,15 @@ async def join_room(
         HTTPException (409): If the chosen nickname is already in use in the room.
         HTTPException (500): If there is an error interacting with Redis.
     """
+    # Solo mode special case
+    if room_code == "solo":
+        solo_code, _ = await room_service.create_solo_room_instance(
+            join_data.nickname, redis
+        )
+        base_ws_url = str(request.base_url).replace("http", "ws", 1)
+        ws_url = f"{base_ws_url}ws/{solo_code}/{join_data.nickname}"
+        return RoomJoinResponse(room_code=solo_code, ws_url=ws_url)
+
     # 1. Check if room exists (check meta key)
     meta_key = f"room:{room_code}:meta"
     room_ttl = 3600  # 1 hour
@@ -282,7 +296,7 @@ async def join_room(
     base_ws_url = str(request.base_url).replace("http", "ws", 1)
     ws_url = f"{base_ws_url}ws/{room_code}/{join_data.nickname}"
 
-    return RoomJoinResponse(ws_url=ws_url)
+    return RoomJoinResponse(room_code=room_code, ws_url=ws_url)
 
 
 @router.websocket("/ws/{room_code}/{nickname}")
@@ -370,6 +384,156 @@ async def websocket_endpoint(
         logger.error(f"Error sending initial state sync to {nickname}: {e}", exc_info=True)
         # Proceed, but initial state might be missing for this client
 
+    is_solo_mode = room_code.startswith("solo:")
+
+    if is_solo_mode:
+        async def _solo_loop() -> None:
+            while True:
+                data = await websocket.receive_json()
+                try:
+                    ws_msg = WSMessage.model_validate(data)
+                except ValidationError:
+                    await _send_error(ErrorCode.INVALID_MESSAGE_FORMAT, "Invalid message format")
+                    continue
+
+                if ws_msg.type == WSMessageType.SELECT_PLANE:
+                    try:
+                        select_payload = SelectPlanePayload.model_validate(ws_msg.payload)
+                    except ValidationError as e:
+                        await _send_error(
+                            ErrorCode.INVALID_PAYLOAD,
+                            f"Invalid selectPlane payload: {e}",
+                        )
+                        continue
+
+                    plane = await redis.get_model(f"plane:{select_payload.hex}", PlaneState)
+                    if not plane:
+                        await _send_error(ErrorCode.PLANE_NOT_FOUND, "Plane not found")
+                        continue
+
+                    origin_airport = plane.origin
+                    destination_airport = plane.destination
+                    monitored_airport_icao = os.getenv("MONITORED_AIRPORT_ICAO", "KBOS")
+
+                    correct_code: str | None = None
+                    guess_direction = "destination"
+                    if origin_airport == monitored_airport_icao and destination_airport:
+                        guess_direction = "destination"
+                        correct_code = destination_airport
+                    elif destination_airport == monitored_airport_icao and origin_airport:
+                        guess_direction = "origin"
+                        correct_code = origin_airport
+                    elif destination_airport:
+                        guess_direction = "destination"
+                        correct_code = destination_airport
+                    elif origin_airport:
+                        guess_direction = "origin"
+                        correct_code = origin_airport
+
+                    if not correct_code:
+                        await _send_error(
+                            ErrorCode.PLANE_DATA_INCOMPLETE_FOR_GUESS,
+                            "Selected plane has insufficient route data",
+                        )
+                        continue
+
+                    context = SoloSelectionContext(
+                        selected_plane_hex=select_payload.hex,
+                        correct_airport_code=correct_code,
+                        guess_direction=guess_direction,
+                    )
+                    await room_service.set_solo_player_selection_context(redis, room_code, context)
+
+                    confirm_payload = {
+                        "hex": select_payload.hex,
+                        "origin": origin_airport or "UNK",
+                        "destination": destination_airport or "UNK",
+                        "guess_direction": guess_direction,
+                    }
+                    confirm_msg = WSMessage(
+                        type=WSMessageType.PLANE_SELECTED_CONFIRM,
+                        payload=confirm_payload,
+                    )
+                    await conn_manager.send_personal_message(confirm_msg.model_dump(), websocket)
+
+                elif ws_msg.type == WSMessageType.GUESS:
+                    try:
+                        guess_payload = GuessPayload.model_validate(ws_msg.payload)
+                    except ValidationError as e:
+                        await _send_error(
+                            ErrorCode.INVALID_PAYLOAD,
+                            f"Invalid guess payload: {e}",
+                        )
+                        continue
+
+                    context = await room_service.get_solo_player_selection_context(redis, room_code)
+                    if not context or not context.selected_plane_hex:
+                        await _send_error(
+                            ErrorCode.INVALID_STATE_FOR_ACTION,
+                            "Select a plane first",
+                        )
+                        continue
+
+                    room_meta_local = await room_service.get_room_meta(redis, room_code)
+                    if not room_meta_local:
+                        await _send_error(ErrorCode.ROOM_NOT_FOUND, "Room not found")
+                        continue
+
+                    if room_meta_local.mode == ScoringMode.EXACT:
+                        score_awarded = scoring.calculate_exact_score(
+                            correct_code=context.correct_airport_code,
+                            guessed_code=guess_payload.airport_code,
+                        )
+                    else:
+                        score_awarded = scoring.calculate_distance_score(
+                            correct_code=context.correct_airport_code,
+                            guessed_code=guess_payload.airport_code,
+                        )
+
+                    updated = await room_service.update_player_score(
+                        redis, room_code, nickname, score_awarded
+                    )
+                    total_score = updated.score if updated else 0
+
+                    result_detail = RoundResultDetail(
+                        nickname=nickname,
+                        guess=guess_payload.airport_code,
+                        correct_code=context.correct_airport_code or "",
+                        score_awarded=score_awarded,
+                        current_total_score=total_score,
+                    )
+                    result_payload = RoundResultPayload(results=[result_detail])
+                    result_msg = WSMessage(
+                        type=WSMessageType.ROUND_RESULT,
+                        payload=result_payload.model_dump(),
+                    )
+                    await conn_manager.send_personal_message(result_msg.model_dump(), websocket)
+                    await room_service.clear_solo_player_selection_context(redis, room_code)
+
+                elif ws_msg.type == WSMessageType.LEAVE:
+                    break
+
+                elif ws_msg.type in {
+                    WSMessageType.START_ROUND,
+                    WSMessageType.SKIP_ROUND,
+                    WSMessageType.TRANSFER_HOST,
+                    WSMessageType.CLAIM_HOST,
+                }:
+                    await _send_error(
+                        ErrorCode.INVALID_ACTION_IN_SOLO_MODE,
+                        "This action is not available in solo mode.",
+                    )
+                else:
+                    await _send_error(
+                        ErrorCode.INVALID_MESSAGE_FORMAT,
+                        f"Unhandled message type {ws_msg.type}",
+                    )
+
+        await _solo_loop()
+        await room_service.delete_room(redis, room_code)
+        await room_service.update_player_status(redis, room_code, nickname, connected=False)
+        conn_manager.disconnect(room_code, nickname)
+        return
     # --- Broadcast Player Joined --- #
     # Exclude self from broadcast
     join_payload_model = PlayerJoinedPayload(nickname=nickname)
@@ -895,12 +1059,10 @@ async def websocket_endpoint(
                         }
                         logger.debug(f"GUESS: All connected players: {connected_player_nicks}")
                         logger.debug(
-                            f"GUESS: Current guesses keys: "
-                            f"{
-                                list(current_round_data_local.guesses.keys())
-                                if current_round_data_local.guesses
-                                else []
-                            }"
+                            "GUESS: Current guesses keys: %s",
+                            list(current_round_data_local.guesses.keys())
+                            if current_round_data_local.guesses
+                            else [],
                         )
 
                         # Ensure guesses dict is not None before checking keys
@@ -918,13 +1080,12 @@ async def websocket_endpoint(
                             asyncio.create_task(_end_round(initiator="all_guessed"))
                         else:
                             logger.debug(
-                                f"GUESS: Not all connected players have guessed yet. "
-                                f"Connected: {len(connected_player_nicks)}, "
-                                f"Guessed: {
-                                    len(current_round_data_local.guesses)
-                                    if current_round_data_local.guesses
-                                    else 0
-                                }"
+                                "GUESS: Not all connected players have guessed yet. "
+                                "Connected: %d, Guessed: %d",
+                                len(connected_player_nicks),
+                                len(current_round_data_local.guesses)
+                                if current_round_data_local.guesses
+                                else 0,
                             )
 
                     elif ws_msg.type == WSMessageType.SELECT_PLANE:

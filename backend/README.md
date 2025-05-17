@@ -118,6 +118,7 @@ Contains FastAPI `APIRouter` instances, grouping related API endpoints.
 - REST Endpoints:
   - `POST /api/v0/rooms`: Creates a new game room.
   - `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room.
+  - `POST /api/v0/rooms/solo/join`: Start a single-player session with its own room code.
 - WebSocket Endpoint (`/ws/{room_code}/{nickname}`):
   - Manages player connections using `ConnectionManager`.
   - Handles incoming messages (`ping`, `guess`, `selectPlane`, `startRound`, `transferHost`, `claimHost`, `leave`).

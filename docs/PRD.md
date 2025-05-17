@@ -45,6 +45,7 @@ A casual, real‑time web game where players guess the **other end** of flights 
 ### 3.2 Single‑player mode
 
 Joining the reserved room code `solo` creates a personal room with no round logic—players click any plane and submit guesses immediately.
+The join endpoint returns a unique solo room code for subsequent WebSocket connections.
 
 ### 3.3 Scoring
 

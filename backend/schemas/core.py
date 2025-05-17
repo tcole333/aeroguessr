@@ -43,6 +43,10 @@ class RoomMeta(BaseModel):
     mode: ScoringMode = Field(..., description="Scoring mode for the room.")
     round_timeout_seconds: int = Field(..., description="Duration of each guessing round.")
     host_nickname: str = Field(..., description="Nickname of the current host.")
+    is_solo: bool = Field(
+        default=False,
+        description="Whether this room represents a solo game session.",
+    )
     created_ts: float = Field(
         default_factory=time.time, description="Timestamp when the room was created."
     )
@@ -59,6 +63,7 @@ class RoomMeta(BaseModel):
                 "mode": "Exact",
                 "round_timeout_seconds": 30,
                 "host_nickname": "PlayerOne",
+                "is_solo": False,
                 "created_ts": time.time(),
                 "host_disconnected_ts": None,  # Add to example
             }
