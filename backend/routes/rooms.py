@@ -190,7 +190,7 @@ async def create_room(
     # Assuming the API is served at the root, adjust if behind a proxy with path prefix
     # Use request.base_url to handle http/https correctly
     base_ws_url = str(request.base_url).replace("http", "ws", 1)
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{room_data.host_nickname}"
+    ws_url = f"{base_ws_url}ws/{room_code}/{room_data.host_nickname}"
 
     # Set Location header (as specified in PRD)
     response.headers["Location"] = ws_url
@@ -280,7 +280,7 @@ async def join_room(
 
     # 5. Construct WebSocket URL
     base_ws_url = str(request.base_url).replace("http", "ws", 1)
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{join_data.nickname}"
+    ws_url = f"{base_ws_url}ws/{room_code}/{join_data.nickname}"
 
     return RoomJoinResponse(ws_url=ws_url)
 
