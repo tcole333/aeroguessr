@@ -78,6 +78,9 @@ class RoomJoinRequest(BaseModel):
 class RoomJoinResponse(BaseModel):
     """Response body after successfully joining a game room."""
 
+    room_code: str = Field(
+        ..., description="Room code assigned for the joined session."
+    )
     ws_url: str = Field(..., description="The WebSocket URL for the player to connect to.")
 
     class Config:
@@ -85,7 +88,8 @@ class RoomJoinResponse(BaseModel):
 
         json_schema_extra = {
             "example": {
-                "ws_url": "ws://localhost:8000/ws/WXYZ/JoinerJane"  # Example URL
+                "room_code": "ABCD",
+                "ws_url": "ws://localhost:8000/ws/ABCD/JoinerJane"  # Example URL
             }
         }
 
