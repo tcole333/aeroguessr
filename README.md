@@ -55,6 +55,7 @@ _(Note: Port mapping might vary based on `docker-compose.yml` configuration)_
   - `GET /healthz`: Basic health check.
   - `POST /api/v0/rooms`: Creates a new game room.
   - `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room.
+  - `POST /api/v0/rooms/solo/join`: Creates a personal solo room and returns the connection URL.
 - **WebSocket Messages:** Defined in [`docs/ws_schema.yaml`](docs/ws_schema.yaml).
 
 _(Example usage snippets will be added as endpoints/messages are implemented)_
