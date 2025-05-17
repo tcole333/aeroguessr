@@ -143,9 +143,9 @@ def test_parse_valid_msg_messages(
         # Use pytest.approx for float comparisons
         if isinstance(expected_value, float):
             # Check for None explicitly before comparing floats
-            assert (
-                actual_value is not None
-            ), f"Field '{field}' expected {expected_value} but got None"
+            assert actual_value is not None, (
+                f"Field '{field}' expected {expected_value} but got None"
+            )
             assert actual_value == pytest.approx(expected_value), f"Field '{field}' mismatch"
         else:
             assert actual_value == expected_value, f"Field '{field}' mismatch"
@@ -163,9 +163,9 @@ def test_parse_valid_msg_messages(
     }
     expected_none_fields = all_data_fields - set(expected_fields.keys())
     for field in expected_none_fields:
-        assert (
-            getattr(actual, field) is None
-        ), f"Field '{field}' should be None but is {getattr(actual, field)}"
+        assert getattr(actual, field) is None, (
+            f"Field '{field}' should be None but is {getattr(actual, field)}"
+        )
 
 
 @pytest.mark.parametrize(
@@ -226,8 +226,7 @@ def test_parse_msg_invalid_type() -> None:
 def test_parse_msg_missing_hex_ident() -> None:
     """Tests parsing an MSG line with a missing hex_ident (field 4)."""
     invalid_line = (
-        "MSG,3,1,1,,1,2025/04/27,10:00:05.456,2025/04/27,10:00:05.456,"
-        ",35000,,,42.365,-71.010,,,,,,"
+        "MSG,3,1,1,,1,2025/04/27,10:00:05.456,2025/04/27,10:00:05.456,,35000,,,42.365,-71.010,,,,,,"
     )
     actual = parse_sbs_message(invalid_line, CURRENT_TIMESTAMP)
     assert actual is None

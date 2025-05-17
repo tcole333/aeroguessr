@@ -115,8 +115,7 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
 
             if delta.updated or delta.removed:
                 logger.debug(
-                    f"Delta calculated: {len(delta.updated)} updated, "
-                    f"{len(delta.removed)} removed."
+                    f"Delta calculated: {len(delta.updated)} updated, {len(delta.removed)} removed."
                 )
             else:
                 logger.debug("No changes detected in plane states.")

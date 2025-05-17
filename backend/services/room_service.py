@@ -62,7 +62,7 @@ async def update_player_status(
             return player
         except Exception as e:
             logger.error(
-                f"Failed to update status for player '{nickname}' in room " f"'{room_code}': {e}",
+                f"Failed to update status for player '{nickname}' in room '{room_code}': {e}",
                 exc_info=True,
             )
             raise  # Re-raise to signal failure
@@ -92,14 +92,13 @@ async def update_player_score(
             return player
         except Exception as e:
             logger.error(
-                f"Failed to update score for player '{nickname}' in room " f"'{room_code}': {e}",
+                f"Failed to update score for player '{nickname}' in room '{room_code}': {e}",
                 exc_info=True,
             )
             raise  # Re-raise
     else:
         logger.warning(
-            f"Attempted to update score for non-existent player '{nickname}' "
-            f"in room '{room_code}'."
+            f"Attempted to update score for non-existent player '{nickname}' in room '{room_code}'."
         )
         return None
 
