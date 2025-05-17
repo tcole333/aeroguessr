@@ -28,9 +28,14 @@ ws-schema:
 # Run integration tests inside docker-compose. If pytest fails, capture
 # container logs to ``logs.txt`` for post-mortem before tearing down.
 integration-test:
+ifeq ($(SANDBOX_ENV),true)
+	@echo "--- (Sandbox) Starting integration test services (expecting pre-built images) ---"
+	@docker compose -f infra/docker-compose.test.yml up -d --no-build
+else
 	@echo "--- Building and starting integration test services ---"
-	@docker compose -f infra/docker-compose.test.yml build backend-test redis-test
+	@docker compose -f infra/docker-compose.test.yml build # Builds services with 'build' config, pulls others
 	@docker compose -f infra/docker-compose.test.yml up -d
+endif
 	@echo "--- Waiting for backend service to be healthy ---"
 	@# Add a wait loop for the health check - waits up to 30s
 	@timeout=30; \
