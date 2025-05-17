@@ -74,6 +74,6 @@ async def test_replay_respects_order_and_collects_lines() -> None:
     message_delays = [d for i, d in enumerate(sleep_calls) if i % 2 == 0]
     assert len(message_delays) == 2, "Expected 2 message delays"
     for delay in message_delays:
-        assert (
-            pytest.approx(delay, rel=0.2) == 0.5
-        ), f"Sleep delay {delay} too far from expected 0.5s"
+        assert pytest.approx(delay, rel=0.2) == 0.5, (
+            f"Sleep delay {delay} too far from expected 0.5s"
+        )

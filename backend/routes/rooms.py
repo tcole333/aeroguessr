@@ -190,7 +190,7 @@ async def create_room(
     # Assuming the API is served at the root, adjust if behind a proxy with path prefix
     # Use request.base_url to handle http/https correctly
     base_ws_url = str(request.base_url).replace("http", "ws", 1)
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{room_data.host_nickname}"
+    ws_url = f"{base_ws_url}ws/{room_code}/{room_data.host_nickname}"
 
     # Set Location header (as specified in PRD)
     response.headers["Location"] = ws_url
@@ -280,7 +280,7 @@ async def join_room(
 
     # 5. Construct WebSocket URL
     base_ws_url = str(request.base_url).replace("http", "ws", 1)
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{join_data.nickname}"
+    ws_url = f"{base_ws_url}ws/{room_code}/{join_data.nickname}"
 
     return RoomJoinResponse(ws_url=ws_url)
 
@@ -896,8 +896,11 @@ async def websocket_endpoint(
                         logger.debug(f"GUESS: All connected players: {connected_player_nicks}")
                         logger.debug(
                             f"GUESS: Current guesses keys: "
-                            f"{list(current_round_data_local.guesses.keys())
-                               if current_round_data_local.guesses else []}"
+                            f"{
+                                list(current_round_data_local.guesses.keys())
+                                if current_round_data_local.guesses
+                                else []
+                            }"
                         )
 
                         # Ensure guesses dict is not None before checking keys
@@ -917,8 +920,11 @@ async def websocket_endpoint(
                             logger.debug(
                                 f"GUESS: Not all connected players have guessed yet. "
                                 f"Connected: {len(connected_player_nicks)}, "
-                                f"Guessed: {len(current_round_data_local.guesses)
-                                            if current_round_data_local.guesses else 0}"
+                                f"Guessed: {
+                                    len(current_round_data_local.guesses)
+                                    if current_round_data_local.guesses
+                                    else 0
+                                }"
                             )
 
                     elif ws_msg.type == WSMessageType.SELECT_PLANE:
