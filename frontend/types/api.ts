@@ -1,0 +1,755 @@
+/**
+ * AUTO-GENERATED FILE. DO NOT EDIT.
+ * Source: docs/api_openapi.yaml
+ * Generated: 2025-05-18T20:49:22.930Z
+ */
+export const openapi = {
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plane Guessing Game API",
+    "description": "API for managing game rooms, players, and flight data.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Read Root",
+        "description": "Root endpoint providing a basic welcome message.",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Read Root  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint to verify service status.",
+        "operationId": "health_check_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Check Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/rooms": {
+      "post": {
+        "tags": [
+          "rooms"
+        ],
+        "summary": "Create a new game room",
+        "description": "Creates a new game room with a unique code and returns the code and WebSocket URL for the host.",
+        "operationId": "create_room_api_v0_rooms_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/rooms/{room_code}/join": {
+      "post": {
+        "tags": [
+          "rooms"
+        ],
+        "summary": "Join an existing game room",
+        "description": "Allows a player to join a room using a code and nickname. Checks for room existence and nickname uniqueness.",
+        "operationId": "join_room_api_v0_rooms__room_code__join_post",
+        "parameters": [
+          {
+            "name": "room_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomJoinRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomJoinResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found"
+          },
+          "409": {
+            "description": "Nickname already taken in this room"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/rooms/{code}": {
+      "get": {
+        "tags": [
+          "rooms",
+          "rooms",
+          "debug"
+        ],
+        "summary": "Get Full Room Details (Debug)",
+        "description": "Retrieves the complete state of a specific game room from Redis.\n\nIntended primarily for debugging and development purposes.\n\n- **code**: The unique 4-letter code identifying the room.\n- **Returns**: The full state of the room including metadata, players, scores, and round status.\n- **Raises**: `HTTPException` (404) if the room code is not found in Redis.",
+        "operationId": "get_room_details_api_v0_rooms__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 4,
+              "pattern": "^[A-Z]{4}$",
+              "description": "The 4-letter room code.",
+              "title": "Code"
+            },
+            "description": "The 4-letter room code."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rooms",
+          "rooms"
+        ],
+        "summary": "End (delete) a game room",
+        "description": "Delete all Redis keys for a room.\n\nPrimarily for host/admin cleanup; no authentication enforced yet.",
+        "operationId": "delete_room_endpoint_api_v0_rooms__code__delete",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 4,
+              "pattern": "^[A-Z]{4}$",
+              "description": "The 4-letter room code.",
+              "title": "Code"
+            },
+            "description": "The 4-letter room code."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Room not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Player": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "title": "Nickname",
+            "description": "Unique nickname chosen by the player."
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score",
+            "description": "Player's current score.",
+            "default": 0
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "Whether the player is currently connected via WebSocket.",
+            "default": false
+          },
+          "last_seen_ts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen Ts",
+            "description": "Timestamp of the last activity or connection."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nickname"
+        ],
+        "title": "Player",
+        "description": "Represents a player within a game room.",
+        "example": {
+          "connected": true,
+          "last_seen_ts": 1747541911.56653,
+          "nickname": "PilotPete",
+          "score": 150
+        }
+      },
+      "PlayerGuess": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "guess": {
+            "type": "string",
+            "title": "Guess"
+          },
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nickname",
+          "guess"
+        ],
+        "title": "PlayerGuess",
+        "description": "Stores a player's guess for a round."
+      },
+      "RoomCreateRequest": {
+        "properties": {
+          "host_nickname": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 3,
+            "title": "Host Nickname",
+            "description": "Nickname for the player hosting the room."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ScoringMode",
+            "description": "Scoring mode for the room.",
+            "default": "Exact"
+          },
+          "round_timeout_seconds": {
+            "type": "integer",
+            "maximum": 120,
+            "minimum": 10,
+            "title": "Round Timeout Seconds",
+            "description": "Duration of each guessing round in seconds.",
+            "default": 30
+          }
+        },
+        "type": "object",
+        "required": [
+          "host_nickname"
+        ],
+        "title": "RoomCreateRequest",
+        "description": "Request body for creating a new game room.",
+        "example": {
+          "host_nickname": "HostessHannah",
+          "mode": "Distance",
+          "round_timeout_seconds": 60
+        }
+      },
+      "RoomCreateResponse": {
+        "properties": {
+          "room_code": {
+            "type": "string",
+            "title": "Room Code",
+            "description": "The unique 4-letter code for the created room."
+          },
+          "ws_url": {
+            "type": "string",
+            "title": "Ws Url",
+            "description": "The WebSocket URL for the host to connect to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_code",
+          "ws_url"
+        ],
+        "title": "RoomCreateResponse",
+        "description": "Response body after successfully creating a game room.",
+        "example": {
+          "room_code": "ABCD",
+          "ws_url": "ws://localhost:8000/ws/ABCD/HostessHannah"
+        }
+      },
+      "RoomJoinRequest": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 3,
+            "title": "Nickname",
+            "description": "Nickname for the player joining the room."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nickname"
+        ],
+        "title": "RoomJoinRequest",
+        "description": "Request body for joining an existing game room.",
+        "example": {
+          "nickname": "JoinerJane"
+        }
+      },
+      "RoomJoinResponse": {
+        "properties": {
+          "room_code": {
+            "type": "string",
+            "title": "Room Code",
+            "description": "Room code assigned for the joined session."
+          },
+          "ws_url": {
+            "type": "string",
+            "title": "Ws Url",
+            "description": "The WebSocket URL for the player to connect to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_code",
+          "ws_url"
+        ],
+        "title": "RoomJoinResponse",
+        "description": "Response body after successfully joining a game room.",
+        "example": {
+          "room_code": "ABCD",
+          "ws_url": "ws://localhost:8000/ws/ABCD/JoinerJane"
+        }
+      },
+      "RoomState": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ScoringMode",
+            "description": "Scoring mode for the room."
+          },
+          "round_timeout_seconds": {
+            "type": "integer",
+            "title": "Round Timeout Seconds",
+            "description": "Duration of each guessing round."
+          },
+          "host_nickname": {
+            "type": "string",
+            "title": "Host Nickname",
+            "description": "Nickname of the current host."
+          },
+          "is_solo": {
+            "type": "boolean",
+            "title": "Is Solo",
+            "description": "Whether this room represents a solo game session.",
+            "default": false
+          },
+          "created_ts": {
+            "type": "number",
+            "title": "Created Ts",
+            "description": "Timestamp when the room was created."
+          },
+          "host_disconnected_ts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Disconnected Ts",
+            "description": "Timestamp when the host disconnected, None if connected."
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The 4-letter code identifying the room."
+          },
+          "players": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Player"
+            },
+            "type": "object",
+            "title": "Players",
+            "description": "Players currently in the room, keyed by nickname."
+          },
+          "current_round": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoundData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Data for the currently active round, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "round_timeout_seconds",
+          "host_nickname",
+          "code"
+        ],
+        "title": "RoomState",
+        "description": "Represents the complete state of a game room, suitable for debug view or state sync.",
+        "example": {
+          "code": "WXYZ",
+          "created_ts": 1747541911.5707479,
+          "current_round": {
+            "correct_airport_code": "JFK",
+            "guess_direction": "destination",
+            "guesses": {
+              "JoinerJane": {
+                "guess": "LGA",
+                "nickname": "JoinerJane",
+                "timestamp": 1747541906.570749
+              }
+            },
+            "round_number": 3,
+            "round_start_time": 1747541901.5707479,
+            "selected_plane_hex": "a1b2c3",
+            "state": "accepting_guesses"
+          },
+          "host_nickname": "HostHarry",
+          "mode": "Distance",
+          "players": {
+            "HostHarry": {
+              "connected": true,
+              "last_seen_ts": 1747541911.5707479,
+              "nickname": "HostHarry",
+              "score": 100
+            },
+            "JoinerJane": {
+              "connected": true,
+              "last_seen_ts": 1747541901.5707479,
+              "nickname": "JoinerJane",
+              "score": 50
+            }
+          },
+          "round_timeout_seconds": 45
+        }
+      },
+      "RoundData": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RoundStateEnum",
+            "description": "The current phase of the round.",
+            "default": "waiting_for_selection"
+          },
+          "selected_plane_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Plane Hex",
+            "description": "ICAO hex code of the plane selected for this round."
+          },
+          "correct_airport_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Airport Code",
+            "description": "The correct origin/destination airport code for the selected plane."
+          },
+          "guess_direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guess Direction",
+            "description": "Whether players are guessing 'origin' or 'destination'."
+          },
+          "round_start_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Start Time",
+            "description": "Timestamp when the guessing period started."
+          },
+          "guesses": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlayerGuess"
+            },
+            "type": "object",
+            "title": "Guesses",
+            "description": "Guesses submitted by players {nickname: PlayerGuess}."
+          },
+          "results": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoundResultDetail"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results",
+            "description": "Scoring results after the round ends."
+          },
+          "round_number": {
+            "type": "integer",
+            "title": "Round Number",
+            "description": "Counter for the current round number.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "RoundData",
+        "description": "Data stored in Redis for the current state of a game round (`room:{code}:round`).",
+        "example": {
+          "correct_airport_code": "JFK",
+          "guess_direction": "destination",
+          "guesses": {
+            "PilotPete": {
+              "guess": "LGA",
+              "nickname": "PilotPete",
+              "timestamp": 1747541906.568629
+            }
+          },
+          "round_number": 3,
+          "round_start_time": 1747541901.568629,
+          "selected_plane_hex": "a1b2c3",
+          "state": "accepting_guesses"
+        }
+      },
+      "RoundResultDetail": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "guess": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guess"
+          },
+          "correct_code": {
+            "type": "string",
+            "title": "Correct Code"
+          },
+          "score_awarded": {
+            "type": "integer",
+            "title": "Score Awarded"
+          },
+          "current_total_score": {
+            "type": "integer",
+            "title": "Current Total Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nickname",
+          "guess",
+          "correct_code",
+          "score_awarded",
+          "current_total_score"
+        ],
+        "title": "RoundResultDetail",
+        "description": "Detailed result for a single player in a round."
+      },
+      "RoundStateEnum": {
+        "type": "string",
+        "enum": [
+          "waiting_for_selection",
+          "accepting_guesses",
+          "showing_results"
+        ],
+        "title": "RoundStateEnum",
+        "description": "Possible states for a game round."
+      },
+      "ScoringMode": {
+        "type": "string",
+        "enum": [
+          "Exact",
+          "Distance"
+        ],
+        "title": "ScoringMode",
+        "description": "Enum for available scoring modes."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+} as const;

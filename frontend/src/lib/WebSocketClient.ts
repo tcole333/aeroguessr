@@ -1,5 +1,6 @@
 import debug from 'debug';
-import { assertWsMessage, InboundMessage, OutboundMessage, Ping } from '../../types/ws';
+import { InboundMessage, OutboundMessage, Ping } from '../../types/ws';
+import { assertWsMessage } from './validationUtils';
 
 interface Events {
   connected: void;
@@ -74,11 +75,13 @@ export function createWebSocketClient(baseUrl: string = (import.meta as any).env
 
   function handleMessage(data: MessageEvent['data']) {
     try {
-      const msg = assertWsMessage(JSON.parse(data));
-      if ((msg as any).type === 'pong') {
-        missedPongs = 0;
+      const msg = assertWsMessage(typeof data === 'string' ? data : String(data));
+      if (msg) {
+        if (msg.type === 'pong') {
+          missedPongs = 0;
+        }
+        emitter.emit('message', msg);
       }
-      emitter.emit('message', msg);
     } catch (err) {
       log('invalid message', err);
     }
