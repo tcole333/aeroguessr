@@ -186,9 +186,9 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [x] Zod schemas from `ws_schema.yaml`
   - [x] OpenAPI client generation
   - [x] Helper `assertWsMessage` + tests
-- [ ] **Base layout**
-  - [ ] `AppShell` with MapView & SlidingPanel
-  - [ ] Responsive docking behaviour
+  - [x] **Base layout**
+    - [x] `AppShell` with MapView & SlidingPanel
+    - [x] Responsive docking behaviour
 - [ ] **Map & plane rendering**
   - [ ] Integrate React-Leaflet map centred on Boston
   - [ ] Plane markers + fading trails
