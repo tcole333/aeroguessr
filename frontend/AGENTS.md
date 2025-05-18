@@ -137,6 +137,7 @@ CI job `pnpm test:ci` must pass with coverage thresholds.
 If the frontend uncovers missing backend features or schema mismatches:
 
 1. Append a **single Markdown bullet** to `frontend/backend_requests.md` using this template:
+
    ```md
    ### [YYYY-MM-DD] Short title
 
@@ -144,6 +145,7 @@ If the frontend uncovers missing backend features or schema mismatches:
    **Proposed change:** REST/WS contract update (be explicit).
    **Priority:** High / Medium / Low
    ```
+
 2. **Create a GitHub issue** referencing the bullet so backend work can be prioritised.
 3. **Do _not_ modify or add any code inside the `backend/` folder.** Front-end contributors must treat the backend as **read-only**; all contract changes flow through `frontend/backend_requests.md`.
 4. Do **not** block frontend work; stub with mock data and continue. Any mock data should be placed behind an env variable called MOCK_DATA that when set to true allows the use of mock data, when false will not use any.

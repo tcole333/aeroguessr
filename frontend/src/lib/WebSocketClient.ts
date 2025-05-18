@@ -20,7 +20,7 @@ class Emitter {
   }
 
   off<K extends keyof Events>(event: K, cb: Listener<K>): void {
-    this.listeners[event] = (this.listeners[event] || []).filter((l) => l !== cb);
+    this.listeners[event] = (this.listeners[event] || []).filter((l) => l !== cb) as any;
   }
 
   emit<K extends keyof Events>(event: K, payload: Events[K]): void {

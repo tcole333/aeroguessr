@@ -1,4 +1,4 @@
-import { InboundMessageSchema, type InboundMessage } from '../types/ws';
+import { InboundMessageSchema, type InboundMessage } from '../../types/ws';
 
 export function assertWsMessage(raw: unknown): InboundMessage | null {
   let parsed: unknown;
