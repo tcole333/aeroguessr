@@ -169,10 +169,10 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [x] Install ESLint, Prettier, Tailwind, Vitest, RTL, msw, Cypress, Storybook
   - [x] Add `pnpm gen:schema` script to autogenerate API/WS types
   - [x] Update .pre-commit-config.yaml with front end hooks
-- [ ] **Core infrastructure**
-  - [ ] Implement `WebSocketClient` with reconnect & heartbeat
-  - [ ] Create Zustand root store with empty slices
-  - [ ] Unit tests for reconnect & message validation
+- [x] **Core infrastructure**
+  - [x] Implement `WebSocketClient` with reconnect & heartbeat
+  - [x] Create Zustand root store with empty slices
+  - [x] Unit tests for reconnect & message validation
 - [ ] **State slices**
   - [ ] `connection` slice
   - [ ] `planes` slice

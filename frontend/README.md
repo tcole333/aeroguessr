@@ -52,3 +52,7 @@ export default tseslint.config({
   },
 });
 ```
+
+## Core Infrastructure
+
+The frontend communicates with the backend through a `WebSocketClient` located at `src/lib/WebSocketClient.ts`. This singleton automatically reconnects and maintains a heartbeat. Shared application state is managed by a Zustand **root store** created in `src/store/createRootStore.tsx` and consumed via the `useStore` hook. Run `npm run test` to execute the accompanying unit tests.
