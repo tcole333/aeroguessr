@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { createRootStore } from '../createRootStore';
+import { describe, it, expect } from "vitest";
+import { createRootStore } from "../createRootStore";
 
-describe('createRootStore', () => {
-  it('creates store with empty slices', () => {
+describe("createRootStore", () => {
+  it("creates store with initial slice state", () => {
     const store = createRootStore();
     const state = store.getState();
-    expect(state).toEqual({ connection: {}, planes: {}, game: {}, ui: {} });
+    expect(state.connection.status).toBe("disconnected");
+    expect(state.planes.values).toEqual({});
+    expect(state.game.players).toEqual({});
+    expect(state.ui.darkMode).toBe(false);
   });
 });
