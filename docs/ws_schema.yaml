@@ -50,279 +50,6 @@ messages:
     payload:
       $ref: '#/$defs/PlaneSelectedConfirmPayload'
 $defs:
-  GuessPayload:
-    description: Payload for the player guess message.
-    example:
-      airport_code: JFK
-    properties:
-      airport_code:
-        description: Player's guessed airport IATA/ICAO code.
-        title: Airport Code
-        type: string
-    required:
-    - airport_code
-    title: GuessPayload
-    type: object
-  PlayerJoinedPayload:
-    description: Payload for the playerJoined message.
-    example:
-      nickname: NewPlayer123
-    properties:
-      nickname:
-        description: Nickname of the player who joined.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: PlayerJoinedPayload
-    type: object
-  PlaneSelectedConfirmPayload:
-    description: Payload sent to host confirming successful plane selection.
-    example:
-      destination: KJFK
-      guess_direction: destination
-      hex: a1b2c3
-      origin: KBOS
-    properties:
-      hex:
-        description: ICAO24 hex code of the selected plane.
-        title: Hex
-        type: string
-      origin:
-        description: Origin airport ICAO code.
-        title: Origin
-        type: string
-      destination:
-        description: Destination airport ICAO code.
-        title: Destination
-        type: string
-      guess_direction:
-        description: Which airport players will guess ('origin' or 'destination').
-        title: Guess Direction
-        type: string
-    required:
-    - hex
-    - origin
-    - destination
-    - guess_direction
-    title: PlaneSelectedConfirmPayload
-    type: object
-  RoundStartPayload:
-    description: Payload for the server roundStart message.
-    example:
-      direction: destination
-      hex: a1b2c3
-      round_number: 4
-      timeout_s: 30
-    properties:
-      hex:
-        description: ICAO24 hex code of the plane for this round.
-        title: Hex
-        type: string
-      timeout_s:
-        description: Duration of the guessing round in seconds.
-        title: Timeout S
-        type: integer
-      direction:
-        description: Whether to guess 'origin' or 'destination'.
-        title: Direction
-        type: string
-      round_number:
-        description: The current round number.
-        title: Round Number
-        type: integer
-    required:
-    - hex
-    - timeout_s
-    - direction
-    - round_number
-    title: RoundStartPayload
-    type: object
-  StartRoundPayload:
-    description: Payload for the host startRound message (currently empty).
-    properties: {}
-    title: StartRoundPayload
-    type: object
-  PlayerLeftPayload:
-    description: Payload for the playerLeft message.
-    example:
-      nickname: LeavingPlayer456
-    properties:
-      nickname:
-        description: Nickname of the player who left.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: PlayerLeftPayload
-    type: object
-  DeltaPayload:
-    $defs:
-      PlaneState:
-        description: 'Represents the smoothed state of an aircraft stored in Redis.
-
-
-          Includes core position/velocity, a capped trail, and cached enrichment data.'
-        properties:
-          hex_ident:
-            description: Aircraft ICAO hex identifier.
-            title: Hex Ident
-            type: string
-          lat:
-            description: Smoothed latitude.
-            title: Lat
-            type: number
-          lon:
-            description: Smoothed longitude.
-            title: Lon
-            type: number
-          alt:
-            description: Smoothed altitude in feet.
-            title: Alt
-            type: number
-          lat_v:
-            description: Smoothed latitude velocity.
-            title: Lat V
-            type: number
-          lon_v:
-            description: Smoothed longitude velocity.
-            title: Lon V
-            type: number
-          alt_v:
-            description: Smoothed altitude velocity (fpm).
-            title: Alt V
-            type: number
-          last_update_ts:
-            description: Timestamp of the last update.
-            title: Last Update Ts
-            type: number
-          trail:
-            description: List of recent (lat, lon, alt) tuples, capped at 30.
-            items:
-              maxItems: 3
-              minItems: 3
-              prefixItems:
-              - type: number
-              - type: number
-              - type: number
-              type: array
-            title: Trail
-            type: array
-          callsign:
-            anyOf:
-            - type: string
-            - type: 'null'
-            default: null
-            description: Aircraft callsign (cached).
-            title: Callsign
-          origin_country:
-            anyOf:
-            - type: string
-            - type: 'null'
-            default: null
-            description: Origin country based on ICAO24 (cached).
-            title: Origin Country
-          category:
-            anyOf:
-            - type: integer
-            - type: 'null'
-            default: null
-            description: Aircraft category code (cached).
-            title: Category
-          origin:
-            anyOf:
-            - type: string
-            - type: 'null'
-            default: null
-            description: Origin airport ICAO (cached).
-            title: Origin
-          destination:
-            anyOf:
-            - type: string
-            - type: 'null'
-            default: null
-            description: Destination airport ICAO (cached).
-            title: Destination
-        required:
-        - hex_ident
-        - lat
-        - lon
-        - alt
-        - lat_v
-        - lon_v
-        - alt_v
-        - last_update_ts
-        title: PlaneState
-        type: object
-    description: Payload for the server delta message, containing state changes.
-    example:
-      planes:
-        removed:
-        - d4e5f6
-        updated:
-        - alt: 5000
-          alt_v: 10.0
-          callsign: UAL123
-          category: 2
-          destination: KJFK
-          hex_ident: a1b2c3
-          last_update_ts: 1747514868541.5342
-          lat: 42.36
-          lat_v: 0.01
-          lon: -71.05
-          lon_v: -0.01
-          origin: KBOS
-          origin_country: USA
-          trail:
-          - - 42.359
-            - -71.049
-            - 4990
-      scores:
-        Player1: 250
-    properties:
-      planes:
-        anyOf:
-        - additionalProperties:
-            items:
-              anyOf:
-              - $ref: '#/$defs/PlaneState'
-              - type: string
-            type: array
-          type: object
-        - type: 'null'
-        default: null
-        description: Changes in plane states. 'updated' contains full PlaneState objects,
-          'removed' contains hex IDs.
-        title: Planes
-      scores:
-        anyOf:
-        - additionalProperties:
-            type: integer
-          type: object
-        - type: 'null'
-        default: null
-        description: 'Updated scores for players {nickname: new_total_score}.'
-        title: Scores
-    title: DeltaPayload
-    type: object
-  NewHostPayload:
-    description: Payload for the server newHost message.
-    example:
-      nickname: PromotedPlayer
-    properties:
-      nickname:
-        description: Nickname of the new host.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: NewHostPayload
-    type: object
-  ClaimHostPayload:
-    description: Payload for the player claimHost message (currently empty).
-    properties: {}
-    title: ClaimHostPayload
-    type: object
   FullRoomState:
     description: Represents the complete state of a room to be sent on connect.
     example:
@@ -348,6 +75,19 @@ $defs:
     - players
     title: FullRoomState
     type: object
+  PlayerLeftPayload:
+    description: Payload for the playerLeft message.
+    example:
+      nickname: LeavingPlayer456
+    properties:
+      nickname:
+        description: Nickname of the player who left.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: PlayerLeftPayload
+    type: object
   SelectPlanePayload:
     description: Payload for the host selectPlane message.
     example:
@@ -360,19 +100,6 @@ $defs:
     required:
     - hex
     title: SelectPlanePayload
-    type: object
-  PingPongPayload:
-    description: Payload for ping and pong messages.
-    example:
-      seq: 12345
-    properties:
-      seq:
-        description: Sequence number for matching ping/pong.
-        title: Seq
-        type: integer
-    required:
-    - seq
-    title: PingPongPayload
     type: object
   ErrorPayload:
     $defs:
@@ -492,4 +219,277 @@ $defs:
     required:
     - results
     title: RoundResultPayload
+    type: object
+  NewHostPayload:
+    description: Payload for the server newHost message.
+    example:
+      nickname: PromotedPlayer
+    properties:
+      nickname:
+        description: Nickname of the new host.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: NewHostPayload
+    type: object
+  ClaimHostPayload:
+    description: Payload for the player claimHost message (currently empty).
+    properties: {}
+    title: ClaimHostPayload
+    type: object
+  PlaneSelectedConfirmPayload:
+    description: Payload sent to host confirming successful plane selection.
+    example:
+      destination: KJFK
+      guess_direction: destination
+      hex: a1b2c3
+      origin: KBOS
+    properties:
+      hex:
+        description: ICAO24 hex code of the selected plane.
+        title: Hex
+        type: string
+      origin:
+        description: Origin airport ICAO code.
+        title: Origin
+        type: string
+      destination:
+        description: Destination airport ICAO code.
+        title: Destination
+        type: string
+      guess_direction:
+        description: Which airport players will guess ('origin' or 'destination').
+        title: Guess Direction
+        type: string
+    required:
+    - hex
+    - origin
+    - destination
+    - guess_direction
+    title: PlaneSelectedConfirmPayload
+    type: object
+  StartRoundPayload:
+    description: Payload for the host startRound message (currently empty).
+    properties: {}
+    title: StartRoundPayload
+    type: object
+  PingPongPayload:
+    description: Payload for ping and pong messages.
+    example:
+      seq: 12345
+    properties:
+      seq:
+        description: Sequence number for matching ping/pong.
+        title: Seq
+        type: integer
+    required:
+    - seq
+    title: PingPongPayload
+    type: object
+  RoundStartPayload:
+    description: Payload for the server roundStart message.
+    example:
+      direction: destination
+      hex: a1b2c3
+      round_number: 4
+      timeout_s: 30
+    properties:
+      hex:
+        description: ICAO24 hex code of the plane for this round.
+        title: Hex
+        type: string
+      timeout_s:
+        description: Duration of the guessing round in seconds.
+        title: Timeout S
+        type: integer
+      direction:
+        description: Whether to guess 'origin' or 'destination'.
+        title: Direction
+        type: string
+      round_number:
+        description: The current round number.
+        title: Round Number
+        type: integer
+    required:
+    - hex
+    - timeout_s
+    - direction
+    - round_number
+    title: RoundStartPayload
+    type: object
+  PlayerJoinedPayload:
+    description: Payload for the playerJoined message.
+    example:
+      nickname: NewPlayer123
+    properties:
+      nickname:
+        description: Nickname of the player who joined.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: PlayerJoinedPayload
+    type: object
+  GuessPayload:
+    description: Payload for the player guess message.
+    example:
+      airport_code: JFK
+    properties:
+      airport_code:
+        description: Player's guessed airport IATA/ICAO code.
+        title: Airport Code
+        type: string
+    required:
+    - airport_code
+    title: GuessPayload
+    type: object
+  DeltaPayload:
+    $defs:
+      PlaneState:
+        description: 'Represents the smoothed state of an aircraft stored in Redis.
+
+
+          Includes core position/velocity, a capped trail, and cached enrichment data.'
+        properties:
+          hex_ident:
+            description: Aircraft ICAO hex identifier.
+            title: Hex Ident
+            type: string
+          lat:
+            description: Smoothed latitude.
+            title: Lat
+            type: number
+          lon:
+            description: Smoothed longitude.
+            title: Lon
+            type: number
+          alt:
+            description: Smoothed altitude in feet.
+            title: Alt
+            type: number
+          lat_v:
+            description: Smoothed latitude velocity.
+            title: Lat V
+            type: number
+          lon_v:
+            description: Smoothed longitude velocity.
+            title: Lon V
+            type: number
+          alt_v:
+            description: Smoothed altitude velocity (fpm).
+            title: Alt V
+            type: number
+          last_update_ts:
+            description: Timestamp of the last update.
+            title: Last Update Ts
+            type: number
+          trail:
+            description: List of recent (lat, lon, alt) tuples, capped at 30.
+            items:
+              maxItems: 3
+              minItems: 3
+              prefixItems:
+              - type: number
+              - type: number
+              - type: number
+              type: array
+            title: Trail
+            type: array
+          callsign:
+            anyOf:
+            - type: string
+            - type: 'null'
+            default: null
+            description: Aircraft callsign (cached).
+            title: Callsign
+          origin_country:
+            anyOf:
+            - type: string
+            - type: 'null'
+            default: null
+            description: Origin country based on ICAO24 (cached).
+            title: Origin Country
+          category:
+            anyOf:
+            - type: integer
+            - type: 'null'
+            default: null
+            description: Aircraft category code (cached).
+            title: Category
+          origin:
+            anyOf:
+            - type: string
+            - type: 'null'
+            default: null
+            description: Origin airport ICAO (cached).
+            title: Origin
+          destination:
+            anyOf:
+            - type: string
+            - type: 'null'
+            default: null
+            description: Destination airport ICAO (cached).
+            title: Destination
+        required:
+        - hex_ident
+        - lat
+        - lon
+        - alt
+        - lat_v
+        - lon_v
+        - alt_v
+        - last_update_ts
+        title: PlaneState
+        type: object
+    description: Payload for the server delta message, containing state changes.
+    example:
+      planes:
+        removed:
+        - d4e5f6
+        updated:
+        - alt: 5000
+          alt_v: 10.0
+          callsign: UAL123
+          category: 2
+          destination: KJFK
+          hex_ident: a1b2c3
+          last_update_ts: 1747541920746.861
+          lat: 42.36
+          lat_v: 0.01
+          lon: -71.05
+          lon_v: -0.01
+          origin: KBOS
+          origin_country: USA
+          trail:
+          - - 42.359
+            - -71.049
+            - 4990
+      scores:
+        Player1: 250
+    properties:
+      planes:
+        anyOf:
+        - additionalProperties:
+            items:
+              anyOf:
+              - $ref: '#/$defs/PlaneState'
+              - type: string
+            type: array
+          type: object
+        - type: 'null'
+        default: null
+        description: Changes in plane states. 'updated' contains full PlaneState objects,
+          'removed' contains hex IDs.
+        title: Planes
+      scores:
+        anyOf:
+        - additionalProperties:
+            type: integer
+          type: object
+        - type: 'null'
+        default: null
+        description: 'Updated scores for players {nickname: new_total_score}.'
+        title: Scores
+    title: DeltaPayload
     type: object

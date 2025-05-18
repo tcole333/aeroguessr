@@ -979,12 +979,10 @@ async def websocket_endpoint(
                             )
                             continue
 
-                        # Fetch fresh round data to ensure state is current
-                        current_round_data_local = await room_service.get_round_data(
-                            redis, room_code
-                        )
+                        # Fetch fresh round data to ensure state is current for modification
+                        round_data_for_guess = await room_service.get_round_data(redis, room_code)
 
-                        if not current_round_data_local:
+                        if not round_data_for_guess:
                             logger.error(
                                 f"GUESS: Critical - RoundData not found for room {room_code} "
                                 "when attempting to guess."
@@ -995,14 +993,14 @@ async def websocket_endpoint(
                             continue
 
                         logger.debug(
-                            f"GUESS: Fetched round_data state: {current_round_data_local.state}, "
+                            f"GUESS: Fetched round_data state: {round_data_for_guess.state}, "
                             f"for player {nickname}"
                         )
 
-                        if current_round_data_local.state != RoundStateEnum.ACCEPTING_GUESSES:
+                        if round_data_for_guess.state != RoundStateEnum.ACCEPTING_GUESSES:
                             logger.warning(
                                 f"Player {nickname} guessed outside active round. State: "
-                                f"{current_round_data_local.state}"
+                                f"{round_data_for_guess.state}"
                             )
                             await _send_error(
                                 ErrorCode.GUESS_OUTSIDE_ROUND,
@@ -1010,7 +1008,7 @@ async def websocket_endpoint(
                             )
                             continue
 
-                        if nickname in current_round_data_local.guesses:
+                        if nickname in round_data_for_guess.guesses:
                             logger.warning(f"Player {nickname} already guessed this round.")
                             await _send_error(
                                 ErrorCode.ALREADY_GUESSED, "You have already guessed this round."
@@ -1023,27 +1021,26 @@ async def websocket_endpoint(
                             guess=guess_payload.airport_code,
                             timestamp=time.time(),
                         )
-                        # Merge with any guesses that might have been saved concurrently
-                        # Fetch the most recent round data to avoid overwriting other guesses.
-                        latest_round_data = await room_service.get_round_data(redis, room_code)
-                        if latest_round_data and latest_round_data.guesses:
-                            # Start with latest to preserve previously stored guesses.
-                            merged_guesses = dict(latest_round_data.guesses)
-                        else:
-                            merged_guesses = {}
-                        # Add / overwrite current player's guess
-                        merged_guesses[nickname] = player_guess_obj
-                        current_round_data_local.guesses = merged_guesses
+
+                        # Apply the new guess to the fetched round_data_for_guess
+                        # Initialize guesses if it's None (though initialize_round_data
+                        # should prevent this)
+                        if round_data_for_guess.guesses is None:
+                            round_data_for_guess.guesses = {}
+
+                        # Create a new dictionary for guesses to ensure Pydantic
+                        # sees a change if needed
+                        updated_guesses = dict(round_data_for_guess.guesses)
+                        updated_guesses[nickname] = player_guess_obj
+                        round_data_for_guess.guesses = updated_guesses
 
                         logger.debug(
-                            f"GUESS HANDLER: current_round_data_local before set: "
-                            f"{current_round_data_local.model_dump_json(indent=2)}"
+                            f"GUESS HANDLER: round_data_for_guess before set: "
+                            f"{round_data_for_guess.model_dump_json(indent=2)}"
                         )
 
                         # Persist the updated guesses
-                        await room_service.set_round_data(
-                            redis, room_code, current_round_data_local
-                        )
+                        await room_service.set_round_data(redis, room_code, round_data_for_guess)
                         logger.info(
                             f"Player {nickname} in room {room_code} guessed "
                             f"{guess_payload.airport_code}."
@@ -1057,35 +1054,94 @@ async def websocket_endpoint(
                             if p_data.connected
                         }
                         logger.debug(f"GUESS: All connected players: {connected_player_nicks}")
+
+                        # Use the round_data_for_guess that was just modified and set
+                        # for the check
                         logger.debug(
-                            "GUESS: Current guesses keys: %s",
-                            list(current_round_data_local.guesses.keys())
-                            if current_round_data_local.guesses
+                            "GUESS: Current guesses keys (from round_data_for_guess "
+                            "used for set): %s",
+                            list(round_data_for_guess.guesses.keys())
+                            if round_data_for_guess.guesses  # Should not be None here
                             else [],
                         )
 
-                        # Ensure guesses dict is not None before checking keys
                         if (
-                            current_round_data_local.guesses is not None
-                            and connected_player_nicks.issubset(
-                                current_round_data_local.guesses.keys()
-                            )
+                            round_data_for_guess.guesses is not None  # Should always be true now
+                            and connected_player_nicks.issubset(round_data_for_guess.guesses.keys())
                         ):
                             logger.info(
                                 f"All {len(connected_player_nicks)} connected players have guessed "
                                 f"in room {room_code}. Ending round early via "
                                 "_end_round(initiator='all_guessed')."
                             )
+                            # Create a task to avoid blocking the current message handler
                             asyncio.create_task(_end_round(initiator="all_guessed"))
                         else:
+                            current_guess_count = (
+                                len(round_data_for_guess.guesses)
+                                if round_data_for_guess.guesses
+                                else 0
+                            )
                             logger.debug(
                                 "GUESS: Not all connected players have guessed yet. "
                                 "Connected: %d, Guessed: %d",
                                 len(connected_player_nicks),
-                                len(current_round_data_local.guesses)
-                                if current_round_data_local.guesses
-                                else 0,
+                                current_guess_count,
                             )
+
+                        # Schedule a short post-guess check to handle potential race conditions
+                        async def _delayed_all_guessed_check() -> None:
+                            """Re-check all-guessed condition after yielding control.
+
+                            This mitigates race conditions where concurrent guess handlers
+                            might overwrite each other's updates when writing the round data.
+                            The small delay allows the other handler (if any) to finish its
+                            own write so the subsequent read will include the union of all
+                            guesses.
+                            """
+                            try:
+                                max_attempts = 10  # ~0.5 s total (10 × 0.05)
+                                for attempt in range(max_attempts):
+                                    await asyncio.sleep(
+                                        0.05
+                                    )  # yield to event loop, allow other tasks
+                                    latest_round = await room_service.get_round_data(
+                                        redis, room_code
+                                    )
+                                    if (
+                                        latest_round
+                                        and latest_round.state == RoundStateEnum.ACCEPTING_GUESSES
+                                        and latest_round.guesses
+                                    ):
+                                        all_connected = {
+                                            p_nick
+                                            for p_nick, p in (
+                                                await room_service.get_all_players(redis, room_code)
+                                            ).items()
+                                            if p.connected
+                                        }
+                                        if all_connected.issubset(latest_round.guesses.keys()):
+                                            logger.info(
+                                                "Post-guess check (%d/%d): all connected players "
+                                                "guessed in room %s. Ending round.",
+                                                attempt + 1,
+                                                max_attempts,
+                                                room_code,
+                                            )
+                                            await _end_round(initiator="all_guessed_post_check")
+                                            return
+                                logger.debug(
+                                    "Post-guess check: condition not met after %d attempts "
+                                    "in room %s.",
+                                    max_attempts,
+                                    room_code,
+                                )
+                            except Exception as exc:
+                                logger.error(
+                                    "Delayed all-guessed check failed: %s", exc, exc_info=True
+                                )
+
+                        asyncio.create_task(_delayed_all_guessed_check())
 
                     elif ws_msg.type == WSMessageType.SELECT_PLANE:
                         if not is_host:

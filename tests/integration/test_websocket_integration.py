@@ -57,15 +57,15 @@ async def test_websocket_connect_and_state_sync_integration(
         state_payload = msg.payload
         # Host should be alone and connected
         assert isinstance(state_payload, dict), "Payload is not a dictionary"
-        assert state_payload.get("room_meta", {}).get("host_nickname") == "int_host", (
-            "Incorrect host nickname in stateSync payload"
-        )
-        assert isinstance(state_payload.get("players"), dict), (
-            "Players is not a dictionary in stateSync payload"
-        )
-        assert len(state_payload.get("players", {})) == 1, (
-            "Incorrect number of players in stateSync payload"
-        )
+        assert (
+            state_payload.get("room_meta", {}).get("host_nickname") == "int_host"
+        ), "Incorrect host nickname in stateSync payload"
+        assert isinstance(
+            state_payload.get("players"), dict
+        ), "Players is not a dictionary in stateSync payload"
+        assert (
+            len(state_payload.get("players", {})) == 1
+        ), "Incorrect number of players in stateSync payload"
 
 
 @pytest.mark.asyncio
@@ -109,9 +109,9 @@ async def test_websocket_player_join_broadcast_integration(integration_client: A
             assert msg.type == "playerJoined"
             payload_join = msg.payload
             assert isinstance(payload_join, dict), "playerJoined payload is not a dictionary"
-            assert payload_join.get("nickname") == joiner_nickname, (
-                "Incorrect nickname in playerJoined payload"
-            )
+            assert (
+                payload_join.get("nickname") == joiner_nickname
+            ), "Incorrect nickname in playerJoined payload"
 
 
 @pytest.mark.asyncio

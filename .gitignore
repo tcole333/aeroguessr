@@ -228,6 +228,8 @@ public
 
 # Angular build output
 dist/
+dist-ssr/
+*.local
 
 # Remotion build output
 remotion-output/
@@ -250,6 +252,7 @@ build/
 
 # VSCode
 .vscode/
+!.vscode/extensions.json
 
 # Project specific
 /sample_data/*.sbs # Ignore large binary sample data if any added later
@@ -261,3 +264,16 @@ build/
 *.swo
 poetry.lock
 .env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+airports.csv
+sample_data/airports_min.json

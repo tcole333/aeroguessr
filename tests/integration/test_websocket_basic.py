@@ -5,6 +5,7 @@ These now run against the real server and Redis stack.
 """
 
 import logging
+import asyncio
 
 import httpx_ws._api
 import pytest
@@ -52,6 +53,7 @@ async def test_websocket_ping_pong_integration(
     ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
 
     received_ping = False
+    pong_sent = False
     async with aconnect_ws(
         ws_path, client=integration_client, keepalive_ping_interval_seconds=None
     ) as ws:
@@ -60,16 +62,36 @@ async def test_websocket_ping_pong_integration(
         msg = WSMessage(**data)
         assert msg.type == "stateSync"
 
-        # Await one server ping
-        data = await ws.receive_json()
-        msg = WSMessage(**data)
-        assert msg.type == "ping"
-        received_ping = True
-        ping_payload = PingPongPayload(**msg.payload)
-        pong_msg = WSMessage(type="pong", payload=ping_payload.model_dump())
-        await ws.send_json(pong_msg.model_dump())
+        # Await one server ping, allowing for other messages and a timeout
+        start_time = asyncio.get_event_loop().time()
+        timeout_duration = 12  # seconds (WEBSOCKET_PING_INTERVAL is 10s)
+        while asyncio.get_event_loop().time() - start_time < timeout_duration:
+            try:
+                # Use a shorter timeout for individual receive calls
+                data = await asyncio.wait_for(ws.receive_json(), timeout=1.0)
+            except asyncio.TimeoutError:
+                # No message received in 1s, continue waiting for ping
+                logger.debug("No message in 1s, continuing to wait for PING")
+                continue
 
-    assert received_ping, "Did not receive any ping from server."
+            msg = WSMessage(**data)
+            logger.debug(f"Received message type: {msg.type}")
+            if msg.type == "ping":
+                received_ping = True
+                ping_payload = PingPongPayload(**msg.payload)
+                pong_msg = WSMessage(type="pong", payload=ping_payload.model_dump())
+                await ws.send_json(pong_msg.model_dump())
+                pong_sent = True
+                logger.info(f"Received PING (seq={ping_payload.seq}), sent PONG.")
+                break  # Exit loop once ping is received and pong is sent
+            elif msg.type == "delta":
+                logger.debug("Received DELTA message, ignoring and continuing.")
+            # Add other message types to ignore if necessary
+            # else:
+            #     logger.warning(f"Received unexpected message type: {msg.type}")
+
+    assert received_ping, "Did not receive any ping from server within timeout."
+    assert pong_sent, "Did not send PONG to server."
 
 
 @pytest.mark.asyncio

@@ -9,9 +9,7 @@ from backend.utils.redis_async import RedisClient
 pytestmark = pytest.mark.asyncio
 
 
-async def test_solo_ws_flow(
-    test_client: AsyncClient, redis_client: RedisClient
-) -> None:
+async def test_solo_ws_flow(test_client: AsyncClient, redis_client: RedisClient) -> None:
     join_resp = await test_client.post("/api/v0/rooms/solo/join", json={"nickname": "Solo"})
     data = join_resp.json()
     ws_path = data["ws_url"].replace("ws://testserver", "")

@@ -150,9 +150,9 @@ async def test_websocket_claim_host_success(integration_client: httpx.AsyncClien
                     if msg.get("type") == "newHost":
                         assert "payload" in msg, "newHost message missing payload"
                         payload = NewHostPayload(**msg["payload"])
-                        assert payload.nickname == claimer_nick, (
-                            "newHost payload has wrong nickname"
-                        )
+                        assert (
+                            payload.nickname == claimer_nick
+                        ), "newHost payload has wrong nickname"
                         logger.info(f"Received newHost message for {claimer_nick}.")
                         new_host_received = True
                         break
@@ -169,9 +169,9 @@ async def test_websocket_claim_host_success(integration_client: httpx.AsyncClien
             get_response = await integration_client.get(f"/api/v0/rooms/{room_code}")
             get_response.raise_for_status()
             room_state_data = get_response.json()
-            assert room_state_data.get("host_nickname") == claimer_nick, (
-                "API GET shows incorrect host"
-            )
+            assert (
+                room_state_data.get("host_nickname") == claimer_nick
+            ), "API GET shows incorrect host"
 
         # Outer 'with' block for ws_claimer exits here
 
@@ -264,9 +264,9 @@ async def test_websocket_claim_host_too_early(integration_client: httpx.AsyncCli
                     continue  # Keep waiting until outer timeout
 
             assert error_msg is not None, "Did not receive any error message within timeout"
-            assert error_msg.get("type") == "error", (
-                f"Received type {error_msg.get('type')} instead of error"
-            )
+            assert (
+                error_msg.get("type") == "error"
+            ), f"Received type {error_msg.get('type')} instead of error"
             try:
                 error_payload = ErrorPayload(**error_msg["payload"])
             except Exception as e:
@@ -274,18 +274,18 @@ async def test_websocket_claim_host_too_early(integration_client: httpx.AsyncCli
                     f"Failed to parse error payload: {e}\nPayload received: {error_msg['payload']}"
                 )
 
-            assert error_payload.code == ErrorCode.CLAIM_HOST_TOO_EARLY.value, (
-                "Incorrect error code received"
-            )
+            assert (
+                error_payload.code == ErrorCode.CLAIM_HOST_TOO_EARLY.value
+            ), "Incorrect error code received"
             logger.info(f"Received expected error: {error_payload.code} - {error_payload.message}")
 
             # 5. Verify host did not change (optional API check)
             get_response = await integration_client.get(f"/api/v0/rooms/{room_code}")
             get_response.raise_for_status()
             room_state_data = get_response.json()
-            assert room_state_data.get("host_nickname") == host_nick, (
-                "API GET shows host incorrectly changed"
-            )
+            assert (
+                room_state_data.get("host_nickname") == host_nick
+            ), "API GET shows host incorrectly changed"
 
         # Outer 'with' block for ws_claimer exits here
 

@@ -219,7 +219,7 @@ components:
       description: Represents a player within a game room.
       example:
         connected: true
-        last_seen_ts: 1747514858.190974
+        last_seen_ts: 1747541911.56653
         nickname: PilotPete
         score: 150
     PlayerGuess:
@@ -374,7 +374,7 @@ components:
         view or state sync.
       example:
         code: WXYZ
-        created_ts: 1747514858.2032285
+        created_ts: 1747541911.5707479
         current_round:
           correct_airport_code: JFK
           guess_direction: destination
@@ -382,9 +382,9 @@ components:
             JoinerJane:
               guess: LGA
               nickname: JoinerJane
-              timestamp: 1747514853.2032325
+              timestamp: 1747541906.570749
           round_number: 3
-          round_start_time: 1747514848.2032323
+          round_start_time: 1747541901.5707479
           selected_plane_hex: a1b2c3
           state: accepting_guesses
         host_nickname: HostHarry
@@ -392,12 +392,12 @@ components:
         players:
           HostHarry:
             connected: true
-            last_seen_ts: 1747514858.203229
+            last_seen_ts: 1747541911.5707479
             nickname: HostHarry
             score: 100
           JoinerJane:
             connected: true
-            last_seen_ts: 1747514848.2032297
+            last_seen_ts: 1747541901.5707479
             nickname: JoinerJane
             score: 50
         round_timeout_seconds: 45
@@ -461,9 +461,9 @@ components:
           PilotPete:
             guess: LGA
             nickname: PilotPete
-            timestamp: 1747514853.1973727
+            timestamp: 1747541906.568629
         round_number: 3
-        round_start_time: 1747514848.1973715
+        round_start_time: 1747541901.568629
         selected_plane_hex: a1b2c3
         state: accepting_guesses
     RoundResultDetail:
