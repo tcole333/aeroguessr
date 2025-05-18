@@ -34,6 +34,7 @@ MESSAGE_PAYLOAD_MAP: Dict[str, Type[BaseModel]] = {
     "guess": ws_module.GuessPayload,
     "selectPlane": ws_module.SelectPlanePayload,
     "startRound": ws_module.StartRoundPayload,
+    "skipRound": getattr(ws_module, "SkipRoundPayload", None),
     "transferHost": ws_module.TransferHostPayload,
     "claimHost": ws_module.ClaimHostPayload,
     "planeSelectedConfirm": getattr(ws_module, "PlaneSelectedConfirmPayload", None),

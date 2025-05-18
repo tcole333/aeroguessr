@@ -1422,8 +1422,43 @@ async def websocket_endpoint(
                         round_timer_task.add_done_callback(conn_manager._remove_task_from_set)
 
                     elif ws_msg.type == WSMessageType.SKIP_ROUND:
-                        # ... (existing skip round logic)
-                        pass  # Placeholder for brevity
+                        if not is_host:
+                            await _send_error(
+                                ErrorCode.NOT_HOST, "Only the host can skip the round."
+                            )
+                            continue
+
+                        current_round = await room_service.get_round_data(redis, room_code)
+                        if not current_round:
+                            await _send_error(
+                                ErrorCode.INTERNAL_SERVER_ERROR, "Round data not found."
+                            )
+                            continue
+
+                        # Reset round state
+                        current_round.state = RoundStateEnum.WAITING_FOR_SELECTION
+                        current_round.selected_plane_hex = None
+                        current_round.correct_airport_code = None
+                        current_round.guess_direction = None
+                        current_round.round_start_time = None
+                        current_round.guesses = {}
+                        current_round.results = None
+
+                        await room_service.set_round_data(redis, room_code, current_round)
+
+                        if round_timer_task and not round_timer_task.done():
+                            round_timer_task.cancel()
+                            round_timer_task = None
+
+                        delta_payload = {
+                            "round": {
+                                "state": current_round.state.value,
+                                "round_number": current_round.round_number,
+                            }
+                        }
+                        delta_msg = WSMessage(type=WSMessageType.DELTA, payload=delta_payload)
+                        await conn_manager.broadcast(delta_msg.model_dump(mode="json"), room_code)
+                        logger.info(f"Host {nickname} skipped round in room {room_code}.")
 
                     elif ws_msg.type == WSMessageType.TRANSFER_HOST:
                         # ... (existing transfer host logic)

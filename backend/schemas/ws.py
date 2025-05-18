@@ -171,6 +171,13 @@ class StartRoundPayload(BaseModel):
     pass
 
 
+class SkipRoundPayload(BaseModel):
+    """Payload for the host skipRound message (currently empty)."""
+
+    # No payload fields required
+    pass
+
+
 class GuessPayload(BaseModel):
     """Payload for the player guess message."""
 
@@ -304,6 +311,13 @@ except ImportError:
     PlaneState = Dict  # type: ignore
 
 
+class RoundDelta(BaseModel):
+    """Partial round state update for delta messages."""
+
+    state: str = Field(..., description="Current round state.")
+    round_number: int = Field(..., description="Round counter after the update.")
+
+
 class DeltaPayload(BaseModel):
     """Payload for the server delta message, containing state changes."""
 
@@ -317,6 +331,10 @@ class DeltaPayload(BaseModel):
     )
     scores: Optional[Dict[str, int]] = Field(
         default=None, description="Updated scores for players {nickname: new_total_score}."
+    )
+    round: Optional["RoundDelta"] = Field(
+        default=None,
+        description="Updated round state information.",
     )
 
     class Config:
@@ -344,6 +362,7 @@ class DeltaPayload(BaseModel):
                     "removed": ["d4e5f6"],
                 },
                 "scores": {"Player1": 250},
+                "round": {"state": "waiting_for_selection", "round_number": 2},
             }
         }
 
