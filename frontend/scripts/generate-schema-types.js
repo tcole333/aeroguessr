@@ -13,7 +13,7 @@ function header(src) {
 }
 
 function genPingPong(_def) {
-  return `export const PingPongPayloadSchema = z.object({ seq: z.number().int() });\nexport type PingPongPayload = z.infer<typeof PingPongPayloadSchema>;\n\nexport const PingSchema = z.object({ type: z.literal('ping'), payload: PingPongPayloadSchema, ts: z.number().optional() });\nexport type Ping = z.infer<typeof PingSchema>;\n\nexport const PongSchema = z.object({ type: z.literal('pong'), payload: PingPongPayloadSchema, ts: z.number().optional() });\nexport type Pong = z.infer<typeof PongSchema>;\n`;
+  return `export const PingPongPayloadSchema = z.object({ seq: z.number().int() });\nexport type PingPongPayload = z.infer<typeof PingPongPayloadSchema>;\n\nexport const PingSchema = z.object({ type: z.literal('ping'), payload: PingPongPayloadSchema.optional(), ts: z.number().optional() });\nexport type Ping = z.infer<typeof PingSchema>;\n\nexport const PongSchema = z.object({ type: z.literal('pong'), payload: PingPongPayloadSchema.optional(), ts: z.number().optional() });\nexport type Pong = z.infer<typeof PongSchema>;\n`;
 }
 
 async function generateWs() {
@@ -25,7 +25,7 @@ async function generateWs() {
     parts.push(genPingPong(ws.$defs.PingPongPayload));
   }
   parts.push(
-    'export const InboundMessageSchema = z.discriminatedUnion("type", [PongSchema]);',
+    'export const InboundMessageSchema = z.discriminatedUnion("type", [PingSchema, PongSchema]);',
     "export type InboundMessage = z.infer<typeof InboundMessageSchema>;",
     'export const OutboundMessageSchema = z.discriminatedUnion("type", [PingSchema]);',
     "export type OutboundMessage = z.infer<typeof OutboundMessageSchema>;",
