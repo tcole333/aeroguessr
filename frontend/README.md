@@ -56,3 +56,7 @@ export default tseslint.config({
 ## Core Infrastructure
 
 The frontend communicates with the backend through a `WebSocketClient` located at `src/lib/WebSocketClient.ts`. This singleton automatically reconnects and maintains a heartbeat. Shared application state is managed by a Zustand **root store** created in `src/store/createRootStore.tsx` and consumed via the `useStore` hook. The store is composed of four slices (`connection`, `planes`, `game`, `ui`), with the `ui` slice persisted in `localStorage`. Run `npm run test` to execute the accompanying unit tests.
+
+## Base Layout
+
+The application is orchestrated by `AppShell`, which renders a full-screen Leaflet map via `MapView` and a responsive `SlidingPanel`. The panel docks to the left on wider screens (≥600&nbsp;px) and slides up from the bottom on mobile. Tab navigation within the panel toggles between placeholder views for "Planes", "Leaderboard" and "Settings". These components live under `src/components/layout/` and `src/features/*/components/`.
