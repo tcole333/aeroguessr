@@ -22,13 +22,13 @@ repos:
       # Run the formatter.
       - id: ruff-format
 
-  # Prettier (JS/TS/JSON/MD Formatter)
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8 # Use the latest stable version
-    hooks:
-      - id: prettier
-        types_or: [javascript, ts, tsx, json, css, scss, html, yaml, markdown]
-        args: [--write]
+  # # Prettier (JS/TS/JSON/MD Formatter)
+  # - repo: https://github.com/pre-commit/mirrors-prettier
+  #   rev: v4.0.0-alpha.8 # Use the latest stable version
+  #   hooks:
+  #     - id: prettier
+  #       types_or: [javascript, ts, tsx, json, css, scss, html, yaml, markdown]
+  #       args: [--write]
 # Optional: MyPy for static type checking (if desired later)
 # -   repo: https://github.com/pre-commit/mirrors-mypy
 #     rev: 'v1.9.0' # Use the latest stable version
@@ -37,3 +37,12 @@ repos:
 #         # Adjust entry point and add args as needed for your setup
 #         # entry: mypy backend/
 #         additional_dependencies: []
+
+  - repo: local
+    hooks:
+      - id: run-backend-unit-tests
+        name: Run backend unit tests
+        entry: poetry run pytest tests/backend -m "not integration"
+        language: system
+        stages: [commit]
+        pass_filenames: false
