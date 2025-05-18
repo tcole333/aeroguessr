@@ -429,6 +429,89 @@ async def test_websocket_player_guess_integration(
 
 
 @pytest.mark.asyncio
+async def test_websocket_host_skip_round_integration(
+    integration_client: AsyncClient, integration_redis: redis.Redis
+) -> None:
+    """Verify host can skip a round and state resets."""
+
+    host_nick = "host_skip"
+    plane_hex = "abcd12"
+    timeout = 10
+
+    resp = await integration_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": host_nick,
+            "mode": ScoringMode.EXACT.value,
+            "round_timeout_seconds": timeout,
+        },
+    )
+    assert resp.status_code == status.HTTP_201_CREATED
+    room_code = resp.json()["room_code"]
+    ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
+
+    plane_key = f"plane:{plane_hex}"
+    dummy_plane = PlaneState(
+        hex_ident=plane_hex,
+        lat=0.0,
+        lon=0.0,
+        alt=10000,
+        lat_v=0,
+        lon_v=0,
+        alt_v=0,
+        last_update_ts=time.time(),
+        trail=[],
+        origin="KBOS",
+        destination="KJFK",
+        callsign=None,
+        origin_country=None,
+        category=None,
+    )
+    await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
+
+    async with aconnect_ws(ws_path, client=integration_client) as ws_host:
+        await ws_host.receive_json()  # stateSync
+
+        await ws_host.send_json(
+            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
+        )
+        await ws_host.receive_json()  # planeSelectedConfirm
+
+        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
+
+        # Consume roundStart
+        while True:
+            msg_raw = await ws_host.receive_json()
+            msg = WSMessage(**msg_raw)
+            if msg.type != "delta":
+                break
+
+        assert msg.type == WSMessageType.ROUND_START.value
+
+        await ws_host.send_json(WSMessage(type="skipRound", payload={}).model_dump())
+
+        # Expect delta with round reset
+        skip_msg = WSMessage(**await ws_host.receive_json())
+        assert skip_msg.type == WSMessageType.DELTA.value
+        assert (
+            skip_msg.payload.get("round", {}).get("state")
+            == RoundStateEnum.WAITING_FOR_SELECTION.value
+        )
+
+    rd_json = await integration_redis.get(f"room:{room_code}:round")
+    assert rd_json is not None
+    rd = RoundData(**json.loads(rd_json))
+    assert rd.state == RoundStateEnum.WAITING_FOR_SELECTION
+    assert rd.selected_plane_hex is None
+
+    # Cleanup
+    await integration_redis.delete(f"room:{room_code}:meta")
+    await integration_redis.delete(f"room:{room_code}:players")
+    await integration_redis.delete(f"room:{room_code}:round")
+    await integration_redis.delete(plane_key)
+
+
+@pytest.mark.asyncio
 async def test_moved_websocket_claim_host_still_connected_simplified(
     integration_client: AsyncClient,
 ) -> None:
