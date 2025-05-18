@@ -1,7 +1,7 @@
 repos:
   # Standard hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0 # Use the latest stable version
+    rev: v4.6.0 # Use the latest stable version
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -48,7 +48,7 @@ repos:
 
   # ESLint for JavaScript/TypeScript
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.27.0
+    rev: v8.56.0
     hooks:
       - id: eslint
         files: \.(js|ts|tsx)$
