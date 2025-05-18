@@ -232,6 +232,19 @@ class RedisClient:
             # exists returns the number of keys that exist from the list provided
             return await conn.exists(key) > 0  # type: ignore
 
+    async def delete(self, *keys: str) -> int:
+        """Delete one or more keys from Redis.
+
+        Args:
+            *keys: One or more keys to remove.
+
+        Returns:
+            The number of keys that were removed.
+        """
+        async with await self.get_connection() as conn:
+            # ``fakeredis`` implements ``delete`` but the signature may vary, so ignore attr-defined
+            return await conn.delete(*keys)  # type: ignore[attr-defined]
+
 
 # Example usage (optional, for demonstration)
 async def main() -> None:

@@ -82,7 +82,7 @@ async def test_create_room_success(
     response_data = response.json()
     assert response_data["room_code"] == "ABCD"
     assert "ws_url" in response_data
-    assert "ws://testserver/ws/ABCD/HostUser" in response_data["ws_url"]
+    assert "ws://testserver/api/v0/rooms/ws/ABCD/HostUser" in response_data["ws_url"]
     assert response.headers["location"] == response_data["ws_url"]
 
     # Assertions for Redis interactions
@@ -230,7 +230,7 @@ async def test_join_room_success(
     assert response.status_code == status.HTTP_200_OK
     response_data = response.json()
     assert "ws_url" in response_data
-    assert f"ws://testserver/ws/{room_code}/NewPlayer" in response_data["ws_url"]
+    assert f"ws://testserver/api/v0/rooms/ws/{room_code}/NewPlayer" in response_data["ws_url"]
 
     # Assertions for Redis state
     players_key = f"room:{room_code}:players"
