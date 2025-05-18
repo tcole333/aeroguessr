@@ -125,6 +125,8 @@ CI job `pnpm test:ci` must pass with coverage thresholds.
 ## 9 Developer Workflow
 
 1. `pre-commit` hooks: ESLint, Prettier, type-check, Vitest.
+   - When running pre-commit checks manually (e.g., `pre-commit run --files ...`), ensure you use `poetry run pre-commit ...` from the project root, as `pre-commit` is managed by Poetry.
+   - All Node.js-based commands related to frontend development (e.g., `npm run ...`, `npx ...`, direct `node ...` script executions) **must** be run with the `frontend/` directory as the current working directory.
 2. Commit messages – Conventional Commits (`feat(frontend): …`).
 3. New components ➜ Storybook story; visual diff tested with Chromatic.
 4. If code adds TODO/FIXME ➜ update `TECH_DEBT.md`.
