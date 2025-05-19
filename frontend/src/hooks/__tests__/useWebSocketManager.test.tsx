@@ -81,4 +81,67 @@ describe('useWebSocketManager', () => {
     socket.triggerMessage({ type: 'pong', payload: { seq: Date.now() } });
     expect(store.getState().connection.lastHeartbeat).not.toBeNull();
   });
+
+  it('processes game messages', () => {
+    function Test() {
+      useWebSocketManager('ROOM', 'Nick');
+      return null;
+    }
+    render(<Test />, { wrapper: Wrapper });
+    const socket = sockets[0];
+    const store = wrapperStore;
+    socket.triggerOpen();
+
+    socket.triggerMessage({
+      type: 'stateSync',
+      payload: { room_meta: null, players: { A: {} } },
+    });
+    expect(store.getState().game.players).toEqual({ A: {} });
+
+    const plane = {
+      hex_ident: 'a',
+      lat: 0,
+      lon: 0,
+      alt: 0,
+      lat_v: 0,
+      lon_v: 0,
+      alt_v: 0,
+      last_update_ts: 1,
+      trail: [[0, 0, 0]],
+    };
+    socket.triggerMessage({
+      type: 'delta',
+      payload: {
+        planes: { updated: [plane] },
+        scores: { A: 5 },
+        round: { state: 'x', round_number: 1 },
+      },
+    });
+    expect(store.getState().planes.values.a).toBeDefined();
+    expect(store.getState().game.scores.A).toBe(5);
+
+    socket.triggerMessage({
+      type: 'roundStart',
+      payload: { hex: 'a', timeout_s: 30, direction: 'origin', round_number: 2 },
+    });
+    expect(store.getState().game.roundTimeout).toBe(30);
+
+    socket.triggerMessage({
+      type: 'roundResult',
+      payload: {
+        results: [
+          {
+            nickname: 'A',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 105,
+          },
+        ],
+        next_host_nickname: null,
+      },
+    });
+    expect(store.getState().game.round).toBeNull();
+    expect(store.getState().game.scores.A).toBe(105);
+  });
 });
