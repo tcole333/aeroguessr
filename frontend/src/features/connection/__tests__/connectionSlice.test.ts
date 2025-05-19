@@ -20,4 +20,16 @@ describe("connectionSlice", () => {
     store.getState().connection.setError(null);
     expect(store.getState().connection.error).toBeNull();
   });
+
+  it("sets and clears connection details", () => {
+    const store = createRootStore();
+    store.getState().connection.setConnectionDetails({
+      roomCode: 'ABCD',
+      wsUrl: 'ws://x',
+      nickname: 'Nick',
+    });
+    expect(store.getState().connection.roomCode).toBe('ABCD');
+    store.getState().connection.clearConnectionDetails();
+    expect(store.getState().connection.wsUrl).toBeNull();
+  });
 });
