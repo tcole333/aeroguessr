@@ -87,7 +87,8 @@ export interface RootState {
 
 - Each slice lives in its feature folder and exports selectors.
 - Use Immer middleware for immutable updates.
-- Persist only `ui` (night mode) in `localStorage`.
+- Persist only `ui` (night mode, active panel) in `localStorage`.
+- When using `persist` middleware with slices containing actions (functions), ensure the `merge` function in `persist` options correctly preserves these functions from the initial state, as functions are not directly persisted. Typically, only state properties of a slice should be targeted by `partialize` for persistence. (See `frontend/src/store/createRootStore.tsx` for an example of a custom `merge` function).
 
 ---
 
@@ -97,6 +98,7 @@ export interface RootState {
 2. **Accessibility**: All interactive elements – keyboard navigable, `aria-*` labels. Colour-blind safe palette.
 3. **Performance**: Map renders ≤300 ms per update. Use React.memo on plane markers.
 4. **Styling**: Tailwind class composition only. Shared design tokens in `tailwind.config.js`.
+   - Ensure `tailwind.config.js` includes `darkMode: 'class'` to enable class-based dark mode toggling via a parent class.
 5. **Animations**: Use Framer Motion for confetti & panel transitions.
 
 ---
@@ -186,11 +188,11 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [x] Zod schemas from `ws_schema.yaml`
   - [x] OpenAPI client generation
   - [x] Helper `assertWsMessage` + tests
-  - [x] **Base layout**
-    - [x] `AppShell` with MapView & SlidingPanel
-    - [x] Responsive docking behaviour
-- [ ] **Map & plane rendering**
-  - [ ] Integrate React-Leaflet map centred on Boston
+- [x] **Base layout**
+  - [x] `AppShell` with MapView & SlidingPanel
+  - [x] Responsive docking behaviour
+- [x] **Map & plane rendering**
+  - [x] Integrate React-Leaflet map centred on Boston
   - [ ] Plane markers + fading trails
   - [ ] Performance benchmark ≤300 ms update
 - [ ] **Panel tabs UI**

@@ -83,9 +83,9 @@ This checklist is to be used after the "Panel tabs UI" feature (`FE_PANEL_0001`)
 
 **VI. Basic Interactivity (as implemented so far)**
 
-*   [ ] Tab navigation in the panel.
-*   [ ] Night mode toggle.
-*   [ ] Placeholder interactions (clicks on plane list items, leave room button).
+*   [X] Tab navigation in the panel.
+*   [X] Night mode toggle.
+*   [X] Placeholder interactions (clicks on plane list items, leave room button).
 
 **VII. Styling & Visual Consistency**
 
