@@ -38,7 +38,7 @@ To establish a robust testing infrastructure for frontend integration tests usin
 ### 4. Detailed Implementation Logic & Instructions
 
 1.  **Install Dependencies:**
-    - Run `pnpm add -D msw @mswjs/websocket whatwg-fetch`.
+    - Run `pnpm add -D msw whatwg-fetch`.
 2.  **Create `frontend/src/mocks/` directory.**
 3.  **Implement `frontend/src/mocks/server.ts`**:
 
@@ -74,43 +74,51 @@ To establish a robust testing infrastructure for frontend integration tests usin
 
     ```typescript
     // src/mocks/wsHandlers.ts
-    import { WebSocketLink } from "@mswjs/websocket"; // This might be an abstraction, check docs
-    import { webSocket } from "msw"; // Or specific API from @mswjs/websocket
+    import { webSocket } from "msw"; // Use 'webSocket' directly from 'msw'
 
-    // This is a conceptual example, the actual API from @mswjs/websocket might differ.
-    // The goal is to have a mock server that the WebSocketClient can connect to during tests.
-    // For instance, it might involve creating a named mock server:
-    // export const mockWebSocketServer = webSocket.link('ws://localhost:8000'); // Or your app's WS URL structure
+    // Example of setting up a mock WebSocket server using msw's webSocket API
+    // Refer to the official MSW documentation for the most current patterns:
+    // https://mswjs.io/docs/network-behavior/websockets
 
-    // Or more direct setup:
-    // export const wsHandlers = [
-    //   webSocket.mockServer('ws://localhost:1234', (server) => { // Example URL
-    //     server.on('connection', (socket) => {
-    //       console.log('Mock WS: Client connected');
-    //       socket.on('message', (message) => {
-    //         console.log('Mock WS: Received:', message);
-    //       });
-    //       // socket.send('Hello from mock server!');
-    //     });
-    //   })
-    // ];
-    // For now, a placeholder that can be filled:
+    // This will create a "link" to a WebSocket URL.
+    // You can then define listeners on this link for connections, messages, etc.
+    export const mockSocket = webSocket.link("ws://localhost:8000/ws/*");
+    // The '*' is a wildcard. You can make it more specific, e.g., 'ws://localhost:8000/ws/:roomCode/:nickname'
+    // and then access params in your listeners.
+
+    // In your test setup (or directly in tests for specific behaviors),
+    // you would add listeners to this mockSocket:
+    //
+    // mockSocket.on('connection', ({ client }) => {
+    //   console.log('Mock WS: Client connected', client.id);
+    //   client.send(JSON.stringify({ type: 'system', message: 'Welcome to the mock server!' }));
+    //
+    //   client.addEventListener('message', (event) => {
+    //     console.log('Mock WS: Message from client', event.data);
+    //     // Example: Echo back or send specific responses
+    //     // client.send(JSON.stringify({ type: 'echo', payload: event.data }));
+    //   });
+    //
+    //   client.addEventListener('close', () => {
+    //     console.log('Mock WS: Client disconnected', client.id);
+    //   });
+    // });
+
+    // For the purpose of this infrastructure setup, wsHandlers can remain empty
+    // or contain the basic link. Actual message handling logic will be
+    // defined in specific tests or more detailed mock WebSocket server setups.
     export const wsHandlers = [
-      // TODO: Implement mock WebSocket server handlers using @mswjs/websocket
-      // This will likely involve defining handlers for specific WebSocket URLs
-      // that the application connects to, e.g., /ws/{room_code}/{nickname}
+      // This array might not be directly used by setupServer if using the programmatic
+      // webSocket.link() approach. Instead, the 'mockSocket' instance would be
+      // imported and manipulated in tests or test setup files.
+      // For now, it can be empty as the primary mechanism is `mockSocket.link()`.
     ];
 
-    // It might be more practical to create a an instance of a WebSocket server
-    // using the library and control it programmatically in test setup.
-    // For example:
-    // import { MockWebSocketServer } from '@mswjs/websocket';
-    // export const wsServer = new MockWebSocketServer('ws://localhost:8000/ws/:roomCode/:nickname');
-    // In tests: wsServer.on('connection', (client) => client.send(...))
-    // This needs to be fleshed out once the library API is confirmed.
+    // The key is that `msw` will intercept WebSocket upgrade requests to matching URLs
+    // defined by `webSocket.link()`.
     ```
 
-    - **Clarification:** The exact API for `@mswjs/websocket` needs to be followed from its official documentation to set up a mock server that can listen for connections, send, and receive messages. The above is illustrative. The key is to set up the _mechanism_ for mocking WebSockets.
+    - **Clarification:** The exact API for `msw`'s `webSocket` object needs to be followed from its official documentation. The above is illustrative of the approach. The `webSocket.link()` method is a common way to start.
 
 6.  **Update/Create `frontend/vitest.setup.ts`**:
 
@@ -180,7 +188,7 @@ To establish a robust testing infrastructure for frontend integration tests usin
 
 ### 6. Crucial Considerations & LLM Pitfalls to Avoid
 
-- **`@mswjs/websocket` API:** The exact usage of `@mswjs/websocket` might require careful reading of its documentation to implement the mock server correctly. The provided examples are conceptual.
+- **`msw` WebSocket API:** The exact usage of `msw`'s `webSocket` API might require careful reading of its documentation to implement the mock server correctly. The provided examples are conceptual. `@mswjs/websocket` is not used; rely on `msw`'s core features.
 - **Global vs. Test-Specific Handlers:** Understand the difference between global handlers in `handlers.ts` and using `server.use()` for test-specific overrides.
 - **Async Operations:** Remember that `fetch` and `msw` handlers often involve async operations; use `async/await` appropriately in tests.
 - **Vitest Configuration:** Ensure Vitest's `setupFiles` points to `vitest.setup.ts`.
@@ -199,4 +207,4 @@ See implementation details above.
 
 ---
 
-**Worker AI Instructions:** Implement the testing infrastructure as described. Pay close attention to the official `msw` and `@mswjs/websocket` documentation for accurate API usage. Ensure the example test passes, confirming that `msw` is correctly intercepting requests in the Vitest environment.
+**Worker AI Instructions:** Implement the testing infrastructure as described. Pay close attention to the official `msw` documentation for accurate API usage for both REST and WebSocket mocking. Ensure the example test passes, confirming that `msw` is correctly intercepting requests in the Vitest environment.
