@@ -18,14 +18,7 @@ export default function PanelTabs({
           key={tab}
           role="tab"
           aria-selected={active === tab}
-          onClick={() => {
-            console.log('Type of setActivePanel (direct from s.ui.setActivePanel):', typeof setActivePanel);
-            if (typeof setActivePanel === 'function') {
-              setActivePanel(tab);
-            } else {
-              console.error('setActivePanel (direct) is NOT a function!', setActivePanel);
-            }
-          }}
+          onClick={() => setActivePanel(tab)}
           className={`flex-1 py-2 text-center capitalize ${
             active === tab ? 'font-bold border-b-2 border-primary-500' : ''
           }`}
