@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../../hooks/useStore';
 import { selectScores } from '../../game/selectors';
+import { selectNickname } from '../../connection/selectors';
 
 function Confetti(): JSX.Element {
   return (
@@ -19,9 +20,7 @@ function Confetti(): JSX.Element {
 
 export default function LeaderboardPanelContent(): JSX.Element {
   const scores = useStore(selectScores);
-  const myNickname = useStore(
-    (s) => (s.connection as unknown as { nickname?: string }).nickname,
-  );
+  const myNickname = useStore(selectNickname);
   const sorted = useMemo(
     () => Object.entries(scores).sort((a, b) => b[1] - a[1]),
     [scores],

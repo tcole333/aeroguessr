@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { act } from 'react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanelContent from '../SettingsPanelContent';
 import { StoreContext, createRootStore } from '../../../../store/createRootStore';
@@ -10,7 +11,7 @@ function setup({ darkMode = false, host = null, isSolo = false } = {}) {
   }
   store.getState().game.hostNickname = host;
   store.getState().game.isSolo = isSolo;
-  (store.getState().connection as unknown as { nickname?: string }).nickname = 'Me';
+  store.getState().connection.setNickname('Me');
   return { store, ...render(
     <StoreContext.Provider value={store}>
       <SettingsPanelContent />
@@ -38,5 +39,13 @@ describe('SettingsPanelContent', () => {
   it('shows host controls when host', () => {
     setup({ host: 'Me', isSolo: false });
     expect(screen.getByText(/host controls/i)).toBeInTheDocument();
+  });
+
+  it('hides host controls when nickname null', () => {
+    const { store } = setup({ host: 'Me', isSolo: false });
+    act(() => {
+      store.getState().connection.setNickname(null);
+    });
+    expect(screen.queryByText(/host controls/i)).not.toBeInTheDocument();
   });
 });

@@ -5,3 +5,4 @@ export const selectConnectionStatus = (state: RootState) =>
 export const selectLatencyMs = (state: RootState) => state.connection.latencyMs;
 export const selectLastHeartbeat = (state: RootState) =>
   state.connection.lastHeartbeat;
+export const selectNickname = (state: RootState) => state.connection.nickname;
