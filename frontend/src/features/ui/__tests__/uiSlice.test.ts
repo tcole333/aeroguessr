@@ -18,4 +18,16 @@ describe("uiSlice", () => {
     const persisted = localStorage.getItem("plane-ui");
     expect(persisted).toMatch(/"isPanelOpen":false/);
   });
+
+  it("updates loading, error and view state", () => {
+    const store = createRootStore();
+    store.getState().ui.setLoading(true);
+    store.getState().ui.setFormError("oops");
+    store.getState().ui.setCurrentView("game");
+    expect(store.getState().ui.isLoading).toBe(true);
+    expect(store.getState().ui.formError).toBe("oops");
+    expect(store.getState().ui.currentView).toBe("game");
+    store.getState().ui.clearFormError();
+    expect(store.getState().ui.formError).toBeNull();
+  });
 });
