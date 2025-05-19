@@ -1,17 +1,67 @@
 /**
  * AUTO-GENERATED FILE. DO NOT EDIT.
  * Source: docs/ws_schema.yaml
- * Generated: 2025-05-18T21:50:01.178Z
+ * Generated: 2025-05-19T03:40:57.440Z
  */
 
 import { z } from 'zod';
 
-export const PingPongPayloadSchema = z.object({ seq: z.number().int() });
+export const PlayerJoinedPayloadSchema = z.object({ "nickname": z.string() });
+export type PlayerJoinedPayload = z.infer<typeof PlayerJoinedPayloadSchema>;
+export const SkipRoundPayloadSchema = z.object({  });
+export type SkipRoundPayload = z.infer<typeof SkipRoundPayloadSchema>;
+export const RoundStartPayloadSchema = z.object({ "hex": z.string(), "timeout_s": z.number().int(), "direction": z.string(), "round_number": z.number().int() });
+export type RoundStartPayload = z.infer<typeof RoundStartPayloadSchema>;
+export const PlaneSelectedConfirmPayloadSchema = z.object({ "hex": z.string(), "origin": z.string(), "destination": z.string(), "guess_direction": z.string() });
+export type PlaneSelectedConfirmPayload = z.infer<typeof PlaneSelectedConfirmPayloadSchema>;
+export const PlayerLeftPayloadSchema = z.object({ "nickname": z.string() });
+export type PlayerLeftPayload = z.infer<typeof PlayerLeftPayloadSchema>;
+export const FullRoomStateSchema = z.object({ "room_meta": z.union([z.record(z.any()), z.any()]), "players": z.record(z.record(z.any())) });
+export type FullRoomState = z.infer<typeof FullRoomStateSchema>;
+export const PlaneStateSchema = z.object({ "hex_ident": z.string(), "lat": z.number(), "lon": z.number(), "alt": z.number(), "lat_v": z.number(), "lon_v": z.number(), "alt_v": z.number(), "last_update_ts": z.number(), "trail": z.array(z.array(z.any())).optional(), "callsign": z.union([z.string(), z.any()]).optional(), "origin_country": z.union([z.string(), z.any()]).optional(), "category": z.union([z.number().int(), z.any()]).optional(), "origin": z.union([z.string(), z.any()]).optional(), "destination": z.union([z.string(), z.any()]).optional() });
+export type PlaneState = z.infer<typeof PlaneStateSchema>;
+export const RoundDeltaSchema = z.object({ "state": z.string(), "round_number": z.number().int() });
+export type RoundDelta = z.infer<typeof RoundDeltaSchema>;
+export const DeltaPayloadSchema = z.object({ "planes": z.union([z.record(z.array(z.union([PlaneStateSchema, z.string()]))), z.any()]).optional(), "scores": z.union([z.record(z.number().int()), z.any()]).optional(), "round": z.union([RoundDeltaSchema, z.any()]).optional() });
+export type DeltaPayload = z.infer<typeof DeltaPayloadSchema>;
+export const RoundResultDetailSchema = z.object({ "nickname": z.string(), "guess": z.union([z.string(), z.any()]), "correct_code": z.string(), "score_awarded": z.number().int(), "current_total_score": z.number().int() });
+export type RoundResultDetail = z.infer<typeof RoundResultDetailSchema>;
+export const RoundResultPayloadSchema = z.object({ "results": z.array(RoundResultDetailSchema), "next_host_nickname": z.union([z.string(), z.any()]).optional() });
+export type RoundResultPayload = z.infer<typeof RoundResultPayloadSchema>;
+export const NewHostPayloadSchema = z.object({ "nickname": z.string() });
+export type NewHostPayload = z.infer<typeof NewHostPayloadSchema>;
+export const ClaimHostPayloadSchema = z.object({  });
+export type ClaimHostPayload = z.infer<typeof ClaimHostPayloadSchema>;
+export const PingPongPayloadSchema = z.object({ "seq": z.number().int() });
 export type PingPongPayload = z.infer<typeof PingPongPayloadSchema>;
-
-export const PingSchema = z.object({ type: z.literal('ping'), payload: PingPongPayloadSchema.optional(), ts: z.number().optional() });
-export type Ping = z.infer<typeof PingSchema>;
-
+export const GuessPayloadSchema = z.object({ "airport_code": z.string() });
+export type GuessPayload = z.infer<typeof GuessPayloadSchema>;
+export const StartRoundPayloadSchema = z.object({  });
+export type StartRoundPayload = z.infer<typeof StartRoundPayloadSchema>;
+export const SelectPlanePayloadSchema = z.object({ "hex": z.string() });
+export type SelectPlanePayload = z.infer<typeof SelectPlanePayloadSchema>;
+export const TransferHostPayloadSchema = z.object({ "to_nickname": z.string() });
+export type TransferHostPayload = z.infer<typeof TransferHostPayloadSchema>;
+export const ErrorCodeSchema = z.enum(['UNKNOWN_ERROR', 'INVALID_MESSAGE_FORMAT', 'INVALID_PAYLOAD', 'INTERNAL_SERVER_ERROR', 'ROOM_NOT_FOUND', 'NICKNAME_TAKEN', 'NOT_IN_ROOM', 'NOT_HOST', 'PLAYER_NOT_FOUND', 'CANNOT_TRANSFER_TO_SELF', 'CLAIM_HOST_NOT_ALLOWED', 'CLAIM_HOST_STILL_CONNECTED', 'CLAIM_HOST_TOO_EARLY', 'INVALID_STATE_FOR_ACTION', 'PLANE_NOT_FOUND', 'PLANE_ALREADY_USED', 'GUESS_OUTSIDE_ROUND', 'ALREADY_GUESSED', 'INVALID_ACTION_IN_SOLO_MODE', 'PLANE_DATA_INCOMPLETE_FOR_GUESS']);
+export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
+export const ErrorPayloadSchema = z.object({ "code": ErrorCodeSchema, "message": z.string() });
+export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
+export const StateSyncSchema = z.object({ type: z.literal('stateSync'), payload: FullRoomStateSchema.optional(), ts: z.number().optional() });
+export type StateSync = z.infer<typeof StateSyncSchema>;
+export const DeltaSchema = z.object({ type: z.literal('delta'), payload: DeltaPayloadSchema.optional(), ts: z.number().optional() });
+export type Delta = z.infer<typeof DeltaSchema>;
+export const RoundStartSchema = z.object({ type: z.literal('roundStart'), payload: RoundStartPayloadSchema.optional(), ts: z.number().optional() });
+export type RoundStart = z.infer<typeof RoundStartSchema>;
+export const RoundResultSchema = z.object({ type: z.literal('roundResult'), payload: RoundResultPayloadSchema.optional(), ts: z.number().optional() });
+export type RoundResult = z.infer<typeof RoundResultSchema>;
+export const PlayerJoinedSchema = z.object({ type: z.literal('playerJoined'), payload: PlayerJoinedPayloadSchema.optional(), ts: z.number().optional() });
+export type PlayerJoined = z.infer<typeof PlayerJoinedSchema>;
+export const PlayerLeftSchema = z.object({ type: z.literal('playerLeft'), payload: PlayerLeftPayloadSchema.optional(), ts: z.number().optional() });
+export type PlayerLeft = z.infer<typeof PlayerLeftSchema>;
+export const NewHostSchema = z.object({ type: z.literal('newHost'), payload: NewHostPayloadSchema.optional(), ts: z.number().optional() });
+export type NewHost = z.infer<typeof NewHostSchema>;
+export const ErrorSchema = z.object({ type: z.literal('error'), payload: ErrorPayloadSchema.optional(), ts: z.number().optional() });
+export type Error = z.infer<typeof ErrorSchema>;
 export const PongSchema = z.object({ type: z.literal('pong'), payload: PingPongPayloadSchema.optional(), ts: z.number().optional() });
 export type Pong = z.infer<typeof PongSchema>;
 
@@ -117,6 +167,24 @@ export const InboundMessageSchema = z.discriminatedUnion('type', [
   RoundStartSchema,
   RoundResultSchema,
 ]);
+
+export const PingSchema = z.object({ type: z.literal('ping'), payload: PingPongPayloadSchema.optional(), ts: z.number().optional() });
+export type Ping = z.infer<typeof PingSchema>;
+export const GuessSchema = z.object({ type: z.literal('guess'), payload: GuessPayloadSchema.optional(), ts: z.number().optional() });
+export type Guess = z.infer<typeof GuessSchema>;
+export const SelectPlaneSchema = z.object({ type: z.literal('selectPlane'), payload: SelectPlanePayloadSchema.optional(), ts: z.number().optional() });
+export type SelectPlane = z.infer<typeof SelectPlaneSchema>;
+export const StartRoundSchema = z.object({ type: z.literal('startRound'), payload: StartRoundPayloadSchema.optional(), ts: z.number().optional() });
+export type StartRound = z.infer<typeof StartRoundSchema>;
+export const SkipRoundSchema = z.object({ type: z.literal('skipRound'), payload: SkipRoundPayloadSchema.optional(), ts: z.number().optional() });
+export type SkipRound = z.infer<typeof SkipRoundSchema>;
+export const TransferHostSchema = z.object({ type: z.literal('transferHost'), payload: TransferHostPayloadSchema.optional(), ts: z.number().optional() });
+export type TransferHost = z.infer<typeof TransferHostSchema>;
+export const ClaimHostSchema = z.object({ type: z.literal('claimHost'), payload: ClaimHostPayloadSchema.optional(), ts: z.number().optional() });
+export type ClaimHost = z.infer<typeof ClaimHostSchema>;
+export const PlaneSelectedConfirmSchema = z.object({ type: z.literal('planeSelectedConfirm'), payload: PlaneSelectedConfirmPayloadSchema.optional(), ts: z.number().optional() });
+export type PlaneSelectedConfirm = z.infer<typeof PlaneSelectedConfirmSchema>;
+export const InboundMessageSchema = z.discriminatedUnion('type', [StateSyncSchema, DeltaSchema, RoundStartSchema, RoundResultSchema, PlayerJoinedSchema, PlayerLeftSchema, NewHostSchema, ErrorSchema, PongSchema, PlaneSelectedConfirmSchema]);
 export type InboundMessage = z.infer<typeof InboundMessageSchema>;
-export const OutboundMessageSchema = z.discriminatedUnion('type', [PingSchema]);
+export const OutboundMessageSchema = z.discriminatedUnion('type', [PingSchema, GuessSchema, SelectPlaneSchema, StartRoundSchema, SkipRoundSchema, TransferHostSchema, ClaimHostSchema]);
 export type OutboundMessage = z.infer<typeof OutboundMessageSchema>;
