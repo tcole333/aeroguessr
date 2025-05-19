@@ -4,10 +4,8 @@
 
 import "@testing-library/jest-dom";
 import { beforeAll, afterAll, afterEach } from "vitest";
-import { setupServer } from "msw/node";
-
-// Create MSW server for mocking API requests in tests
-export const server = setupServer();
+import "whatwg-fetch";
+import { server } from "./src/mocks/server";
 
 // Setup MSW server before tests
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
