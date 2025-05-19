@@ -22,17 +22,18 @@ export interface RootState {
 export type RootStore = StoreApi<RootState>;
 
 // Define the part of UiSlice that is persisted
-type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode">;
+type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode" | "isPanelOpen">;
 
 export function createRootStore(): RootStore {
   const persistOptions: PersistOptions<RootState, { ui: PersistedUiState }> = {
     name: "plane-ui",
     version: 1,
-    // Only persist activePanel and darkMode from the ui slice
+    // Only persist activePanel, darkMode and isPanelOpen from the ui slice
     partialize: (state) => ({
       ui: {
         activePanel: state.ui.activePanel,
         darkMode: state.ui.darkMode,
+        isPanelOpen: state.ui.isPanelOpen,
       },
     }),
     // Custom merge: ensure functions from initial state are kept for the ui slice

@@ -9,4 +9,13 @@ describe("uiSlice", () => {
     const persisted = localStorage.getItem("plane-ui");
     expect(persisted).toMatch(/"darkMode":true/);
   });
+
+  it("toggles panel open state and persists", () => {
+    const store = createRootStore();
+    expect(store.getState().ui.isPanelOpen).toBe(true);
+    store.getState().ui.togglePanelOpen();
+    expect(store.getState().ui.isPanelOpen).toBe(false);
+    const persisted = localStorage.getItem("plane-ui");
+    expect(persisted).toMatch(/"isPanelOpen":false/);
+  });
 });

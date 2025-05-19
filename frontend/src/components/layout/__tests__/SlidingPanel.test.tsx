@@ -20,4 +20,13 @@ describe('SlidingPanel', () => {
     await userEvent.click(screen.getByRole('tab', { name: /leaderboard/i }));
     expect(screen.getByText(/no players yet/i)).toBeInTheDocument();
   });
+
+  it('toggles open and closed state', async () => {
+    const { container } = renderPanel();
+    const toggleBtn = screen.getByRole('button', { name: /minimize panel/i });
+    expect(container.firstChild).toHaveClass('h-1/2');
+    await userEvent.click(toggleBtn);
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(container.firstChild).toHaveClass('h-16');
+  });
 });

@@ -3,10 +3,17 @@ import PlaneListPanelContent from '../../features/planes/components/PlaneListPan
 import LeaderboardPanelContent from '../../features/leaderboard/components/LeaderboardPanelContent';
 import SettingsPanelContent from '../../features/settings/components/SettingsPanelContent';
 import { useStore } from '../../hooks/useStore';
-import { selectActivePanel } from '../../features/ui/selectors';
+import {
+  selectActivePanel,
+  selectIsPanelOpen,
+} from '../../features/ui/selectors';
+import chevronUpUrl from '../../assets/icons/chevron-up.svg';
+import chevronDownUrl from '../../assets/icons/chevron-down.svg';
 
 export default function SlidingPanel(): JSX.Element {
   const activePanel = useStore(selectActivePanel);
+  const isPanelOpen = useStore(selectIsPanelOpen);
+  const togglePanelOpen = useStore((s) => s.ui.togglePanelOpen);
 
   let content: JSX.Element;
   switch (activePanel) {
@@ -22,11 +29,19 @@ export default function SlidingPanel(): JSX.Element {
 
   return (
     <div
-      // Mobile: flex item, takes bottom half. Desktop: specific width, full height.
-      className="flex flex-col h-1/2 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 md:w-96 md:h-full"
+      className={`flex flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out ${isPanelOpen ? 'h-1/2 md:w-96' : 'h-16 md:w-0 md:overflow-hidden'} md:h-full`}
     >
-      <PanelTabs />
-      <div className="flex-1 overflow-y-auto p-4">{content}</div>
+      <button
+        type="button"
+        onClick={togglePanelOpen}
+        aria-label={isPanelOpen ? 'Minimize panel' : 'Maximize panel'}
+        aria-expanded={isPanelOpen}
+        className="p-2 border-b border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-center"
+      >
+        <img src={isPanelOpen ? chevronDownUrl : chevronUpUrl} alt="" className="h-4 w-4" />
+      </button>
+      <PanelTabs className={`${!isPanelOpen ? 'md:hidden' : ''}`} />
+      <div className={`flex-1 overflow-y-auto p-4 ${isPanelOpen ? '' : 'hidden'}`}>{content}</div>
     </div>
   );
 }
