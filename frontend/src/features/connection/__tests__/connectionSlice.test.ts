@@ -5,6 +5,7 @@ describe("connectionSlice", () => {
   it("updates status and latency", () => {
     const store = createRootStore();
     store.getState().connection.setStatus("connected");
+    store.getState().connection.setError("boom");
     store.getState().connection.updateLatency(123);
     store.getState().connection.setLastHeartbeat(456);
     store.getState().connection.setNickname("Me");
@@ -13,7 +14,10 @@ describe("connectionSlice", () => {
     expect(state.connection.latencyMs).toBe(123);
     expect(state.connection.lastHeartbeat).toBe(456);
     expect(state.connection.nickname).toBe("Me");
+    expect(state.connection.error).toBe("boom");
     store.getState().connection.setNickname(null);
     expect(store.getState().connection.nickname).toBeNull();
+    store.getState().connection.setError(null);
+    expect(store.getState().connection.error).toBeNull();
   });
 });
