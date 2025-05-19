@@ -38,10 +38,8 @@ To implement the first set of integration tests for critical frontend flows, spe
 3.  **Updates to `frontend/src/mocks/handlers.ts`**:
     - Adding specific `msw` handlers for `/api/v0/rooms` (POST) and `/api/v0/rooms/{code}/join` (POST).
 4.  **Updates/Implementation in `frontend/src/mocks/wsHandlers.ts` (or equivalent `msw` WebSocket setup)**:
-    - Logic for the mock WebSocket server to:
-      - Accept connections on expected URLs (e.g., `ws://mocked/ws/ABCD/HostNick`).
-      - Send a `stateSync` message upon successful connection.
-      - Potentially handle `ping`/`pong` if testing that aspect.
+    - `wsHandlers.ts` will primarily export the `mockSocket` instance created via `webSocket.link()` from `msw`.
+    - The _logic_ for this `mockSocket` (e.g., to accept connections and send `stateSync` or other messages) will be defined by attaching listeners (`mockSocket.on('connection', ...)`) within the setup of specific test suites (e.g., in `beforeEach` blocks of `room_creation_flow.test.tsx` or specific test cases).
 
 ### 4. Detailed Implementation Logic & Instructions
 
@@ -92,88 +90,149 @@ export const roomJoinSuccessHandler = (roomCode: string) =>
 
 **B. `frontend/src/mocks/wsHandlers.ts` (or WebSocket setup in `msw`) Updates:**
 
-- The mock WebSocket server (using `@mswjs/websocket`) needs to be configured to:
-  1.  Listen for connections on paths like `ws://localhost:8000/ws/:roomCode/:nickname`.
-  2.  When a client connects:
-      - Log the connection.
-      - Create a mock `FullRoomState` payload (as defined in `docs/ws_schema.yaml` and `frontend/types/ws.ts`).
-      - Send a `stateSync` message: `{ type: 'stateSync', payload: mockFullRoomState, ts: Date.now() }`.
-      - The `mockFullRoomState` should reflect the room code and player nickname from the connection URL.
+- This section describes how tests will _use_ the `mockSocket` exported from `src/mocks/wsHandlers.ts`. No direct changes to `wsHandlers.ts` are implied here beyond its initial setup (exporting `mockSocket`) as defined in `FEAT_FT_INFRA_001`.
+- In your test files (e.g., `frontend/__tests__/integration/room_creation_flow.test.tsx`):
+  1. Import `mockSocket` from `../../src/mocks/wsHandlers`.
+  2. In the `beforeEach` hook of a test suite, or within a specific `it` block, attach a listener to the imported `mockSocket` instance: `mockSocket.on('connection', ({ client, server: webSocketServer }) => { ... })`.
+  3. Inside this listener, you will implement the mock server's behavior for that test context:
+     - Optionally, extract parameters like `roomCode` or `nickname` from `webSocketServer.params` if your `webSocket.link()` URL uses dynamic segments (e.g., `webSocket.link('ws://localhost:8000/ws/:roomCode/:nickname')`).
+     - Create a mock `FullRoomState` payload (or any other relevant message payload) as defined in your WebSocket schema (`docs/ws_schema.yaml` and corresponding generated types in `frontend/types/ws.ts`).
+     - Send the desired message to the mock client using `client.send(JSON.stringify({ type: 'stateSync', payload: mockFullRoomState, ts: Date.now() }));` (adjust message type and payload as needed for the test).
+     - The `mockFullRoomState` (or other payloads) should be tailored to reflect the expected state or data for the specific test scenario.
 
 **C. `frontend/__tests__/integration/room_creation_flow.test.tsx`:**
 
 ```typescript
 // frontend/__tests__/integration/room_creation_flow.test.tsx
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 // Import your App or the relevant page/component for room creation
 // import App from '../../src/App';
-import { renderWithProviders } from "../test-utils"; // You might need a test utility for Zustand
+// import { renderWithProviders } from '../test-utils'; // You will likely need a test utility for Zustand
 import { server } from "../../src/mocks/server";
 import { roomCreationSuccessHandler } from "../../src/mocks/handlers";
-// Import your mock WebSocket server instance from wsHandlers.ts if needed for direct manipulation/assertions
-// import { mockWebSocketServerController } from '../../src/mocks/wsHandlers'; // Hypothetical controller
+import { mockSocket } from "../../src/mocks/wsHandlers"; // Import the mockSocket instance
+import { type WebSocketClient } from "../../src/lib/WebSocketClient"; // Assuming type export
 
 describe("Room Creation Flow", () => {
+  let mockConnectionHandler: ReturnType<typeof vi.fn>; // To store the vi.fn instance for removal
+
   beforeEach(() => {
-    server.use(roomCreationSuccessHandler);
-    // Reset WebSocket mock server state if necessary
-    // mockWebSocketServerController.reset();
-    // mockWebSocketServerController.onConnectionSendStateSync(); // Configure it for this flow
+    server.use(roomCreationSuccessHandler); // Use specific REST handler for this suite
+
+    // Define the mock WebSocket behavior for this test suite
+    mockConnectionHandler = vi.fn(({ client, server: webSocketServer }) => {
+      // Access path params if your webSocket.link uses them, e.g., /ws/:roomCode/:nickname
+      const roomCode =
+        (webSocketServer.params as { roomCode?: string }).roomCode || "TEST";
+      const nickname =
+        (webSocketServer.params as { nickname?: string }).nickname ||
+        "HostUser";
+
+      const mockFullRoomState = {
+        room_meta: {
+          code: roomCode,
+          host_nickname: nickname,
+          mode: "Exact", // Example default
+          round_timeout_seconds: 30, // Example default
+          created_ts: Date.now(),
+          is_solo: false,
+        },
+        players: {
+          [nickname]: {
+            nickname,
+            score: 0,
+            connected: true,
+            last_seen_ts: Date.now(),
+          },
+        },
+        current_round: null,
+      };
+      client.send(
+        JSON.stringify({
+          type: "stateSync",
+          payload: mockFullRoomState,
+          ts: Date.now(),
+        }),
+      );
+    });
+    mockSocket.on("connection", mockConnectionHandler);
   });
 
-  it("should create a room, connect to WebSocket, and receive stateSync", async () => {
-    // 1. ARRANGE
-    // Render the component that allows room creation (e.g., a Home page or CreateRoomForm)
-    // renderWithProviders(<CreateRoomComponent />); // Assuming you have a helper for Zustand
-    // For now, let's assume WebSocketClient is globally available or part of the rendered context.
-    // We will spy on its connect method.
-    const webSocketClientInstance = (
-      await vi.importActual("../../src/lib/WebSocketClient")
-    ).default; // Get actual instance
-    const connectSpy = vi.spyOn(webSocketClientInstance, "connect");
+  afterEach(() => {
+    // Crucial: Remove the listener after each test to prevent interference
+    // and ensure a clean state for the next test, especially if mockSocket is a global singleton.
+    mockSocket.removeEventListener("connection", mockConnectionHandler);
+    vi.clearAllMocks(); // Reset all vi mocks (spies, fn calls)
+  });
 
-    // Mock the WebSocket server to send stateSync on connection
-    // This requires specific setup with @mswjs/websocket
-    // For example, if wsHandlers exports a controllable mock server:
-    // getMockWsServer().on('connection', (client) => client.send({ type: 'stateSync', ... }))
+  it("should create a room, connect to WebSocket, and trigger stateSync processing", async () => {
+    // 1. ARRANGE
+    // Assuming CreateRoomComponent or similar is rendered by a test helper like renderWithProviders
+    // renderWithProviders(<CreateRoomComponent />);
+
+    // Get the actual WebSocketClient instance to spy on its methods
+    // Ensure WebSocketClient is a singleton or can be accessed for testing.
+    const WebSocketClientModule = await vi.importActual<
+      typeof import("../../src/lib/WebSocketClient")
+    >("../../src/lib/WebSocketClient");
+    const webSocketClientInstance = WebSocketClientModule.default; // Or however your singleton is exported/accessed
+    const connectSpy = vi.spyOn(webSocketClientInstance, "connect");
+    // Optional: Spy on the method that processes stateSync if you want to assert it was called
+    // const processStateSyncSpy = vi.spyOn(webSocketClientInstance, 'processStateSync');
 
     // 2. ACT
-    // Simulate user actions to create a room (e.g., typing nickname, clicking create button)
-    // fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'HostUser' } });
-    // fireEvent.click(screen.getByRole('button', { name: /create room/i }));
-
-    // This is a conceptual trigger for the flow if UI isn't fully ready for RTL interaction.
-    // In a real test, you'd interact with the UI to trigger this.
-    // For now, assume an action dispatches or calls a function that starts this.
-    // Manually simulate the API call part if UI is not ready:
-    await webSocketClientInstance.handleCreateRoom({
-      host_nickname: "HostUser",
-    }); // Assuming such a method exists or is triggered
+    // Simulate the action that initiates room creation.
+    // This could be a UI interaction (if components are rendered) or a direct call to a service method.
+    // Example: Direct call to a method on WebSocketClient that encapsulates the logic
+    if (
+      typeof (webSocketClientInstance as any).handleCreateRoom !== "function"
+    ) {
+      console.warn(
+        "WebSocketClient.handleCreateRoom is not implemented or not a function. Test will rely on connectSpy and mockConnectionHandler.",
+      );
+      // If handleCreateRoom doesn't exist, you might need to simulate the API call and then client.connect manually
+      // For now, we assume a method like handleCreateRoom exists for a more integrated test.
+      // This is a placeholder for whatever triggers your room creation logic.
+      // If directly calling, ensure it mimics what the UI would do.
+      const MOCK_API_MODULE = await vi.importActual("../../src/lib/api"); // Assuming api calls are in lib/api.ts
+      await MOCK_API_MODULE.createRoomAPI({ host_nickname: "HostUser" }); // This is a conceptual call, replace with actual function if handleCreateRoom is not available.
+    } else {
+      await (webSocketClientInstance as any).handleCreateRoom({
+        host_nickname: "HostUser",
+      });
+    }
 
     // 3. ASSERT
-    //  a. API call was made (msw handles this implicitly by not erroring).
-    //  b. WebSocketClient.connect was called with the correct URL.
+    // Assert that the REST API call was made (implicitly handled by msw if no error and handler is hit).
+    // Assert that WebSocketClient.connect was called with the correct parameters from the API response.
     await waitFor(() => {
       expect(connectSpy).toHaveBeenCalledWith(
-        "TEST",
-        "HostUser",
-        "ws://localhost:8000/ws/TEST/HostUser",
+        "TEST", // room_code from mock API response
+        "HostUser", // host_nickname from input
+        "ws://localhost:8000/ws/TEST/HostUser", // ws_url from mock API response
       );
     });
 
-    //  c. Zustand store is updated with initial room data from stateSync
-    //     (e.g., roomMeta, player list with the host).
-    //     This requires the mock WebSocket to send stateSync.
-    //     const store = getStore(); // Helper to get Zustand store state
-    //     await waitFor(() => {
-    //       expect(store.getState().game.roomMeta?.room_code).toBe('TEST');
-    //       expect(store.getState().game.players['HostUser']).toBeDefined();
-    //     });
-    // This part is highly dependent on the @mswjs/websocket setup for sending messages.
+    // Assert that our mock 'connection' handler on mockSocket was triggered.
+    await waitFor(() => {
+      expect(mockConnectionHandler).toHaveBeenCalled();
+    });
+
+    // Further assertions: After stateSync is received and processed by WebSocketClient,
+    // the Zustand store should be updated. This requires Zustand integration with tests.
+    // Example (requires test utilities for Zustand):
+    // const store = getTestStore(); // Hypothetical function to get your Zustand store
+    // await waitFor(() => {
+    //   expect(store.getState().game.roomMeta?.code).toBe('TEST');
+    //   expect(store.getState().game.players['HostUser']).toBeDefined();
+    //   expect(store.getState().game.players['HostUser']?.nickname).toBe('HostUser');
+    // });
   });
 
-  // Add tests for API error scenarios (e.g., server error during room creation)
+  // Add more tests:
+  // - Test for API error during room creation (e.g., server returns 500).
+  //   Ensure UI/client handles this gracefully.
 });
 ```
 
@@ -193,11 +252,9 @@ describe("Room Creation Flow", () => {
 
 ### 6. Crucial Considerations & LLM Pitfalls to Avoid
 
-- **`@mswjs/websocket` Complexity:** Correctly mocking the WebSocket server to send `stateSync` at the right time after a connection will be the most complex part. This requires careful implementation of the mock WS server logic from `FEAT_FT_INFRA_001`.
-- **RTL and Async:** `waitFor` will be essential for assertions that depend on async operations like API calls, WS connections, and store updates.
-- **Zustand State Access in Tests:** A helper utility (`renderWithProviders` that includes the Zustand provider, and potentially a `getStore` function) might be needed to easily access and assert store state within tests.
-- **Initial UI State:** Tests might need to assume certain UI components are available or manually trigger underlying service calls if the UI is not yet fully implemented for interaction.
-- **Spying on `WebSocketClient`:** If `WebSocketClient` is a singleton class, getting an instance and spying on its methods (`connect`, `send`) will be key.
+- **`msw` core `webSocket` API:** Correctly configuring the `mockSocket.on('connection', ...)` listeners in each test suite (or specific test case) to send `stateSync` (or other relevant messages) at the right time will be the most complex part. Ensure the mock client receives the intended messages and that the frontend state (e.g., Zustand store) updates as expected.
+- **Listener Management:** Crucially, if `mockSocket` is a singleton (which `webSocket.link()` typically creates), listeners added in one test (`mockSocket.on(...)`) can affect subsequent tests. Always remove listeners in an `afterEach` hook (`mockSocket.removeEventListener(...)`) to ensure test isolation.
+- **Spying on Client Methods:** When spying on `WebSocketClient` methods, ensure you're getting the correct instance (especially if it's a singleton) and that the methods are `public` and spyable by `vi.spyOn`.
 
 ### 7. Code Style & Formatting
 
@@ -218,4 +275,4 @@ See implementation details in section 4.
 
 ---
 
-**Worker AI Instructions:** Implement the initial integration tests as specified. Focus heavily on correctly configuring the `@mswjs/websocket` mock to send the `stateSync` message upon a mocked connection. Ensure tests for both successful flows and API error scenarios are included. If UI components are not ready for full RTL interaction, focus on testing the underlying service/client logic triggered by those eventual UI actions.
+**Worker AI Instructions:** Implement the initial integration tests as specified. Focus heavily on correctly configuring the `mockSocket.on('connection', ...)` listeners (by importing `mockSocket` from `wsHandlers.ts`) in each test suite or test case to send the `stateSync` message (or other relevant messages) upon a mocked connection. Ensure that listeners are cleaned up in `afterEach`. Tests for both successful flows and API error scenarios should be included. If UI components are not yet fully implemented for direct RTL interaction, focus on testing the underlying service/client logic that would be triggered by those UI actions.
