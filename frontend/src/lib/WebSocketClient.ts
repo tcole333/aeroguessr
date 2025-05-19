@@ -38,10 +38,16 @@ export interface WebSocketClient {
   connect(roomCode: string, nickname: string): void;
   send<T extends OutboundMessage>(msg: T): void;
   subscribe(cb: (msg: InboundMessage) => void): () => void;
+  on<K extends Exclude<keyof Events, 'message'>>(event: K, cb: Listener<K>): () => void;
   destroy(): void;
 }
 
-export function createWebSocketClient(baseUrl: string = (import.meta as any).env.VITE_WS_BASE): WebSocketClient {
+export function createWebSocketClient(
+  baseUrl: string =
+    // eslint-disable-next-line no-undef
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE) ||
+    '',
+): WebSocketClient {
   let socket: WebSocket | null = null;
   const log = debug('plane:ws');
   const emitter = new Emitter();
@@ -135,6 +141,10 @@ export function createWebSocketClient(baseUrl: string = (import.meta as any).env
     subscribe(cb) {
       emitter.on('message', cb);
       return () => emitter.off('message', cb);
+    },
+    on(event, cb) {
+      emitter.on(event, cb as any);
+      return () => emitter.off(event, cb as any);
     },
     destroy() {
       clearTimers();

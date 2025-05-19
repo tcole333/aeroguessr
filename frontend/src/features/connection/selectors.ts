@@ -10,3 +10,4 @@ export const selectRoomCode = (state: RootState) => state.connection.roomCode;
 export const selectWsUrl = (state: RootState) => state.connection.wsUrl;
 export const selectPlayerNickname = (state: RootState) =>
   state.connection.playerNickname;
+export const selectConnectionError = (state: RootState) => state.connection.error;

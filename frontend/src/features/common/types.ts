@@ -1,4 +1,9 @@
-export type ConnectionStatus = "connected" | "connecting" | "disconnected";
+export type ConnectionStatus =
+  | "connected"
+  | "connecting"
+  | "reconnecting"
+  | "disconnected"
+  | "error";
 
 export interface PlaneState {
   hex_ident: string;
