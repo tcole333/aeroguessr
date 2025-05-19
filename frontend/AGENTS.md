@@ -191,7 +191,7 @@ If the frontend uncovers missing backend features or schema mismatches:
 - [x] **Base layout**
   - [x] `AppShell` with MapView & SlidingPanel
   - [x] Responsive docking behaviour
-- [x] **Map & plane rendering**
+- [ ] **Map & plane rendering**
   - [x] Integrate React-Leaflet map centred on Boston
   - [ ] Plane markers + fading trails
   - [ ] Performance benchmark ≤300 ms update
@@ -199,11 +199,17 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [ ] Planes list panel
   - [ ] Leaderboard with confetti
   - [ ] Settings panel with basic host controls
-- [ ] **Game flow handling**
-  - [ ] Join / create room screens (REST)
-  - [ ] Handle all WS inbound message types
-  - [ ] Guess form & submission
-  - [ ] Host controls (`selectPlane`, `startRound`, `skipRound` once available)
+- [ ] **Home Page & Game Join/Create Flow**
+  - [ ] Design Home Page UI (Start Solo, Create Room, Join Room options)
+  - [ ] Implement "Create Room" screen (collect nickname, mode, timeout -> POST /api/v0/rooms)
+  - [ ] Implement "Join Room" screen (collect room code, nickname -> POST /api/v0/rooms/{code}/join)
+  - [ ] Implement "Start Solo" (POST /api/v0/rooms with 'solo' user, or dedicated endpoint)
+  - [ ] Handle navigation to game view (`AppShell`) after successful join/create.
+- [ ] **Game flow handling (WebSocket based)**
+  - [ ] Handle all WS inbound message types (stateSync, delta, roundStart, etc.)
+  - [ ] Update Zustand stores based on WS messages
+  - [ ] Implement Guess form & submission (send `guess` WS message)
+  - [ ] Implement Host controls (send `selectPlane`, `startRound`, `skipRound` WS messages)
 - [ ] **Accessibility pass** (WCAG 2.1 AA)
 - [ ] **End-to-end Cypress tests** for 5-round flow
 - [ ] **Storybook & visual regression** setup
