@@ -7,7 +7,9 @@ export interface ConnectionSlice {
   latencyMs: number | null;
   lastHeartbeat: number | null;
   nickname: string | null;
+  error: string | null;
   setStatus: (status: ConnectionStatus) => void;
+  setError: (err: string | null) => void;
   updateLatency: (latency: number) => void;
   setLastHeartbeat: (ts: number | null) => void;
   setNickname: (nickname: string | null) => void;
@@ -23,9 +25,14 @@ export const createConnectionSlice: StateCreator<
   latencyMs: null,
   lastHeartbeat: null,
   nickname: null,
+  error: null,
   setStatus: (status) =>
     set((state) => {
       state.connection.status = status;
+    }),
+  setError: (err) =>
+    set((state) => {
+      state.connection.error = err;
     }),
   updateLatency: (latency) =>
     set((state) => {
