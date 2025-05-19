@@ -12,10 +12,12 @@ function renderPanel() {
 }
 
 describe('SlidingPanel', () => {
-  it('shows placeholder content and switches tabs', async () => {
+  it('shows plane list placeholder and switches tabs', async () => {
     renderPanel();
-    expect(screen.getByText(/Plane List Panel/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/scanning for nearby flights/i),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: /leaderboard/i }));
-    expect(screen.getByText(/Leaderboard Panel/)).toBeInTheDocument();
+    expect(screen.getByText(/no players yet/i)).toBeInTheDocument();
   });
 });
