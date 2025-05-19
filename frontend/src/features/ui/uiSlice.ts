@@ -6,8 +6,10 @@ export type Panel = "planes" | "leaderboard" | "settings";
 export interface UiSlice {
   darkMode: boolean;
   activePanel: Panel;
+  isPanelOpen: boolean;
   toggleDarkMode: () => void;
   setActivePanel: (panel: Panel) => void;
+  togglePanelOpen: () => void;
 }
 
 export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
@@ -15,6 +17,7 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
 ) => ({
   darkMode: false,
   activePanel: "planes",
+  isPanelOpen: true,
   toggleDarkMode: () =>
     set((state) => {
       state.ui.darkMode = !state.ui.darkMode;
@@ -22,5 +25,9 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
   setActivePanel: (panel) =>
     set((state) => {
       state.ui.activePanel = panel;
+    }),
+  togglePanelOpen: () =>
+    set((state) => {
+      state.ui.isPanelOpen = !state.ui.isPanelOpen;
     }),
 });

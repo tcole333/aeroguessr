@@ -4,12 +4,15 @@ import type { Panel } from '../../features/ui/uiSlice';
 
 const tabs: Panel[] = ['planes', 'leaderboard', 'settings'];
 
-export default function PanelTabs(): JSX.Element {
+export default function PanelTabs({
+  className = '',
+}: { className?: string }): JSX.Element {
   const active = useStore(selectActivePanel);
   const setActivePanel = useStore((s) => s.ui.setActivePanel);
 
   return (
-    <div role="tablist" className="flex border-b border-gray-700">
+    <div role="tablist" className={`flex border-b border-gray-700 ${className}`}
+    >
       {tabs.map((tab) => (
         <button
           key={tab}
