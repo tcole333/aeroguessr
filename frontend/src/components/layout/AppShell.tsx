@@ -7,11 +7,13 @@ export default function AppShell(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
 
   return (
-    <div className={darkMode ? 'dark' : ''}>
-      <div className="h-screen w-screen relative bg-gray-100 dark:bg-gray-900">
+    <div className={`h-screen w-screen flex flex-col md:flex-row bg-gray-100 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
+      {/* Map container: takes top half on mobile, flexible width on desktop */}
+      <div className="h-1/2 w-full md:flex-1 md:h-full">
         <MapView />
-        <SlidingPanel />
       </div>
+      {/* Panel container: takes bottom half on mobile, fixed width on desktop */}
+      <SlidingPanel />
     </div>
   );
 }

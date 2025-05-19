@@ -22,7 +22,8 @@ export default function SlidingPanel(): JSX.Element {
 
   return (
     <div
-      className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 fixed bottom-0 left-0 right-0 h-1/2 md:relative md:h-full md:w-96 md:flex md:flex-col z-10"
+      // Mobile: flex item, takes bottom half. Desktop: specific width, full height.
+      className="flex flex-col h-1/2 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 md:w-96 md:h-full"
     >
       <PanelTabs />
       <div className="flex-1 overflow-y-auto p-4">{content}</div>

@@ -6,7 +6,7 @@ const tabs: Panel[] = ['planes', 'leaderboard', 'settings'];
 
 export default function PanelTabs(): JSX.Element {
   const active = useStore(selectActivePanel);
-  const setActive = useStore((s) => s.ui.setActivePanel);
+  const setActivePanel = useStore((s) => s.ui.setActivePanel);
 
   return (
     <div role="tablist" className="flex border-b border-gray-700">
@@ -15,7 +15,14 @@ export default function PanelTabs(): JSX.Element {
           key={tab}
           role="tab"
           aria-selected={active === tab}
-          onClick={() => setActive(tab)}
+          onClick={() => {
+            console.log('Type of setActivePanel (direct from s.ui.setActivePanel):', typeof setActivePanel);
+            if (typeof setActivePanel === 'function') {
+              setActivePanel(tab);
+            } else {
+              console.error('setActivePanel (direct) is NOT a function!', setActivePanel);
+            }
+          }}
           className={`flex-1 py-2 text-center capitalize ${
             active === tab ? 'font-bold border-b-2 border-primary-500' : ''
           }`}

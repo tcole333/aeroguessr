@@ -1,5 +1,5 @@
 import { createStore, StoreApi } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools, persist, PersistOptions } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import React, { ReactNode, createContext, useRef } from "react";
 
@@ -21,21 +21,46 @@ export interface RootState {
 
 export type RootStore = StoreApi<RootState>;
 
+// Define the part of UiSlice that is persisted
+type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode">;
+
 export function createRootStore(): RootStore {
+  const persistOptions: PersistOptions<RootState, { ui: PersistedUiState }> = {
+    name: "plane-ui",
+    version: 1,
+    // Only persist activePanel and darkMode from the ui slice
+    partialize: (state) => ({
+      ui: {
+        activePanel: state.ui.activePanel,
+        darkMode: state.ui.darkMode,
+      },
+    }),
+    // Custom merge: ensure functions from initial state are kept for the ui slice
+    merge: (persistedState, currentState) => {
+      const typedPersistedState = persistedState as { ui?: PersistedUiState }; // Type assertion
+      return {
+        ...currentState, // Start with current state (has functions)
+        ...typedPersistedState, // Overlay with persisted non-ui state
+        ui: {
+          ...currentState.ui, // Current ui slice (has functions)
+          ...(typedPersistedState.ui || {}), // Overlay with persisted ui state values
+        },
+      };
+    },
+  };
+
   return createStore<RootState>()(
     devtools(
       persist(
-        immer((set, get) => ({
-          connection: createConnectionSlice(set, get),
-          planes: createPlanesSlice(set, get),
-          game: createGameSlice(set, get),
-          ui: createUiSlice(set, get),
-        })),
-        {
-          name: "plane-ui",
-          version: 1,
-          partialize: (state) => ({ ui: state.ui }),
-        },
+        immer((set, get, api) => {
+          return {
+            connection: createConnectionSlice(set, get, api),
+            planes: createPlanesSlice(set, get, api),
+            game: createGameSlice(set, get, api),
+            ui: createUiSlice(set, get, api), // Directly create ui slice here
+          };
+        }),
+        persistOptions, // Pass the configured options
       ),
     ),
   );

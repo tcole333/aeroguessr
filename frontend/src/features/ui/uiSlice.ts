@@ -10,12 +10,9 @@ export interface UiSlice {
   setActivePanel: (panel: Panel) => void;
 }
 
-export const createUiSlice: StateCreator<
-  RootState,
-  [["zustand/immer", never]],
-  [],
-  UiSlice
-> = (set) => ({
+export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
+  set,
+) => ({
   darkMode: false,
   activePanel: "planes",
   toggleDarkMode: () =>
