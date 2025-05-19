@@ -14,50 +14,50 @@ function header(src) {
 
 function schemaToZod(schema, defs) {
   if (!schema) {
-    return 'z.any()';
+    return "z.any()";
   }
   if (schema.$ref) {
-    return defs[schema.$ref] || 'z.any()';
+    return defs[schema.$ref] || "z.any()";
   }
   if (schema.anyOf) {
     const parts = schema.anyOf.map((s) => schemaToZod(s, defs));
-    return `z.union([${parts.join(', ')}])`;
+    return `z.union([${parts.join(", ")}])`;
   }
   switch (schema.type) {
-    case 'string':
+    case "string":
       if (schema.enum) {
-        return `z.enum([${schema.enum.map((e) => `'${e}'`).join(', ')}])`;
+        return `z.enum([${schema.enum.map((e) => `'${e}'`).join(", ")}])`;
       }
-      return 'z.string()';
-    case 'integer':
-      return 'z.number().int()';
-    case 'number':
-      return 'z.number()';
-    case 'boolean':
-      return 'z.boolean()';
-    case 'array':
-      return `z.array(${schema.items ? schemaToZod(schema.items, defs) : 'z.any()'})`;
-    case 'object': {
+      return "z.string()";
+    case "integer":
+      return "z.number().int()";
+    case "number":
+      return "z.number()";
+    case "boolean":
+      return "z.boolean()";
+    case "array":
+      return `z.array(${schema.items ? schemaToZod(schema.items, defs) : "z.any()"})`;
+    case "object": {
       const props = schema.properties || {};
       const required = schema.required || [];
       const propStr = Object.entries(props)
         .map(([k, v]) => {
           let str = schemaToZod(v, defs);
-          if (!required.includes(k)) str += '.optional()';
+          if (!required.includes(k)) str += ".optional()";
           return `${JSON.stringify(k)}: ${str}`;
         })
-        .join(', ');
+        .join(", ");
       if (schema.additionalProperties) {
         const ap =
           schema.additionalProperties === true
-            ? 'z.any()'
+            ? "z.any()"
             : schemaToZod(schema.additionalProperties, defs);
         return `z.record(${ap})`;
       }
       return `z.object({ ${propStr} })`;
     }
     default:
-      return 'z.any()';
+      return "z.any()";
   }
 }
 
@@ -82,16 +82,16 @@ async function generateWs() {
   processDefs(ws.$defs);
 
   const inbound = new Set([
-    'stateSync',
-    'delta',
-    'roundStart',
-    'roundResult',
-    'playerJoined',
-    'playerLeft',
-    'newHost',
-    'error',
-    'pong',
-    'planeSelectedConfirm',
+    "stateSync",
+    "delta",
+    "roundStart",
+    "roundResult",
+    "playerJoined",
+    "playerLeft",
+    "newHost",
+    "error",
+    "pong",
+    "planeSelectedConfirm",
   ]);
 
   const inboundSchemas = [];
@@ -109,9 +109,9 @@ async function generateWs() {
   });
 
   parts.push(
-    `export const InboundMessageSchema = z.discriminatedUnion('type', [${inboundSchemas.join(', ')}]);`,
+    `export const InboundMessageSchema = z.discriminatedUnion('type', [${inboundSchemas.join(", ")}]);`,
     `export type InboundMessage = z.infer<typeof InboundMessageSchema>;`,
-    `export const OutboundMessageSchema = z.discriminatedUnion('type', [${outboundSchemas.join(', ')}]);`,
+    `export const OutboundMessageSchema = z.discriminatedUnion('type', [${outboundSchemas.join(", ")}]);`,
     `export type OutboundMessage = z.infer<typeof OutboundMessageSchema>;`,
   );
 

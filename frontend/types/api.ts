@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE. DO NOT EDIT.
  * Source: docs/api_openapi.yaml
- * Generated: 2025-05-19T03:40:57.432Z
+ * Generated: 2025-05-19T05:23:21.316Z
  */
 export const openapi = {
   "openapi": "3.1.0",

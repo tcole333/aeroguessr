@@ -15,7 +15,9 @@ class MockSocket {
   close() { this.readyState = MockSocket.OPEN; }
   triggerOpen() { this.readyState = MockSocket.OPEN; this.onopen?.(); }
   triggerMessage(data: any) { this.onmessage?.({ data: JSON.stringify(data) }); }
-  triggerClose() { this.onclose?.(); }
+  triggerClose(code = 1000, reason = 'normal') {
+    this.onclose?.({ code, reason } as any);
+  }
   addEventListener(event: string, cb: any) {
     switch (event) {
       case 'open':

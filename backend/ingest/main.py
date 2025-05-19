@@ -24,7 +24,9 @@ from backend.ingest.smoother import PositionSmoother
 from backend.utils.redis_async import RedisClient
 
 # --- Configuration ---
-ADSB_HOST = os.getenv("ADSB_HOST", "localhost")
+# ADSB_HOST defaults to 127.0.0.1 to be explicit for the main connection loop.
+# If FAKE_ADSB=1, the internal generator also uses 127.0.0.1.
+ADSB_HOST = os.getenv("ADSB_HOST", "127.0.0.1")
 ADSB_PORT = int(os.getenv("ADSB_PORT", 30003))
 KALMAN_PROCESS_NOISE = float(os.getenv("KALMAN_PROCESS_NOISE", 0.5))
 KALMAN_MEASUREMENT_NOISE = float(os.getenv("KALMAN_MEASUREMENT_NOISE", 10.0))
@@ -188,26 +190,106 @@ async def run_ingest_loop() -> None:
         logger.error(f"Failed to connect to Redis: {e}. Exiting.")
         return
 
-    # If FAKE_ADSB flag is set, start the sample generator in this loop.
+    host_to_connect = ADSB_HOST
+    port_to_connect = ADSB_PORT
+    server_task = None  # Define server_task in this scope
+
     if os.getenv("FAKE_ADSB") == "1":
         sample_path = os.getenv("FAKE_ADSB_FILE", "sample_data/sbs_parser_fixtures.sbs")
-        logger.info("FAKE_ADSB=1 – starting internal sample generator using %s", sample_path)
-        # Dynamically import to avoid mandatory dependency for production runs
-        adsb_gen_mod = importlib.import_module("sample_data.adsb_generator")
-        asyncio.create_task(
+        # Explicitly use 127.0.0.1 for the internal generator and connection
+        internal_gen_host = "127.0.0.1"
+        internal_gen_port = ADSB_PORT  # Use the configured port from .env
+
+        logger.info(
+            "FAKE_ADSB=1: Starting internal sample generator from '%s' on %s:%s.",
+            sample_path,
+            internal_gen_host,
+            internal_gen_port,
+        )
+
+        try:
+            adsb_gen_mod = importlib.import_module("sample_data.adsb_generator")
+        except ImportError:
+            logger.error("Failed to import 'sample_data.adsb_generator'. Ensure it exists.")
+            return  # Cannot proceed with FAKE_ADSB
+
+        server_task = asyncio.create_task(
             adsb_gen_mod.run_server(
                 filepath=sample_path,
-                host=ADSB_HOST,
-                port=ADSB_PORT,
+                host=internal_gen_host,
+                port=internal_gen_port,
                 loop_forever=True,
                 speed=float(os.getenv("FAKE_ADSB_SPEED", "1.0")),
             )
         )
 
+        server_ready = False
+        # Increased max_retries and added a slightly longer initial sleep
+        await asyncio.sleep(0.1)  # Brief initial pause for task to start
+        max_retries = 30  # e.g., 30 * 0.1s = 3 seconds total wait
+        retry_delay = 0.1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                logger.debug(
+                    "Attempting to connect to internal generator (Attempt %d/%d)...",
+                    attempt + 1,
+                    max_retries,
+                )
+                conn_reader, conn_writer = await asyncio.open_connection(
+                    internal_gen_host, internal_gen_port
+                )
+                conn_writer.close()
+                await conn_writer.wait_closed()
+                server_ready = True
+                logger.info(
+                    "Internal ADS-B generator is ready on %s:%s.",
+                    internal_gen_host,
+                    internal_gen_port,
+                )
+                host_to_connect = internal_gen_host
+                port_to_connect = internal_gen_port
+                break
+            except ConnectionRefusedError:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(
+                        "Internal ADS-B generator failed to start/accept connections "
+                        "on %s:%s after %d attempts.",
+                        internal_gen_host,
+                        internal_gen_port,
+                        max_retries,
+                    )
+                    if server_task and not server_task.done():
+                        server_task.cancel()
+                    # Fallback to .env settings for ADSB_HOST/PORT, but log warning
+                    logger.warning(
+                        "FAKE_ADSB=1: Internal generator failed. Will attempt connection "
+                        "using ADSB_HOST=%s, ADSB_PORT=%s from environment.",
+                        ADSB_HOST,
+                        ADSB_PORT,
+                    )
+            except Exception as e:
+                logger.error(f"Unexpected error while waiting for internal generator: {e}")
+                if server_task and not server_task.done():
+                    server_task.cancel()
+                break  # Break on other errors
+
+        if not server_ready:
+            logger.warning(
+                "FAKE_ADSB=1: Proceeding with ADSB_HOST=%s, ADSB_PORT=%s "
+                "(from .env or default) as internal generator check failed.",
+                ADSB_HOST,
+                ADSB_PORT,
+            )
+            # host_to_connect and port_to_connect are already set to ADSB_HOST/ADSB_PORT
+            # by default
+
     while True:
         try:
-            logger.info(f"Connecting to ADS-B source at {ADSB_HOST}:{ADSB_PORT}...")
-            reader, writer = await asyncio.open_connection(ADSB_HOST, ADSB_PORT)
+            logger.info(f"Connecting to ADS-B source at {host_to_connect}:{port_to_connect}...")
+            reader, writer = await asyncio.open_connection(host_to_connect, port_to_connect)
             logger.info("Connected to ADS-B source.")
 
             while True:
@@ -221,7 +303,6 @@ async def run_ingest_loop() -> None:
                     if not line:
                         continue
 
-                    # Use time.time() for consistent timestamping
                     timestamp = time.time()
                     raw_message = parse_sbs_message(line, timestamp)
 
@@ -230,24 +311,22 @@ async def run_ingest_loop() -> None:
 
                 except asyncio.IncompleteReadError:
                     logger.warning("Incomplete read from ADS-B source. Connection lost?")
-                    break  # Break inner loop to reconnect
+                    break
                 except ConnectionResetError:
                     logger.warning("Connection reset by ADS-B source.")
-                    break  # Break inner loop to reconnect
+                    break
                 except Exception:
-                    logger.exception(f"Error processing line: '{line[:100]}...'")  # Log snippet
-                    # Continue processing next line
+                    logger.exception(f"Error processing line: '{line[:100]}...'")
 
         except ConnectionRefusedError:
-            logger.error(f"Connection refused by {ADSB_HOST}:{ADSB_PORT}.")
+            logger.error(f"Connection refused by {host_to_connect}:{port_to_connect}.")
         except asyncio.TimeoutError:
-            logger.error(f"Connection timeout to {ADSB_HOST}:{ADSB_PORT}.")
+            logger.error(f"Connection timeout to {host_to_connect}:{port_to_connect}.")
         except OSError as e:
-            logger.error(f"OS error connecting to {ADSB_HOST}:{ADSB_PORT}: {e}")
+            logger.error(f"OS error connecting to {host_to_connect}:{port_to_connect}: {e}")
         except Exception:
             logger.exception("Unexpected error in ingest connection loop.")
 
-        # Wait before attempting to reconnect
         logger.info(f"Waiting {RECONNECT_DELAY} seconds before reconnecting...")
         await asyncio.sleep(RECONNECT_DELAY)
 
@@ -257,3 +336,5 @@ if __name__ == "__main__":
         asyncio.run(run_ingest_loop())
     except KeyboardInterrupt:
         logger.info("Ingest loop stopped by user.")
+    except Exception:
+        logger.exception("Unhandled exception in run_ingest_loop or asyncio.run")

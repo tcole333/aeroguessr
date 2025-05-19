@@ -45,8 +45,8 @@ export interface WebSocketClient {
 export function createWebSocketClient(
   baseUrl: string =
     // eslint-disable-next-line no-undef
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE) ||
-    '',
+    ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE) as string | undefined) ||
+    (typeof window !== 'undefined' ? window.location.origin : ''),
 ): WebSocketClient {
   let socket: WebSocket | null = null;
   const log = debug('plane:ws');
@@ -100,19 +100,23 @@ export function createWebSocketClient(
       socket.close();
     }
     missedPongs = 0;
-    const url = baseUrl.replace(/^http/, 'ws') + `/ws/${room}/${nick}`;
+    const url = baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nick}`;
+    console.log(`[WS] Connecting to URL: ${url}`);
     socket = new WebSocket(url);
     socket.addEventListener('open', () => {
+      console.log(`[WS] Connected to ${url}`);
       emitter.emit('connected', undefined);
       reconnectDelay = 500;
       flushQueue();
     });
     socket.addEventListener('message', (e) => handleMessage(e.data));
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (ev) => {
+      console.log(`[WS] Disconnected from ${url} (code=${ev.code}, reason=${ev.reason})`);
       emitter.emit('disconnected', undefined);
       scheduleReconnect();
     });
     socket.addEventListener('error', (e) => {
+      console.error(`[WS] Error on ${url}:`, e);
       emitter.emit('error', e as any);
     });
     heartbeat = setInterval(() => {

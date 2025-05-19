@@ -1,15 +1,48 @@
 # Makefile
 
-.PHONY: help openapi integration-test ws-schema sample-replay
+.PHONY: help openapi integration-test ws-schema sample-replay frontend backend dev start stop
 
 # Default target: Show help
 help:
 	@echo "Available targets:"
-	@echo "  openapi    Generate OpenAPI specification (docs/api_openapi.yaml)"
-	@echo "  help       Show this help message"
+	@echo "  start         Start all services (frontend, backend, Redis) using Docker Compose"
+	@echo "  stop          Stop all running services"
+	@echo "  dev           Start all services in development mode"
+	@echo "  frontend      Start frontend development server"
+	@echo "  backend       Start backend development server"
+	@echo "  openapi       Generate OpenAPI specification (docs/api_openapi.yaml)"
+	@echo "  help          Show this help message"
 	@echo "  integration-test    Spin up test services and run integration tests"
-	@echo "  ws-schema    Generate WebSocket schema (docs/ws_schema.yaml)"
-	@echo "  sample-replay  Run sample ADS-B generator (requires FAKE_ADSB=1)"
+	@echo "  ws-schema     Generate WebSocket schema (docs/ws_schema.yaml)"
+	@echo "  sample-replay Run sample ADS-B generator (requires FAKE_ADSB=1)"
+
+# Target to start frontend development server
+frontend:
+	@echo "--- Starting frontend development server ---"
+	@cd frontend && npm run dev
+
+# Target to start backend development server
+backend:
+	@echo "--- Starting backend development server ---"
+	@poetry run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+
+# Target to start all services in development mode
+dev:
+	@echo "--- Starting all services in development mode ---"
+	@docker compose up redis -d
+	@make backend & make frontend
+
+# Target to start all services using Docker Compose
+start:
+	@echo "--- Starting all services ---"
+	@docker compose up --build -d
+	@echo "Frontend available at http://localhost"
+	@echo "Backend API docs at http://localhost:8000/docs"
+
+# Target to stop all services
+stop:
+	@echo "--- Stopping all services ---"
+	@docker compose down
 
 # Target to generate OpenAPI specification
 openapi:

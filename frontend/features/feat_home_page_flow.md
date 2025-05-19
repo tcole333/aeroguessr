@@ -5,6 +5,7 @@
 **Target PRD Sections:** `§1 Overview & Goals`, `§3.1 Room lifecycle`, `§3.2 Single-player mode`, `§5.2 Backend API (REST)`
 **Relevant Coding Standards:** `AGENTS.md – Sections 2, 3, 5, 6, 8, 10`, TypeScript/React Guidelines
 **Depends On:**
+
 - `FE_INFRA_0001` (Zustand root store, `useStore` hook)
 - `FE_STATE_0001` (`uiSlice`, `connectionSlice` definitions - to be extended by this feature)
 - `FE_SCHEMA_0001` (Generated API client types in `frontend/types/api.ts` via `openapi-typescript`)
@@ -17,10 +18,11 @@
 ### 1. Objective
 
 Implement the application's initial landing/home page, providing users with options to:
+
 1.  Start a new multiplayer game as a host ("Create Room").
 2.  Join an existing multiplayer game as a player ("Join Room").
 3.  Start a single-player game ("Start Solo").
-This involves creating UI forms, interacting with the backend REST API to create/join rooms, storing necessary connection details (WebSocket URL, room code, nickname) in the Zustand store, and managing navigation between the home page and the main game view (`AppShell`).
+    This involves creating UI forms, interacting with the backend REST API to create/join rooms, storing necessary connection details (WebSocket URL, room code, nickname) in the Zustand store, and managing navigation between the home page and the main game view (`AppShell`).
 
 ### 2. Key Assumptions Made by Orchestrator
 
@@ -138,14 +140,14 @@ This involves creating UI forms, interacting with the backend REST API to create
     - Display `uiSlice.formError`.
 3.  **Submission**:
     - `onSubmit`:
-        - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
-        - Call `apiService.createRoomAPI` with form data.
-        - **On Success**:
-            - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: host_nickname })`.
-            - Dispatch `uiSlice.setCurrentView('game')`.
-        - **On Error**:
-            - Parse error (e.g., from `error.response.data.detail`) and dispatch `uiSlice.setFormError(message)`.
-        - Finally: Dispatch `uiSlice.setLoading(false)`.
+      - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
+      - Call `apiService.createRoomAPI` with form data.
+      - **On Success**:
+        - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: host_nickname })`.
+        - Dispatch `uiSlice.setCurrentView('game')`.
+      - **On Error**:
+        - Parse error (e.g., from `error.response.data.detail`) and dispatch `uiSlice.setFormError(message)`.
+      - Finally: Dispatch `uiSlice.setLoading(false)`.
 
 #### 4.7 `src/features/game-setup/components/JoinRoomForm.tsx`
 
@@ -155,14 +157,14 @@ This involves creating UI forms, interacting with the backend REST API to create
 2.  **State**: Similar to `CreateRoomForm`.
 3.  **Submission**:
     - `onSubmit`:
-        - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
-        - Call `apiService.joinRoomAPI` with room code and nickname.
-        - **On Success**:
-            - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: player_nickname })`.
-            - Dispatch `uiSlice.setCurrentView('game')`.
-        - **On Error** (404 Room Not Found, 409 Nickname Taken, etc.):
-            - Dispatch `uiSlice.setFormError(message)`.
-        - Finally: Dispatch `uiSlice.setLoading(false)`.
+      - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
+      - Call `apiService.joinRoomAPI` with room code and nickname.
+      - **On Success**:
+        - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: player_nickname })`.
+        - Dispatch `uiSlice.setCurrentView('game')`.
+      - **On Error** (404 Room Not Found, 409 Nickname Taken, etc.):
+        - Dispatch `uiSlice.setFormError(message)`.
+      - Finally: Dispatch `uiSlice.setLoading(false)`.
 
 #### 4.8 "Start Solo" Logic (e.g., `src/features/game-setup/components/StartSoloForm.tsx` or inline in `HomePage`)
 
@@ -171,14 +173,14 @@ This involves creating UI forms, interacting with the backend REST API to create
 2.  **State**: Similar to other forms.
 3.  **Action**:
     - On click/submit:
-        - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
-        - Call `apiService.startSoloGameAPI` (which internally calls `joinRoomAPI('SOLO', { nickname })`).
-        - **On Success**:
-            - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: player_nickname })`.
-            - Dispatch `uiSlice.setCurrentView('game')`.
-        - **On Error**:
-            - Dispatch `uiSlice.setFormError(message)`.
-        - Finally: Dispatch `uiSlice.setLoading(false)`.
+      - Dispatch `uiSlice.clearFormError()` and `uiSlice.setLoading(true)`.
+      - Call `apiService.startSoloGameAPI` (which internally calls `joinRoomAPI('SOLO', { nickname })`).
+      - **On Success**:
+        - Dispatch `connectionSlice.setConnectionDetails({ roomCode: response.room_code, wsUrl: response.ws_url, nickname: player_nickname })`.
+        - Dispatch `uiSlice.setCurrentView('game')`.
+      - **On Error**:
+        - Dispatch `uiSlice.setFormError(message)`.
+      - Finally: Dispatch `uiSlice.setLoading(false)`.
 
 ### 5. What this Feature SHOULD NOT DO
 
@@ -195,10 +197,10 @@ This involves creating UI forms, interacting with the backend REST API to create
 - **State Cleanup**: If a user navigates away or an error occurs, ensure form states are managed correctly. `connectionSlice.clearConnectionDetails()` might be needed if an API call succeeds but a subsequent step fails before game start.
 - **Navigation Logic**: The transition from 'home' to 'game' view must be smooth and only occur after all necessary data (`wsUrl`, `roomCode`, `nickname`) is successfully fetched and stored.
 - **PRD Adherence**:
-    - Room code is 4 letters (PRD §3.1).
-    - Nicknames are unique per room (handled by backend 409 error).
-    - Solo mode uses reserved room code `SOLO` for joining (PRD §3.2).
-    - API responses (`RoomCreateResponse`, `RoomJoinResponse`) match `docs/api_openapi.yaml`.
+  - Room code is 4 letters (PRD §3.1).
+  - Nicknames are unique per room (handled by backend 409 error).
+  - Solo mode uses reserved room code `SOLO` for joining (PRD §3.2).
+  - API responses (`RoomCreateResponse`, `RoomJoinResponse`) match `docs/api_openapi.yaml`.
 
 ### 7. Code Style & Formatting
 
@@ -232,7 +234,6 @@ This involves creating UI forms, interacting with the backend REST API to create
 // const { setLoading, setFormError, clearFormError } = useStore(state => state.ui.actions);
 // const { setConnectionDetails } = useStore(state => state.connection.actions);
 // const { setCurrentView } = useStore(state => state.ui.actions);
-
 
 const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
   event.preventDefault();

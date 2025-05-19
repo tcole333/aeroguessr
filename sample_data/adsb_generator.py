@@ -14,7 +14,7 @@ from geopy.distance import geodesic
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HOST = os.getenv("ADSB_HOST", "localhost")
+DEFAULT_HOST = os.getenv("ADSB_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.getenv("ADSB_PORT", 30003))
 
 # --- Constants for synthetic mode --- #
@@ -134,6 +134,18 @@ class _SyntheticPlane:
         self.alt = random.uniform(8000, 12000)
 
     # Utility --------------------------------------------------------------- #
+    def _initial_bearing(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculate the initial bearing between two points (deg)."""
+
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dlon = math.radians(lon2 - lon1)
+
+        x = math.sin(dlon) * math.cos(phi2)
+        y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlon)
+        bearing_rad = math.atan2(x, y)
+        return (math.degrees(bearing_rad) + 360) % 360
+
     def _distance_to_bos(self) -> float:
         return geodesic((self.lat, self.lon), (BOS_LAT, BOS_LON)).kilometers
 
@@ -145,7 +157,7 @@ class _SyntheticPlane:
             return
 
         # Compute bearing to BOS
-        bearing = _initial_bearing(self.lat, self.lon, BOS_LAT, BOS_LON)
+        bearing = self._initial_bearing(self.lat, self.lon, BOS_LAT, BOS_LON)
         # Move toward BOS
         dest = geodesic(kilometers=_SYN_STEP_KM).destination((self.lat, self.lon), bearing)
         self.lat, self.lon = dest.latitude, dest.longitude
@@ -356,16 +368,3 @@ def _sync_main() -> None:
 
 if __name__ == "__main__":
     _sync_main()
-
-
-def _initial_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate the initial bearing between two points (deg)."""
-
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dlon = math.radians(lon2 - lon1)
-
-    x = math.sin(dlon) * math.cos(phi2)
-    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlon)
-    bearing_rad = math.atan2(x, y)
-    return (math.degrees(bearing_rad) + 360) % 360

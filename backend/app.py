@@ -8,6 +8,7 @@ from typing import AsyncGenerator, Dict
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.routes import rooms  # Import the rooms router
@@ -121,6 +122,15 @@ app = FastAPI(
     description="API for managing game rooms, players, and flight data.",
     version="0.1.0",
     lifespan=lifespan,  # Register the lifespan context manager
+)
+
+# Allow CORS (including WebSocket handshake) from frontend dev server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # allow all origins during dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register the custom exception handler
