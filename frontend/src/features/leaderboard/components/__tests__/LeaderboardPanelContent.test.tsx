@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import LeaderboardPanelContent from '../LeaderboardPanelContent';
 import { StoreContext, createRootStore } from '../../../../store/createRootStore';
 
@@ -7,6 +7,7 @@ describe('LeaderboardPanelContent', () => {
   function setup(initialScores: Record<string, number>) {
     const store = createRootStore();
     store.getState().game.applyDelta({ scores: initialScores });
+    store.getState().connection.setNickname('Bob');
     return { store, ...render(
       <StoreContext.Provider value={store}>
         <LeaderboardPanelContent />
@@ -33,5 +34,20 @@ describe('LeaderboardPanelContent', () => {
   it('shows placeholder when no players', () => {
     setup({});
     expect(screen.getByText(/no players yet/i)).toBeInTheDocument();
+  });
+
+  it('highlights current player', () => {
+    setup({ Bob: 15, Alice: 10 });
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]).toHaveClass('font-bold');
+  });
+
+  it('renders without highlight when nickname null', () => {
+    const { store } = setup({ Bob: 15 });
+    act(() => {
+      store.getState().connection.setNickname(null);
+    });
+    const item = screen.getByRole('listitem');
+    expect(item).not.toHaveClass('font-bold');
   });
 });

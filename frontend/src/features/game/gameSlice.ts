@@ -84,5 +84,9 @@ export const createGameSlice: StateCreator<
       state.game.round = null;
       state.game.roundTimeout = null;
     }),
-  leaveRoom: () => set(() => ({ ...initialState })),
+  leaveRoom: () =>
+    set((state) => {
+      Object.assign(state.game, initialState);
+      state.connection.nickname = null;
+    }),
 });

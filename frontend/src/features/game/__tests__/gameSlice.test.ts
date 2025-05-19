@@ -50,7 +50,9 @@ describe("gameSlice", () => {
     expect(store.getState().game.round).toBeNull();
     expect(store.getState().game.scores.A).toBe(100);
 
+    store.getState().connection.setNickname('Me');
     store.getState().game.leaveRoom();
     expect(store.getState().game.players).toEqual({});
+    expect(store.getState().connection.nickname).toBeNull();
   });
 });
