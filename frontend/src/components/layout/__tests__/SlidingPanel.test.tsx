@@ -28,5 +28,6 @@ describe('SlidingPanel', () => {
     await userEvent.click(toggleBtn);
     expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
     expect(container.firstChild).toHaveClass('h-16');
+    expect(container.firstChild).toHaveClass('md:w-16');
   });
 });

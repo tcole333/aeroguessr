@@ -29,7 +29,7 @@ export default function SlidingPanel(): JSX.Element {
 
   return (
     <div
-      className={`flex flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out ${isPanelOpen ? 'h-1/2 md:w-96' : 'h-16 md:w-0 md:overflow-hidden'} md:h-full`}
+      className={`flex flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out ${isPanelOpen ? 'h-1/2 md:w-96' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`}
     >
       <button
         type="button"

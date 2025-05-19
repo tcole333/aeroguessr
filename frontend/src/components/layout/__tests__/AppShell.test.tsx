@@ -14,7 +14,7 @@ describe('AppShell', () => {
     expect(getByRole('tablist')).toBeInTheDocument();
   });
 
-  it('expands map when panel closed', async () => {
+  it('keeps map flex-1 and shrinks panel on toggle', async () => {
     const { container } = render(
       <StoreProvider>
         <AppShell />
@@ -22,9 +22,11 @@ describe('AppShell', () => {
     );
     const toggle = screen.getByRole('button', { name: /minimize panel/i });
     const rootDiv = container.firstElementChild as HTMLElement;
+    const panelDiv = rootDiv.lastElementChild as HTMLElement;
     const mapDiv = rootDiv.firstElementChild as HTMLElement;
-    expect(mapDiv).toHaveClass('md:flex-1');
+    expect(mapDiv).toHaveClass('flex-1');
     await userEvent.click(toggle);
-    expect(mapDiv).toHaveClass('md:w-full');
+    expect(panelDiv).toHaveClass('md:w-16');
+    expect(mapDiv).toHaveClass('flex-1');
   });
 });
