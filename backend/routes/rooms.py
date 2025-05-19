@@ -1041,6 +1041,19 @@ async def websocket_endpoint(
 
                         # Persist the updated guesses
                         await room_service.set_round_data(redis, room_code, round_data_for_guess)
+
+                        # Re-fetch after saving to detect potential lost updates
+                        latest_round = await room_service.get_round_data(redis, room_code)
+                        if latest_round and nickname not in (latest_round.guesses or {}):
+                            # Another concurrent guess may have overwritten
+                            remerge_guesses = dict(latest_round.guesses or {})
+                            remerge_guesses[nickname] = player_guess_obj
+                            latest_round.guesses = remerge_guesses
+                            await room_service.set_round_data(redis, room_code, latest_round)
+                            round_data_for_guess = latest_round
+                        elif latest_round:
+                            round_data_for_guess = latest_round
+
                         logger.info(
                             f"Player {nickname} in room {room_code} guessed "
                             f"{guess_payload.airport_code}."
