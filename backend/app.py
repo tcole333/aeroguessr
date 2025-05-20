@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import logging.handlers  # Added import
+import os  # Added import
 import sys  # Add sys import
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Dict
@@ -14,7 +16,8 @@ from fastapi.responses import JSONResponse
 from backend.routes import rooms  # Import the rooms router
 from backend.routes.rooms import manager as connection_manager
 
-# Explicitly import endpoint for add_api_websocket_route if needed, but router usually handles this.
+# Explicitly import endpoint for add_api_websocket_route if needed,
+# but router usually handles this.
 # from backend.routes.rooms import websocket_endpoint
 from backend.services.broadcast import broadcast_plane_updates
 from backend.utils.redis_async import RedisClient
@@ -24,24 +27,74 @@ from backend.utils.redis_async import RedisClient
 # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # --- End Basic Logging Configuration Removal ---
 
-# --- Explicit Logger Configuration ---
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Set level for this specific logger
 
-# Create handler
-stream_handler = logging.StreamHandler(sys.stderr)
+# --- Custom Log Filter ---
+class DeltaFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        if '\\"type\\":\\"delta\\"' in msg:  # Check for '{"type":"delta"}'
+            return False
+        if record.name == "backend.services.broadcast" and "Delta broadcasted" in msg:
+            return False
+        # The following will filter out the noisy DEBUG messages from websockets library if needed
+        # if record.name == 'websockets.server' and record.levelno ==
+        # logging.DEBUG and ('> TEXT' in msg or '< TEXT' in msg or '> CLOSE'
+        # in msg or '< CLOSE' in msg):
+        #     return False
+        return True
 
-# Create formatter and add it to the handler
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-stream_handler.setFormatter(formatter)
 
-# Add the handler to the logger
-# Avoid adding handlers multiple times if the module is reloaded (e.g., with --reload)
-if not logger.hasHandlers():
-    logger.addHandler(stream_handler)
-# logger.propagate = False # Optional: Prevents messages from reaching root logger
+# --- Centralized Logger Configuration ---
+# Ensure 'logs' directory exists at the project root
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
 
-# --- End Explicit Logger Configuration ---
+LOG_FILE_PATH = os.path.join(LOGS_DIR, "backend.log")
+
+# Get the root logger
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)  # Set root logger level
+
+# Clear existing handlers from the root logger, if any (to avoid duplicates on reload)
+if root_logger.hasHandlers():
+    root_logger.handlers.clear()
+
+# Create console handler
+console_handler = logging.StreamHandler(sys.stderr)
+console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(console_formatter)
+root_logger.addHandler(console_handler)
+
+# Create rotating file handler
+file_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE_PATH,
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,  # 10MB per file, 5 backups
+)
+file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(file_formatter)
+
+# Add the custom filter to the file handler
+delta_filter = DeltaFilter()
+file_handler.addFilter(delta_filter)
+root_logger.addHandler(file_handler)
+
+# Configure uvicorn access logger to use our handlers too, if desired
+# uvicorn_access_logger = logging.getLogger("uvicorn.access")
+# uvicorn_access_logger.handlers = root_logger.handlers
+# uvicorn_access_logger.setLevel(logging.INFO) # Or whatever level you prefer
+# uvicorn_access_logger.propagate = False
+
+# uvicorn_error_logger = logging.getLogger("uvicorn.error")
+# uvicorn_error_logger.handlers = root_logger.handlers
+# # Send uvicorn errors to our file log as well
+# uvicorn_error_logger.propagate = False
+
+
+logger = logging.getLogger(__name__)  # For specific use in this file, will inherit root config
+
+# --- End Centralized Logger Configuration ---
 
 
 # --- Custom Exception Handler for Validation Errors --- #
@@ -65,7 +118,8 @@ async def validation_exception_handler(
 # Initialize outside lifespan for potential direct access if needed,
 # but manage connections within lifespan.
 # TODO: Review if global instances are the best approach vs. dependency injection.
-redis_client = RedisClient()  # Assumes RedisClient() handles connection setup internally or lazily
+redis_client = RedisClient()  # Assumes RedisClient() handles
+# connection setup internally or lazily
 # Use the same ConnectionManager instance used by room WebSocket endpoints to
 # ensure background broadcast tasks and routes share connection tracking.
 # This avoids issues where plane `delta` messages are prepared but not delivered

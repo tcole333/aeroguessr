@@ -3,7 +3,7 @@ import { webSocketClient } from '../../../hooks/useWebSocketManager';
 import { selectPlaneMap } from '../selectors';
 import { selectHost, selectIsSolo } from '../../game/selectors';
 import {
-  selectNickname,
+  selectPlayerNickname,
   selectConnectionStatus,
 } from '../../connection/selectors';
 
@@ -12,7 +12,7 @@ export default function PlaneListPanelContent(): JSX.Element {
   const planes = Object.values(planeMap);
   const host = useStore(selectHost);
   const isSolo = useStore(selectIsSolo);
-  const myNick = useStore(selectNickname);
+  const myNick = useStore(selectPlayerNickname);
   const status = useStore(selectConnectionStatus);
   const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
 

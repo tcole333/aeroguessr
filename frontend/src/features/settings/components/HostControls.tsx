@@ -7,14 +7,14 @@ import {
   selectSelectedPlane,
 } from '../../game/selectors';
 import {
-  selectNickname,
+  selectPlayerNickname,
   selectConnectionStatus,
 } from '../../connection/selectors';
 
 export default function HostControls(): JSX.Element | null {
   const host = useStore(selectHost);
   const isSolo = useStore(selectIsSolo);
-  const myNick = useStore(selectNickname);
+  const myNick = useStore(selectPlayerNickname);
   const status = useStore(selectConnectionStatus);
   const selected = useStore(selectSelectedPlane);
 

@@ -168,7 +168,7 @@ If the frontend uncovers missing backend features or schema mismatches:
 
 ## 12 Task Tracker
 
-> Use this checklist to track front-end MVP progress. Check a box when its sub-tasks are complete **and** merged in `main`.
+> Use this checklist to track front-end MVP progress. Check a box when its sub-tasks are complete.
 
 - [ ] **Tooling bootstrap**
   - [x] Scaffold Vite + React + TS strict (`pnpm create vite`)

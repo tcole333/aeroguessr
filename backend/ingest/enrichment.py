@@ -2,6 +2,7 @@
 
 import logging
 import os
+import random
 from typing import Optional
 
 import httpx
@@ -117,6 +118,9 @@ async def fetch_opensky_data(hex_ident: str, redis_client: RedisClient) -> Optio
 async def fetch_aeroapi_route(hex_ident: str, redis_client: RedisClient) -> Optional[RouteData]:
     """Fetches flight origin/destination from cache or FlightAware AeroAPI.
 
+    If FAKE_ADSB environment variable is set to "1", returns mock route data
+    with Boston (KBOS) as either origin or destination.
+
     Uses the ICAO24 hex identifier to look up the flight.
 
     Args:
@@ -126,6 +130,56 @@ async def fetch_aeroapi_route(hex_ident: str, redis_client: RedisClient) -> Opti
     Returns:
         A RouteData object if data is found or fetched, otherwise None.
     """
+    if os.getenv("FAKE_ADSB") == "1":
+        logger.info(f"FAKE_ADSB active. Returning mock route data for {hex_ident}.")
+        mock_airports = ["KLAX", "KJFK", "KORD", "KSFO", "KMIA", None]
+
+        is_boston_origin = random.choice([True, False])
+        other_airport = random.choice(mock_airports)
+
+        if is_boston_origin:
+            origin_icao = "KBOS"
+            destination_icao = other_airport
+        else:
+            origin_icao = other_airport
+            destination_icao = "KBOS"
+
+        # Ensure that origin and destination are not both None if one is KBOS
+        if origin_icao is None and destination_icao == "KBOS":
+            origin_icao = random.choice(
+                [ap for ap in mock_airports if ap is not None and ap != "KBOS"]
+            )
+        elif destination_icao is None and origin_icao == "KBOS":
+            destination_icao = random.choice(
+                [ap for ap in mock_airports if ap is not None and ap != "KBOS"]
+            )
+        # Ensure origin and destination are not the same if both are not None
+        elif origin_icao == destination_icao and origin_icao is not None:
+            if origin_icao == "KBOS":  # if both are KBOS, change the other one
+                destination_icao = random.choice([ap for ap in mock_airports if ap != "KBOS"])
+            else:  # if both are some other airport, change one to KBOS (should not happen with
+                # current logic but good failsafe)
+                if random.choice([True, False]):
+                    origin_icao = "KBOS"
+                else:
+                    destination_icao = "KBOS"
+
+        # Final check if both became None (e.g. other_airport was None and
+        #  it was assigned to the non-KBOS leg)
+        # This ensures at least KBOS is present.
+        if origin_icao is None and destination_icao is None:
+            if random.choice([True, False]):
+                origin_icao = "KBOS"
+            else:
+                destination_icao = "KBOS"
+
+        mock_route = RouteData(origin_icao=origin_icao, destination_icao=destination_icao)
+        logger.info(
+            f"FAKE_ADSB: Generated mock route for {hex_ident}: "
+            f"Origin: {mock_route.origin_icao}, Dest: {mock_route.destination_icao}"
+        )
+        return mock_route
+
     if not FLIGHTAWARE_API_KEY:
         logger.warning("FLIGHTAWARE_API_KEY not set. Skipping AeroAPI route lookup.")
         return None

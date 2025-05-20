@@ -2,7 +2,7 @@ import { useStore } from '../../../hooks/useStore';
 import { selectDarkMode } from '../../ui/selectors';
 import { selectHost, selectIsSolo } from '../../game/selectors';
 import HostControls from './HostControls';
-import { selectNickname } from '../../connection/selectors';
+import { selectPlayerNickname } from '../../connection/selectors';
 
 export default function SettingsPanelContent(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
@@ -11,7 +11,7 @@ export default function SettingsPanelContent(): JSX.Element {
 
   const hostNickname = useStore(selectHost);
   const isSolo = useStore(selectIsSolo);
-  const myNickname = useStore(selectNickname);
+  const myNickname = useStore(selectPlayerNickname);
 
   const handleLeave = () => {
     // eslint-disable-next-line no-console

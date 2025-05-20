@@ -34,10 +34,6 @@ PLANE_TTL_SECONDS = int(os.getenv("PLANE_TTL_SECONDS", 300))
 RECONNECT_DELAY = 5  # Seconds to wait before retrying connection
 
 # --- Logging Setup ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -91,6 +87,15 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     # Try to get existing state first using get_model utility
     existing_state: Optional[PlaneState] = await redis_client.get_model(redis_key, PlaneState)
 
+    # === BEGIN ADDED LOGGING FOR EXISTING STATE ===
+    if existing_state:
+        logger.info(
+            f"INGEST_MAIN: Loaded existing_state for {hex_ident} - Origin: "
+            f"{existing_state.origin}, Destination: {existing_state.destination}, "
+            f"Callsign: {existing_state.callsign}"
+        )
+    # === END ADDED LOGGING ===
+
     smoother = active_smoothers.get(hex_ident)
     enriched_data: Optional[EnrichedData] = None
     route_data: Optional[RouteData] = None
@@ -132,6 +137,13 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             if len(current_trail) > 30:
                 current_trail.pop(0)  # Remove the oldest point
 
+            # === BEGIN ADDED LOGGING BEFORE CARRY OVER ===
+            logger.info(
+                f"INGEST_MAIN (Carry Over): Existing state for {hex_ident} before "
+                f"constructing enrichment - Origin: {existing_state.origin}, Dest: "
+                f"{existing_state.destination}"
+            )
+            # === END ADDED LOGGING BEFORE CARRY OVER ===
             # Carry over existing enrichment data if available
             if existing_state:
                 enriched_data = EnrichedData(
@@ -152,6 +164,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             return
 
     # Prepare data for Redis, including the updated trail and enrichment data
+
     plane_data = PlaneState(
         hex_ident=hex_ident,
         lat=smoothed_state_vector[0],
