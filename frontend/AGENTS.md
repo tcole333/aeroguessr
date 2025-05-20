@@ -179,7 +179,7 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [x] Implement `WebSocketClient` with reconnect & heartbeat
   - [x] Create Zustand root store with empty slices
   - [x] Unit tests for reconnect & message validation
-- [ ] **State slices**
+- [x] **State slices**
   - [x] `connection` slice
   - [x] `planes` slice
   - [x] `game` slice
@@ -193,21 +193,21 @@ If the frontend uncovers missing backend features or schema mismatches:
   - [x] Responsive docking behaviour
 - [ ] **Map & plane rendering**
   - [x] Integrate React-Leaflet map centred on Boston
-  - [ ] Plane markers + fading trails
+  - [x] Plane markers + fading trails
   - [ ] Performance benchmark ≤300 ms update
 - [ ] **Panel tabs UI**
-  - [ ] Planes list panel
+  - [x] Planes list panel
   - [ ] Leaderboard with confetti
   - [ ] Settings panel with basic host controls
 - [ ] **Home Page & Game Join/Create Flow**
-  - [ ] Design Home Page UI (Start Solo, Create Room, Join Room options)
-  - [ ] Implement "Create Room" screen (collect nickname, mode, timeout -> POST /api/v0/rooms)
-  - [ ] Implement "Join Room" screen (collect room code, nickname -> POST /api/v0/rooms/{code}/join)
+  - [x] Design Home Page UI (Start Solo, Create Room, Join Room options)
+  - [x] Implement "Create Room" screen (collect nickname, mode, timeout -> POST /api/v0/rooms)
+  - [x] Implement "Join Room" screen (collect room code, nickname -> POST /api/v0/rooms/{code}/join)
   - [ ] Implement "Start Solo" (POST /api/v0/rooms with 'solo' user, or dedicated endpoint)
   - [ ] Handle navigation to game view (`AppShell`) after successful join/create.
 - [ ] **Game flow handling (WebSocket based)**
-  - [ ] Handle all WS inbound message types (stateSync, delta, roundStart, etc.)
-  - [ ] Update Zustand stores based on WS messages
+  - [x] Handle all WS inbound message types (stateSync, delta, roundStart, etc.)
+  - [x] Update Zustand stores based on WS messages
   - [ ] Implement Guess form & submission (send `guess` WS message)
   - [ ] Implement Host controls (send `selectPlane`, `startRound`, `skipRound` WS messages)
 - [ ] **Accessibility pass** (WCAG 2.1 AA)
