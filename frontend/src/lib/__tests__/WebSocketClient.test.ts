@@ -4,6 +4,7 @@ import { InboundMessage } from '../../../types/ws';
 
 class MockSocket {
   static OPEN = 1;
+  static CLOSED = 3;
   readyState = 0;
   onopen: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
@@ -12,10 +13,11 @@ class MockSocket {
   sent: string[] = [];
   constructor(public url: string) {}
   send(data: string) { this.sent.push(data); }
-  close() { this.readyState = MockSocket.OPEN; }
+  close() { this.readyState = MockSocket.CLOSED; }
   triggerOpen() { this.readyState = MockSocket.OPEN; this.onopen?.(); }
   triggerMessage(data: any) { this.onmessage?.({ data: JSON.stringify(data) }); }
   triggerClose(code = 1000, reason = 'normal') {
+    this.readyState = MockSocket.CLOSED;
     this.onclose?.({ code, reason } as any);
   }
   addEventListener(event: string, cb: any) {
@@ -50,6 +52,7 @@ beforeEach(() => {
     return s;
   });
   stub.OPEN = 1;
+  stub.CLOSED = 3;
   vi.stubGlobal('WebSocket', stub);
   vi.useFakeTimers();
   vi.spyOn(Math, "random").mockReturnValue(0);
@@ -92,9 +95,21 @@ describe('WebSocketClient', () => {
     client.connect('A', 'B');
     const socket = sockets[0];
     socket.triggerOpen();
-    socket.triggerMessage({ type: 'pong' });
+
+    // Send a valid message that should be emitted (e.g., an error message)
+    const validEmittedMessage = {
+      type: 'error' as const,
+      payload: { code: 'UNKNOWN_ERROR' as const, message: 'test error' }
+    };
+    socket.triggerMessage(validEmittedMessage);
+
+    // Send an invalid message
     socket.triggerMessage({ foo: 'bar' });
+
     expect(msgs.length).toBe(1);
-    expect(msgs[0].type).toBe('pong');
+    expect(msgs[0].type).toBe('error');
+    if (msgs[0].type === 'error') {
+      expect(msgs[0].payload?.message).toBe('test error');
+    }
   });
 });

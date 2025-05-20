@@ -35,7 +35,7 @@ class Emitter {
 }
 
 export interface WebSocketClient {
-  connect(roomCode: string, nickname: string): void;
+  connect(roomCode: string, nickname: string, overrideUrl?: string): void;
   send<T extends OutboundMessage>(msg: T): void;
   subscribe(cb: (msg: InboundMessage) => void): () => void;
   on<K extends Exclude<keyof Events, 'message'>>(event: K, cb: Listener<K>): () => void;
@@ -56,6 +56,7 @@ export function createWebSocketClient(
   let missedPongs = 0;
   let reconnectDelay = 500;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastUrl = '';
   const queue: OutboundMessage[] = [];
   let currentRoom = '';
   let currentNick = '';
@@ -74,7 +75,7 @@ export function createWebSocketClient(
   function scheduleReconnect() {
     clearTimers();
     reconnectTimer = setTimeout(() => {
-      connect(currentRoom, currentNick);
+      connect(currentRoom, currentNick, lastUrl);
       reconnectDelay = Math.min(reconnectDelay * 2, 4000);
     }, reconnectDelay + Math.floor(Math.random() * 200));
   }
@@ -85,7 +86,17 @@ export function createWebSocketClient(
       if (msg) {
         if (msg.type === 'pong') {
           missedPongs = 0;
+          emitter.emit('message', msg);
+          return;
         }
+
+        // Echo back pong when server sends a ping with seq
+        if ((msg as any).type === 'ping') {
+          const seq = (msg as any).payload?.seq ?? Date.now();
+          send({ type: 'pong', payload: { seq } } as any);
+          return;
+        }
+
         emitter.emit('message', msg);
       }
     } catch (err) {
@@ -93,14 +104,25 @@ export function createWebSocketClient(
     }
   }
 
-  function connect(room: string, nick: string) {
+  function connect(room: string, nick: string, overrideUrl?: string) {
     currentRoom = room;
     currentNick = nick;
+
+    // Allow callers to pass a fully-qualified WebSocket URL returned by the backend. If provided
+    // it takes precedence over the constructed URL.
+    const url = overrideUrl ?? baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nick}`;
+
+    // If we are already connected (or connecting) to this exact URL, skip.
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) && url === lastUrl) {
+      return;
+    }
     if (socket) {
       socket.close();
     }
     missedPongs = 0;
-    const url = baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nick}`;
+
+    lastUrl = url;
+
     console.log(`[WS] Connecting to URL: ${url}`);
     socket = new WebSocket(url);
     socket.addEventListener('open', () => {
@@ -126,7 +148,8 @@ export function createWebSocketClient(
         scheduleReconnect();
         return;
       }
-      send({ type: 'ping' } as Ping);
+      // Attach a sequence for backend validation
+      send({ type: 'ping', payload: { seq: Date.now() } } as any);
     }, 10000);
   }
 

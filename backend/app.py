@@ -116,6 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Application shutdown complete.")
 
 
+logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 # --- FastAPI App Initialization --- #
 app = FastAPI(
     title="Plane Guessing Game API",

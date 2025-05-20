@@ -36,13 +36,16 @@ function handleInbound(
       actions.hydrate(msg.payload);
       break;
     case 'delta':
-      if (msg.payload.planes?.updated) {
-        actions.upsertPlanes(msg.payload.planes.updated);
+      if (msg.payload) {
+        const { planes } = msg.payload as any;
+        if (planes?.updated) {
+          actions.upsertPlanes(planes.updated);
+        }
+        if (planes?.removed) {
+          actions.removePlanes(planes.removed);
+        }
+        actions.applyDelta(msg.payload);
       }
-      if (msg.payload.planes?.removed) {
-        actions.removePlanes(msg.payload.planes.removed);
-      }
-      actions.applyDelta(msg.payload);
       break;
     case 'roundStart':
       actions.setRoundStart(msg.payload);
@@ -70,6 +73,7 @@ export function useWebSocketManager(
   const setRoundResult = useStore((s) => s.game.setRoundResult);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
+  const wsUrl = useStore((s) => s.connection.wsUrl);
 
   useEffect(() => {
     const actions = {
@@ -112,9 +116,9 @@ export function useWebSocketManager(
   useEffect(() => {
     if (roomCode && nickname) {
       setStatus('connecting');
-      client.connect(roomCode, nickname);
+      client.connect(roomCode, nickname, wsUrl ?? undefined);
     }
-  }, [roomCode, nickname, setStatus]);
+  }, [roomCode, nickname, wsUrl, setStatus]);
 }
 
 export { client as webSocketClient };

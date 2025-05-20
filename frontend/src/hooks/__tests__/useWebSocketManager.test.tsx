@@ -1,11 +1,12 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StoreContext, createRootStore } from '../../store/createRootStore';
-import { useWebSocketManager } from '../useWebSocketManager';
+import { useWebSocketManager, webSocketClient as client } from '../useWebSocketManager';
 
 class MockSocket {
   static OPEN = 1;
+  static CLOSED = 3;
   readyState = 0;
   onopen: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
@@ -14,10 +15,13 @@ class MockSocket {
   sent: string[] = [];
   constructor(public url: string) {}
   send(data: string) { this.sent.push(data); }
-  close() { this.readyState = MockSocket.OPEN; }
+  close() { this.readyState = MockSocket.CLOSED; }
   triggerOpen() { this.readyState = MockSocket.OPEN; this.onopen?.(); }
   triggerMessage(data: any) { this.onmessage?.({ data: JSON.stringify(data) }); }
-  triggerClose() { this.onclose?.(); }
+  triggerClose(code = 1000, reason = 'normal') {
+    this.readyState = MockSocket.CLOSED;
+    this.onclose?.({ code, reason } as any);
+  }
   addEventListener(event: string, cb: any) {
     switch (event) {
       case 'open':
@@ -50,11 +54,16 @@ beforeEach(() => {
     return s;
   });
   stub.OPEN = 1;
+  stub.CLOSED = 3;
   vi.stubGlobal('WebSocket', stub);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Destroy the singleton client after each test to reset its internal state
+  if (client && typeof client.destroy === 'function') {
+    client.destroy();
+  }
 });
 
 describe('useWebSocketManager', () => {
@@ -82,12 +91,17 @@ describe('useWebSocketManager', () => {
     expect(store.getState().connection.lastHeartbeat).not.toBeNull();
   });
 
-  it('processes game messages', () => {
+  it('processes game messages', async () => {
     function Test() {
       useWebSocketManager('ROOM', 'Nick');
       return null;
     }
     render(<Test />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(sockets.length).toBeGreaterThan(0);
+    });
+
     const socket = sockets[0];
     const store = wrapperStore;
     socket.triggerOpen();

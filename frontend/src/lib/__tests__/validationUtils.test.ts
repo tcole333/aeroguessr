@@ -25,7 +25,7 @@ describe('assertWsMessage', () => {
 
   it('returns null for unknown type', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(assertWsMessage(validPing)).toBeNull();
+    expect(assertWsMessage(validPing)).toEqual({ type: 'ping', payload: { seq: 1 } });
     expect(assertWsMessage(JSON.stringify({ type: 'nope', payload: {} }))).toBeNull();
   });
 });
