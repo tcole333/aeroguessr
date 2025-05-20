@@ -10,9 +10,15 @@ import type {
 describe("gameSlice", () => {
   it("hydrates and applies delta", () => {
     const store = createRootStore();
-    const sync: FullRoomState = { room_meta: null, players: { A: {} } };
+    const sync: FullRoomState = {
+      room_meta: { host_nickname: 'Host', is_solo: false, code: 'ABCD' },
+      players: { A: { score: 5 } },
+    };
     store.getState().game.hydrate(sync);
-    expect(store.getState().game.players).toEqual({ A: {} });
+    expect(store.getState().game.players).toEqual({ A: { score: 5 } });
+    expect(store.getState().game.hostNickname).toBe('Host');
+    expect(store.getState().game.isSolo).toBe(false);
+    expect(store.getState().game.roomCode).toBe('ABCD');
 
     const delta: DeltaPayload = {
       scores: { A: 10 },
@@ -49,6 +55,9 @@ describe("gameSlice", () => {
     store.getState().game.setRoundResult(result);
     expect(store.getState().game.round).toBeNull();
     expect(store.getState().game.scores.A).toBe(100);
+
+    store.getState().game.setHostNickname('NewHost');
+    expect(store.getState().game.hostNickname).toBe('NewHost');
 
     store.getState().game.setSelectedPlane('abc');
     expect(store.getState().game.selectedPlaneHex).toBe('abc');
