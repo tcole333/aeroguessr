@@ -60,3 +60,16 @@ The frontend communicates with the backend through a `WebSocketClient` located a
 ## Base Layout
 
 The application is orchestrated by `AppShell`, which renders a full-screen Leaflet map via `MapView` and a responsive `SlidingPanel`. The panel docks to the left on wider screens (≥600&nbsp;px) and slides up from the bottom on mobile. Tab navigation within the panel toggles between placeholder views for "Planes", "Leaderboard" and "Settings". These components live under `src/components/layout/` and `src/features/*/components/`.
+
+## Map Performance Benchmark
+
+A Vitest benchmark ensures map updates stay within the 300 ms budget defined in the PRD. It lives in
+`src/features/map/__tests__/MapPerformance.test.tsx` and runs automatically in CI. To run it locally:
+
+```bash
+# from repo root
+npx ts-node scripts/run-map-bench.ts
+```
+
+The benchmark mounts `MapView` with many fake planes and logs the average render time. It is skipped
+when the `CI` environment variable is unset.
