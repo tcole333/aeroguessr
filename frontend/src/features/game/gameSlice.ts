@@ -21,10 +21,12 @@ export interface GameSlice {
   isSolo: boolean;
   round: RoundInfo | null;
   roundTimeout: number | null;
+  selectedPlaneHex: string | null;
   hydrate: (state: FullRoomState) => void;
   applyDelta: (delta: DeltaPayload) => void;
   setRoundStart: (payload: RoundStartPayload) => void;
   setRoundResult: (payload: RoundResultPayload) => void;
+  setSelectedPlane: (hex: string | null) => void;
   leaveRoom: () => void;
 }
 
@@ -39,6 +41,7 @@ const initialState: Omit<
   isSolo: false,
   round: null,
   roundTimeout: null,
+  selectedPlaneHex: null,
 };
 
 export const createGameSlice: StateCreator<
@@ -72,6 +75,7 @@ export const createGameSlice: StateCreator<
         direction: payload.direction,
       };
       state.game.roundTimeout = payload.timeout_s;
+      state.game.selectedPlaneHex = null;
     }),
   setRoundResult: (payload) =>
     set((state) => {
@@ -83,6 +87,10 @@ export const createGameSlice: StateCreator<
       }
       state.game.round = null;
       state.game.roundTimeout = null;
+    }),
+  setSelectedPlane: (hex) =>
+    set((state) => {
+      state.game.selectedPlaneHex = hex;
     }),
   leaveRoom: () =>
     set((state) => {
