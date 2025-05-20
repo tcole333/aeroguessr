@@ -4,6 +4,7 @@ import { useStore } from '../../hooks/useStore';
 import { selectDarkMode } from '../../features/ui/selectors';
 import { useWebSocketManager } from '../../hooks/useWebSocketManager';
 import { selectRoomCode, selectPlayerNickname } from '../../features/connection/selectors';
+import GuessForm from '../../features/game/components/GuessForm';
 
 export default function AppShell(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
@@ -21,6 +22,7 @@ export default function AppShell(): JSX.Element {
       </div>
       {/* Panel container: takes bottom half on mobile, fixed width on desktop */}
       <SlidingPanel />
+      <GuessForm />
     </div>
   );
 }
