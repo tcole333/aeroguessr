@@ -1,18 +1,35 @@
 import { useStore } from '../../../hooks/useStore';
+import { webSocketClient } from '../../../hooks/useWebSocketManager';
 import { selectPlaneMap } from '../selectors';
+import { selectHost, selectIsSolo } from '../../game/selectors';
+import {
+  selectNickname,
+  selectConnectionStatus,
+} from '../../connection/selectors';
 
 export default function PlaneListPanelContent(): JSX.Element {
   const planeMap = useStore(selectPlaneMap);
   const planes = Object.values(planeMap);
+  const host = useStore(selectHost);
+  const isSolo = useStore(selectIsSolo);
+  const myNick = useStore(selectNickname);
+  const status = useStore(selectConnectionStatus);
+  const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
 
   if (planes.length === 0) {
     return <p>Scanning for nearby flights…</p>;
   }
 
   const handleClick = (hex: string) => {
-    // Placeholder for future map interaction
-    // eslint-disable-next-line no-console
-    console.log('Plane selected', hex);
+    const isHost = !isSolo && host && myNick === host;
+    if (!isHost || status !== 'connected') return;
+    setSelectedPlane(hex);
+    try {
+      webSocketClient.send({ type: 'selectPlane', payload: { hex } });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
   };
 
   return (

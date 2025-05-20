@@ -1,6 +1,7 @@
 import { useStore } from '../../../hooks/useStore';
 import { selectDarkMode } from '../../ui/selectors';
 import { selectHost, selectIsSolo } from '../../game/selectors';
+import HostControls from './HostControls';
 import { selectNickname } from '../../connection/selectors';
 
 export default function SettingsPanelContent(): JSX.Element {
@@ -52,7 +53,7 @@ export default function SettingsPanelContent(): JSX.Element {
       {isHost && (
         <div className="pt-2">
           <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">Host Controls</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Coming soon…</p>
+          <HostControls />
         </div>
       )}
     </div>

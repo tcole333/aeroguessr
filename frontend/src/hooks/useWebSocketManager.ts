@@ -13,6 +13,7 @@ interface SliceActions {
   applyDelta: (delta: any) => void;
   setRoundStart: (p: any) => void;
   setRoundResult: (p: any) => void;
+  setSelectedPlane: (hex: string | null) => void;
   upsertPlanes: (p: any[]) => void;
   removePlanes: (ids: string[]) => void;
 }
@@ -49,9 +50,13 @@ function handleInbound(
       break;
     case 'roundStart':
       actions.setRoundStart(msg.payload);
+      actions.setSelectedPlane(null);
       break;
     case 'roundResult':
       actions.setRoundResult(msg.payload);
+      break;
+    case 'planeSelectedConfirm':
+      actions.setSelectedPlane(null);
       break;
     default:
       // no-op for unhandled types
@@ -71,19 +76,21 @@ export function useWebSocketManager(
   const applyDelta = useStore((s) => s.game.applyDelta);
   const setRoundStart = useStore((s) => s.game.setRoundStart);
   const setRoundResult = useStore((s) => s.game.setRoundResult);
+  const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
   const wsUrl = useStore((s) => s.connection.wsUrl);
 
   useEffect(() => {
-    const actions = {
-      hydrate,
-      applyDelta,
-      setRoundStart,
-      setRoundResult,
-      upsertPlanes,
-      removePlanes,
-    };
+  const actions = {
+    hydrate,
+    applyDelta,
+    setRoundStart,
+    setRoundResult,
+    setSelectedPlane,
+    upsertPlanes,
+    removePlanes,
+  };
     const offMsg = client.subscribe((m) =>
       handleInbound(m, updateLatency, setLastHeartbeat, actions),
     );
@@ -109,6 +116,7 @@ export function useWebSocketManager(
     applyDelta,
     setRoundStart,
     setRoundResult,
+    setSelectedPlane,
     upsertPlanes,
     removePlanes,
   ]);

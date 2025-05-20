@@ -50,6 +50,9 @@ describe("gameSlice", () => {
     expect(store.getState().game.round).toBeNull();
     expect(store.getState().game.scores.A).toBe(100);
 
+    store.getState().game.setSelectedPlane('abc');
+    expect(store.getState().game.selectedPlaneHex).toBe('abc');
+
     store.getState().connection.setNickname('Me');
     store.getState().game.leaveRoom();
     expect(store.getState().game.players).toEqual({});
