@@ -14,6 +14,7 @@ interface SliceActions {
   setRoundStart: (p: any) => void;
   setRoundResult: (p: any) => void;
   setSelectedPlane: (hex: string | null) => void;
+  setHostNickname: (nick: string | null) => void;
   upsertPlanes: (p: any[]) => void;
   removePlanes: (ids: string[]) => void;
 }
@@ -55,6 +56,9 @@ function handleInbound(
     case 'roundResult':
       actions.setRoundResult(msg.payload);
       break;
+    case 'newHost':
+      actions.setHostNickname(msg.payload.nickname);
+      break;
     case 'planeSelectedConfirm':
       actions.setSelectedPlane(null);
       break;
@@ -77,6 +81,7 @@ export function useWebSocketManager(
   const setRoundStart = useStore((s) => s.game.setRoundStart);
   const setRoundResult = useStore((s) => s.game.setRoundResult);
   const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
+  const setHostNickname = useStore((s) => s.game.setHostNickname);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
   const wsUrl = useStore((s) => s.connection.wsUrl);
@@ -88,6 +93,7 @@ export function useWebSocketManager(
     setRoundStart,
     setRoundResult,
     setSelectedPlane,
+    setHostNickname,
     upsertPlanes,
     removePlanes,
   };
@@ -117,6 +123,7 @@ export function useWebSocketManager(
     setRoundStart,
     setRoundResult,
     setSelectedPlane,
+    setHostNickname,
     upsertPlanes,
     removePlanes,
   ]);

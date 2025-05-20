@@ -27,12 +27,13 @@ export interface GameSlice {
   setRoundStart: (payload: RoundStartPayload) => void;
   setRoundResult: (payload: RoundResultPayload) => void;
   setSelectedPlane: (hex: string | null) => void;
+  setHostNickname: (nick: string | null) => void;
   leaveRoom: () => void;
 }
 
 const initialState: Omit<
   GameSlice,
-  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "leaveRoom"
+  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setHostNickname" | "leaveRoom"
 > = {
   roomCode: null,
   players: {},
@@ -54,6 +55,20 @@ export const createGameSlice: StateCreator<
   hydrate: (stateSync) =>
     set((state) => {
       state.game.players = stateSync.players;
+      state.game.scores = {};
+      Object.entries(stateSync.players).forEach(([nick, data]) => {
+        if (typeof data === 'object' && data && 'score' in data) {
+          state.game.scores[nick] = (data as any).score as number;
+        }
+      });
+      if (stateSync.room_meta) {
+        state.game.roomCode = (stateSync.room_meta.code as string) || null;
+        state.game.hostNickname =
+          (stateSync.room_meta.host_nickname as string) || null;
+        state.game.isSolo = Boolean(stateSync.room_meta.is_solo);
+        state.game.roundTimeout =
+          (stateSync.room_meta.round_timeout_seconds as number) || null;
+      }
     }),
   applyDelta: (delta) =>
     set((state) => {
@@ -91,6 +106,10 @@ export const createGameSlice: StateCreator<
   setSelectedPlane: (hex) =>
     set((state) => {
       state.game.selectedPlaneHex = hex;
+    }),
+  setHostNickname: (nick) =>
+    set((state) => {
+      state.game.hostNickname = nick;
     }),
   leaveRoom: () =>
     set((state) => {

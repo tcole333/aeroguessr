@@ -36,9 +36,22 @@ export interface DeltaPayload {
   round?: RoundDelta | null;
 }
 
+export interface RoomMeta {
+  host_nickname?: string;
+  is_solo?: boolean;
+  code?: string;
+  round_timeout_seconds?: number;
+  [k: string]: unknown;
+}
+
+export interface PlayerState {
+  score?: number;
+  [k: string]: unknown;
+}
+
 export interface FullRoomState {
-  room_meta: Record<string, unknown> | null;
-  players: Record<string, unknown>;
+  room_meta: RoomMeta | null;
+  players: Record<string, PlayerState>;
 }
 
 export interface RoundStartPayload {
