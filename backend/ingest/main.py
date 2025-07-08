@@ -76,7 +76,6 @@ last_timestamps: Dict[str, float] = {}
 async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     """Process a parsed RawMessage: enrich, update smoother, store in Redis."""
     if not msg.latitude or not msg.longitude or not msg.altitude:
-        # logger.debug(f"Skipping message for {msg.hex_ident}: Missing position data.")
         return  # Skip messages without position
 
     hex_ident = msg.hex_ident
@@ -181,6 +180,19 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         origin=route_data.origin_icao if route_data else None,
         destination=route_data.destination_icao if route_data else None,
     )
+
+    # === BEGIN RE-ADDED LOGGING ===
+    if existing_state is None:  # This implies it's a new plane
+        logger.info(
+            f"INGEST_MAIN: Storing NEW PlaneState to Redis for {hex_ident}: "
+            f"{plane_data.model_dump_json(indent=2)}"
+        )
+    else:  # This is for an existing plane update
+        logger.debug(
+            f"INGEST_MAIN: Storing UPDATED PlaneState to Redis for {hex_ident}: "
+            f"{plane_data.model_dump_json(indent=2)}"
+        )
+    # === END RE-ADDED LOGGING ===
 
     # Store in Redis
     try:

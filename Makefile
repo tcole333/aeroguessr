@@ -29,20 +29,20 @@ backend:
 # Target to start all services in development mode
 dev:
 	@echo "--- Starting all services in development mode ---"
-	@docker compose up redis -d
+	@docker compose -f infra/docker-compose.yml up redis -d
 	@make backend & make frontend
 
 # Target to start all services using Docker Compose
 start:
 	@echo "--- Starting all services ---"
-	@docker compose up --build -d
+	@docker compose -f infra/docker-compose.yml up --build -d
 	@echo "Frontend available at http://localhost"
 	@echo "Backend API docs at http://localhost:8000/docs"
 
 # Target to stop all services
 stop:
 	@echo "--- Stopping all services ---"
-	@docker compose down
+	@docker compose -f infra/docker-compose.yml down
 
 # Target to generate OpenAPI specification
 openapi:

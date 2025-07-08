@@ -968,6 +968,25 @@ async def websocket_endpoint(
                                 ErrorCode.INTERNAL_SERVER_ERROR, "Error processing ping."
                             )
 
+                    elif ws_msg.type == WSMessageType.PONG:
+                        try:
+                            pong_payload = PingPongPayload.model_validate(ws_msg.payload)
+                            logger.debug(f"Received PONG from {nickname} seq={pong_payload.seq}")
+                            # Record pong received in ConnectionManager
+                            conn_manager.record_pong(room_code, nickname)
+                        except ValidationError as e:
+                            logger.warning(f"Invalid PONG payload from {nickname}: {e}")
+                            await _send_error(
+                                ErrorCode.INVALID_PAYLOAD, f"Invalid PONG payload: {e}"
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Error processing PONG from {nickname}: {e}", exc_info=True
+                            )
+                            await _send_error(
+                                ErrorCode.INTERNAL_SERVER_ERROR, "Error processing pong."
+                            )
+
                     elif ws_msg.type == WSMessageType.GUESS:
                         # Permission: Any connected player can guess
                         try:
