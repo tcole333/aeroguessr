@@ -34,12 +34,6 @@ export default function PlaneListPanelContent(): JSX.Element {
           const isExpanded = expandedPlane === plane.hex_ident;
           const isUsed = usedPlanes.has(plane.hex_ident);
 
-          // Debug logging for the active round plane
-          if (round?.hex === plane.hex_ident) {
-            console.log(`[PlaneList:${plane.hex_ident}] isExpanded:`, isExpanded, 'expandedPlane:', expandedPlane);
-            console.log(`[PlaneList:${plane.hex_ident}] isRoundActive:`, isRoundActive);
-          }
-
           return (
             <li key={plane.hex_ident} className="border-b border-gray-700 last:border-none">
               <button

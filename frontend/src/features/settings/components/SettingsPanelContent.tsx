@@ -2,15 +2,29 @@ import { useStore } from '../../../hooks/useStore';
 import { selectDarkMode } from '../../ui/selectors';
 import { selectIsSolo } from '../../game/selectors';
 import { selectPlayerNickname } from '../../connection/selectors';
+import { webSocketClient } from '../../../hooks/useWebSocketManager';
 
 export default function SettingsPanelContent(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
   const toggleDarkMode = useStore((s) => s.ui.toggleDarkMode);
   const isSolo = useStore(selectIsSolo);
+  const leaveRoom = useStore((s) => s.game.leaveRoom);
+  const clearConnectionDetails = useStore((s) => s.connection.clearConnectionDetails);
+  const setCurrentView = useStore((s) => s.ui.setCurrentView);
 
   const handleLeave = () => {
-    // eslint-disable-next-line no-console
-    console.log(isSolo ? 'Leaving solo mode' : 'Attempting to leave room');
+    // Send leave message to server
+    webSocketClient.send({ type: 'leave', payload: {} });
+
+    // Clear game and connection state
+    leaveRoom();
+    clearConnectionDetails();
+
+    // Return to home view
+    setCurrentView('home');
+
+    // Clean up WebSocket connection
+    webSocketClient.destroy();
   };
 
   return (

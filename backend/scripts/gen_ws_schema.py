@@ -37,6 +37,7 @@ MESSAGE_PAYLOAD_MAP: Dict[str, Type[BaseModel]] = {
     "skipRound": getattr(ws_module, "SkipRoundPayload", None),
     "transferHost": ws_module.TransferHostPayload,
     "claimHost": ws_module.ClaimHostPayload,
+    "leave": ws_module.LeavePayload,
     "planeSelectedConfirm": getattr(ws_module, "PlaneSelectedConfirmPayload", None),
 }
 

@@ -4,12 +4,12 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 
 ## 🎯 Current Work
 
-**Last Updated:** [Claude will update this]
+**Last Updated:** 2025-07-09
 
 ### Active Development
-- **Current Branch:** [branch name]
-- **Current Issue:** #[number] - [description]
-- **Status:** [e.g., "implementing websocket handler", "writing tests"]
+- **Current Branch:** feature/32-fix-leave-room-button
+- **Current Issue:** #32 - Bug: Leave room button functionality not working
+- **Status:** Completed - Fixed leave room functionality, updated schemas, resolved console errors
 
 ### Check for New Work
 ```bash
@@ -121,26 +121,33 @@ make ws-schema
 
 ## 🤝 Session Handoff
 
-**Session Date:** [date]
+**Session Date:** 2025-07-09
 
 ### Work Completed
-- [x] Completed task
-- [ ] Partially complete task
+- [x] Fixed leave room button functionality (Issue #32)
+- [x] Added missing WebSocket schema documentation for leave messages
+- [x] Implemented complete frontend leave room flow with state cleanup
+- [x] Fixed bidirectional ping/pong message type generation
+- [x] Added comprehensive tests for leave room functionality
+- [x] Resolved console validation errors for ping messages
 
 ### Current State
-- **Branch:** [branch name]
-- **Uncommitted changes:** [yes/no - describe if yes]
-- **Tests passing:** [yes/no - which failing if no]
-- **Blockers:** [any blocking issues]
+- **Branch:** feature/32-fix-leave-room-button (merged/ready to merge)
+- **Uncommitted changes:** No - all changes committed and pushed
+- **Tests passing:** Yes - Frontend (2/2), Backend (98/98), Integration tests exist
+- **Blockers:** None
 
 ### Next Session Should
-1. [Specific next action]
-2. [Another action]
+1. Review and merge PR #47 if CI passes
+2. Pick up next highest priority issue from GitHub issues
+3. Consider fixing the pre-commit hook poetry path issue if needed
 
 ### Notes/Warnings
-- [Any gotchas or important context]
+- Pre-commit hook has poetry path issue in hook environment - may need `poetry` path fix in `.pre-commit-config.yaml`
+- Leave room functionality now works correctly and includes proper host transfer logic
+- Console validation errors for ping messages are resolved with bidirectional type generation
 
-## 🛠 Helper Scripts (To Be Created)
+## 🛠 Helper Scripts
 
 ### `scripts/new-feature.sh`
 Creates branch from issue number, pulls issue title for branch name

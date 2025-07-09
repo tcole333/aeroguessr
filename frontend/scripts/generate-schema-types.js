@@ -90,9 +90,11 @@ async function generateWs() {
     "playerLeft",
     "newHost",
     "error",
-    "pong",
     "planeSelectedConfirm",
   ]);
+
+  // Note: ping and pong are bidirectional - both client and server send them
+  const bidirectional = new Set(["ping", "pong"]);
 
   const inboundSchemas = [];
   const outboundSchemas = [];
@@ -105,7 +107,16 @@ async function generateWs() {
     );
     const typeName = `${msgType[0].toUpperCase()}${msgType.slice(1)}`;
     parts.push(`export type ${typeName} = z.infer<typeof ${name}>;`);
-    (inbound.has(msgType) ? inboundSchemas : outboundSchemas).push(name);
+
+    // Handle bidirectional messages
+    if (bidirectional.has(msgType)) {
+      inboundSchemas.push(name);
+      outboundSchemas.push(name);
+    } else if (inbound.has(msgType)) {
+      inboundSchemas.push(name);
+    } else {
+      outboundSchemas.push(name);
+    }
   });
 
   parts.push(

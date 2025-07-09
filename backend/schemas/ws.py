@@ -266,6 +266,13 @@ class ClaimHostPayload(BaseModel):
     pass
 
 
+class LeavePayload(BaseModel):
+    """Payload for the player leave message (currently empty)."""
+
+    # No payload needed currently, server identifies sender via connection
+    pass
+
+
 class PlaneSelectedConfirmPayload(BaseModel):
     """Payload sent to host confirming successful plane selection."""
 
