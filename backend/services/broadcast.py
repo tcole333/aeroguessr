@@ -10,6 +10,7 @@ from backend.ingest.main import PlaneState  # Assuming PlaneState is defined her
 
 # Import the specific payload schema and WSMessage wrapper
 from backend.schemas.ws import WSMessage
+from backend.services.plane_filter import PlaneFilter
 from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
@@ -85,6 +86,7 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
     """
     logger.info("Starting plane update broadcast task...")
     last_state: Dict[str, PlaneState] = {}
+    plane_filter = PlaneFilter(redis_client)
 
     while True:
         try:
@@ -93,6 +95,15 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             # --- Task 42: Fetch Current Plane States ---
             # Use safe paging helper (avoids redis-py scan_iter bug)
             current_state_map = await _get_current_plane_state_map(redis_client)
+
+            # --- NEW: Filter stale planes based on range and signal quality ---
+            stale_planes = await plane_filter.filter_stale_planes(current_state_map)
+            if stale_planes:
+                logger.info(f"Filtering {len(stale_planes)} stale planes: {stale_planes}")
+                await plane_filter.remove_planes_from_redis(stale_planes)
+                # Remove stale planes from current state map
+                for hex_id in stale_planes:
+                    current_state_map.pop(hex_id, None)
 
             # --- Task 43: Calculate Delta --- #
             updated_planes: List[PlaneState] = []
@@ -110,6 +121,9 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             removed_plane_hexes = [
                 hex_ident for hex_ident in last_state if hex_ident not in current_state_map
             ]
+
+            # Add stale planes to the removal list for broadcasting
+            removed_plane_hexes.extend(stale_planes)
 
             delta = PlaneDeltaUpdate(updated=updated_planes, removed=removed_plane_hexes)
 

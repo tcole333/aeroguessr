@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-09
 
 ### Active Development
-- **Current Branch:** main (no active feature branch)
-- **Current Issue:** None - ready for new work
-- **Status:** All previous work completed and merged
+- **Current Branch:** feature/58-fix-stale-flights
+- **Current Issue:** #58 - Bug: Stale flights remain visible in Planes panel
+- **Status:** Fixed and ready for review (PR #63)
 
 ### Check for New Work
 ```bash
@@ -225,19 +225,25 @@ make ws-schema
 - [x] Standardized nick/nickname usage across frontend codebase (Issue #31, PR #50)
 - [x] Implemented browser refresh rejoin functionality (Issue #38, PR #51)
 - [x] Implemented comprehensive logging system (Issues #35, #36, PR #59)
+- [x] Fixed auto-rejoin after intentional leave room action (Issue #52, PR #60)
+- [x] Fixed critical Redis WRONGTYPE error preventing plane movement (Issue #58, PR #63)
+- [x] Implemented intelligent range-based plane filtering (Issue #58, PR #63)
 
 ### Current State
-- **Branch:** feature/logging-improvements (PR #59 ready for review)
-- **Uncommitted changes:** No - all changes committed and pushed
-- **Tests passing:** Yes - Frontend (59/59), Backend (98/98), Integration tests exist
-- **Blockers:** None
+- **Branch:** feature/58-fix-stale-flights (PR #63 ready for review)
+- **Uncommitted changes:** No - all changes committed to feature branch
+- **Tests passing:** Yes - Frontend (59/59), Backend (113/113), Integration tests exist
+- **Blockers:** None - awaiting PR review and merge
 
 ### Next Session Should
-1. Review and merge PR #59 (logging improvements) if CI passes
-2. Pick up next highest priority issue from GitHub issues
+1. Merge PR #63 after review (fix for Issue #58)
+2. Pick up next highest priority issue from GitHub issues  
 3. Consider fixing the pre-commit hook poetry path issue if needed
+4. Review and address any integration test failures in TECH_DEBT.md
 
 ### Notes/Warnings
+- **Critical Fix**: Redis WRONGTYPE error resolved - planes now move properly (PR #63)
+- **Plane Filtering**: Range-based filtering implemented - stale flights automatically removed (PR #63)
 - **Logging system**: All logs now captured to files in `logs/` directory with automatic rotation
 - **Frontend logging**: Console logs automatically sent to backend and persisted to `logs/frontend.log`
 - **Integration tests**: Logs now saved to `logs/integration.log` instead of `logs.txt`
@@ -248,6 +254,7 @@ make ws-schema
 - All variable names standardized to use 'nickname' instead of 'nick'
 - Backend naming conventions maintained (snake_case for APIs, camelCase for frontend state)
 - localStorage key changed from 'plane-ui' to 'plane-session' (may reset user preferences)
+- Auto-rejoin issue resolved - users can now properly leave rooms without being reconnected
 
 ## 🛠 Helper Scripts
 

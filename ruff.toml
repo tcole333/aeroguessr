@@ -20,6 +20,9 @@ ignore = [
 # Allow unused variables when underscore-prefixed.
 # dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[lint.per-file-ignores]
+"tests/*" = ["ANN201", "ANN001"]  # Allow missing type annotations in tests
+
 [lint.isort]
 known-first-party = ["backend", "tests"]
 

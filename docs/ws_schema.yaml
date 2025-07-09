@@ -56,62 +56,18 @@ messages:
     payload:
       $ref: '#/$defs/PlaneSelectedConfirmPayload'
 $defs:
-  ErrorPayload:
-    $defs:
-      ErrorCode:
-        description: Standardized error codes for WebSocket error messages.
-        enum:
-        - UNKNOWN_ERROR
-        - INVALID_MESSAGE_FORMAT
-        - INVALID_PAYLOAD
-        - INTERNAL_SERVER_ERROR
-        - ROOM_NOT_FOUND
-        - NICKNAME_TAKEN
-        - NOT_IN_ROOM
-        - NOT_HOST
-        - PLAYER_NOT_FOUND
-        - CANNOT_TRANSFER_TO_SELF
-        - CLAIM_HOST_NOT_ALLOWED
-        - CLAIM_HOST_STILL_CONNECTED
-        - CLAIM_HOST_TOO_EARLY
-        - INVALID_STATE_FOR_ACTION
-        - PLANE_NOT_FOUND
-        - PLANE_ALREADY_USED
-        - GUESS_OUTSIDE_ROUND
-        - ALREADY_GUESSED
-        - INVALID_ACTION_IN_SOLO_MODE
-        - PLANE_DATA_INCOMPLETE_FOR_GUESS
-        title: ErrorCode
-        type: string
-    description: Payload for the server error message.
+  SelectPlanePayload:
+    description: Payload for the host selectPlane message.
     example:
-      code: GUESS_OUTSIDE_ROUND
-      message: Guesses only allowed during round.
+      hex: a1b2c3
     properties:
-      code:
-        $ref: '#/$defs/ErrorCode'
-        description: Standardized error code.
-      message:
-        description: User-friendly error message.
-        title: Message
+      hex:
+        description: ICAO24 hex code of the selected plane.
+        title: Hex
         type: string
     required:
-    - code
-    - message
-    title: ErrorPayload
-    type: object
-  PingPongPayload:
-    description: Payload for ping and pong messages.
-    example:
-      seq: 12345
-    properties:
-      seq:
-        description: Sequence number for matching ping/pong.
-        title: Seq
-        type: integer
-    required:
-    - seq
-    title: PingPongPayload
+    - hex
+    title: SelectPlanePayload
     type: object
   RoundResultPayload:
     $defs:
@@ -175,61 +131,28 @@ $defs:
     - results
     title: RoundResultPayload
     type: object
-  FullRoomState:
-    description: Represents the complete state of a room to be sent on connect.
-    example:
-      players: {}
-      room_meta: null
-    properties:
-      room_meta:
-        anyOf:
-        - additionalProperties: true
-          type: object
-        - type: 'null'
-        description: Current metadata of the room.
-        title: Room Meta
-      players:
-        additionalProperties:
-          additionalProperties: true
-          type: object
-        description: Dictionary of players currently in the room, keyed by nickname.
-        title: Players
-        type: object
-    required:
-    - room_meta
-    - players
-    title: FullRoomState
-    type: object
-  NewHostPayload:
-    description: Payload for the server newHost message.
-    example:
-      nickname: PromotedPlayer
-    properties:
-      nickname:
-        description: Nickname of the new host.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: NewHostPayload
+  SkipRoundPayload:
+    description: Payload for the host skipRound message (currently empty).
+    properties: {}
+    title: SkipRoundPayload
     type: object
   ClaimHostPayload:
     description: Payload for the player claimHost message (currently empty).
     properties: {}
     title: ClaimHostPayload
     type: object
-  PlayerLeftPayload:
-    description: Payload for the playerLeft message.
+  GuessPayload:
+    description: Payload for the player guess message.
     example:
-      nickname: LeavingPlayer456
+      airport_code: JFK
     properties:
-      nickname:
-        description: Nickname of the player who left.
-        title: Nickname
+      airport_code:
+        description: Player's guessed airport IATA/ICAO code.
+        title: Airport Code
         type: string
     required:
-    - nickname
-    title: PlayerLeftPayload
+    - airport_code
+    title: GuessPayload
     type: object
   RoundStartPayload:
     description: Payload for the server roundStart message.
@@ -262,18 +185,85 @@ $defs:
     - round_number
     title: RoundStartPayload
     type: object
-  SelectPlanePayload:
-    description: Payload for the host selectPlane message.
+  LeavePayload:
+    description: Payload for the player leave message (currently empty).
+    properties: {}
+    title: LeavePayload
+    type: object
+  ErrorPayload:
+    $defs:
+      ErrorCode:
+        description: Standardized error codes for WebSocket error messages.
+        enum:
+        - UNKNOWN_ERROR
+        - INVALID_MESSAGE_FORMAT
+        - INVALID_PAYLOAD
+        - INTERNAL_SERVER_ERROR
+        - ROOM_NOT_FOUND
+        - NICKNAME_TAKEN
+        - NOT_IN_ROOM
+        - NOT_HOST
+        - PLAYER_NOT_FOUND
+        - CANNOT_TRANSFER_TO_SELF
+        - CLAIM_HOST_NOT_ALLOWED
+        - CLAIM_HOST_STILL_CONNECTED
+        - CLAIM_HOST_TOO_EARLY
+        - INVALID_STATE_FOR_ACTION
+        - PLANE_NOT_FOUND
+        - PLANE_ALREADY_USED
+        - GUESS_OUTSIDE_ROUND
+        - ALREADY_GUESSED
+        - INVALID_ACTION_IN_SOLO_MODE
+        - PLANE_DATA_INCOMPLETE_FOR_GUESS
+        title: ErrorCode
+        type: string
+    description: Payload for the server error message.
     example:
-      hex: a1b2c3
+      code: GUESS_OUTSIDE_ROUND
+      message: Guesses only allowed during round.
     properties:
-      hex:
-        description: ICAO24 hex code of the selected plane.
-        title: Hex
+      code:
+        $ref: '#/$defs/ErrorCode'
+        description: Standardized error code.
+      message:
+        description: User-friendly error message.
+        title: Message
         type: string
     required:
-    - hex
-    title: SelectPlanePayload
+    - code
+    - message
+    title: ErrorPayload
+    type: object
+  PlayerLeftPayload:
+    description: Payload for the playerLeft message.
+    example:
+      nickname: LeavingPlayer456
+    properties:
+      nickname:
+        description: Nickname of the player who left.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: PlayerLeftPayload
+    type: object
+  PingPongPayload:
+    description: Payload for ping and pong messages.
+    example:
+      seq: 12345
+    properties:
+      seq:
+        description: Sequence number for matching ping/pong.
+        title: Seq
+        type: integer
+    required:
+    - seq
+    title: PingPongPayload
+    type: object
+  StartRoundPayload:
+    description: Payload for the host startRound message (currently empty).
+    properties: {}
+    title: StartRoundPayload
     type: object
   PlayerJoinedPayload:
     description: Payload for the playerJoined message.
@@ -288,24 +278,6 @@ $defs:
     - nickname
     title: PlayerJoinedPayload
     type: object
-  GuessPayload:
-    description: Payload for the player guess message.
-    example:
-      airport_code: JFK
-    properties:
-      airport_code:
-        description: Player's guessed airport IATA/ICAO code.
-        title: Airport Code
-        type: string
-    required:
-    - airport_code
-    title: GuessPayload
-    type: object
-  SkipRoundPayload:
-    description: Payload for the host skipRound message (currently empty).
-    properties: {}
-    title: SkipRoundPayload
-    type: object
   TransferHostPayload:
     description: Payload for the host transferHost message.
     example:
@@ -319,10 +291,18 @@ $defs:
     - to_nickname
     title: TransferHostPayload
     type: object
-  LeavePayload:
-    description: Payload for the player leave message (currently empty).
-    properties: {}
-    title: LeavePayload
+  NewHostPayload:
+    description: Payload for the server newHost message.
+    example:
+      nickname: PromotedPlayer
+    properties:
+      nickname:
+        description: Nickname of the new host.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: NewHostPayload
     type: object
   PlaneSelectedConfirmPayload:
     description: Payload sent to host confirming successful plane selection.
@@ -354,11 +334,6 @@ $defs:
     - destination
     - guess_direction
     title: PlaneSelectedConfirmPayload
-    type: object
-  StartRoundPayload:
-    description: Payload for the host startRound message (currently empty).
-    properties: {}
-    title: StartRoundPayload
     type: object
   DeltaPayload:
     $defs:
@@ -447,6 +422,15 @@ $defs:
             default: null
             description: Destination airport ICAO (cached).
             title: Destination
+          first_seen_ts:
+            description: Timestamp when plane was first detected.
+            title: First Seen Ts
+            type: number
+          update_count:
+            default: 1
+            description: Number of position updates received for this plane.
+            title: Update Count
+            type: integer
         required:
         - hex_ident
         - lat
@@ -486,7 +470,7 @@ $defs:
           category: 2
           destination: KJFK
           hex_ident: a1b2c3
-          last_update_ts: 1752039810678.32
+          last_update_ts: 1752096111431.53
           lat: 42.36
           lat_v: 0.01
           lon: -71.05
@@ -533,4 +517,29 @@ $defs:
         default: null
         description: Updated round state information.
     title: DeltaPayload
+    type: object
+  FullRoomState:
+    description: Represents the complete state of a room to be sent on connect.
+    example:
+      players: {}
+      room_meta: null
+    properties:
+      room_meta:
+        anyOf:
+        - additionalProperties: true
+          type: object
+        - type: 'null'
+        description: Current metadata of the room.
+        title: Room Meta
+      players:
+        additionalProperties:
+          additionalProperties: true
+          type: object
+        description: Dictionary of players currently in the room, keyed by nickname.
+        title: Players
+        type: object
+    required:
+    - room_meta
+    - players
+    title: FullRoomState
     type: object

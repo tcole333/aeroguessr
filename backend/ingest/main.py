@@ -64,6 +64,13 @@ class PlaneState(BaseModel):
     # AeroAPI Enrichment fields (cached)
     origin: Optional[str] = Field(None, description="Origin airport ICAO (cached).")
     destination: Optional[str] = Field(None, description="Destination airport ICAO (cached).")
+    # Signal quality tracking
+    first_seen_ts: float = Field(
+        default_factory=lambda: time.time(), description="Timestamp when plane was first detected."
+    )
+    update_count: int = Field(
+        default=1, description="Number of position updates received for this plane."
+    )
     # TODO: Add other fields like ground speed, track etc. later
 
 
@@ -163,6 +170,15 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             return
 
     # Prepare data for Redis, including the updated trail and enrichment data
+    # Handle signal quality tracking
+    if existing_state:
+        # Existing plane: increment update count, preserve first_seen_ts
+        first_seen_ts = existing_state.first_seen_ts
+        update_count = existing_state.update_count + 1
+    else:
+        # New plane: set first_seen_ts and initialize update count
+        first_seen_ts = current_time
+        update_count = 1
 
     plane_data = PlaneState(
         hex_ident=hex_ident,
@@ -179,6 +195,8 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         category=enriched_data.category if enriched_data else None,
         origin=route_data.origin_icao if route_data else None,
         destination=route_data.destination_icao if route_data else None,
+        first_seen_ts=first_seen_ts,
+        update_count=update_count,
     )
 
     # === BEGIN RE-ADDED LOGGING ===
