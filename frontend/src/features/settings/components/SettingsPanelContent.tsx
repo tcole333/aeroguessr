@@ -1,24 +1,17 @@
 import { useStore } from '../../../hooks/useStore';
 import { selectDarkMode } from '../../ui/selectors';
-import { selectHost, selectIsSolo } from '../../game/selectors';
-import HostControls from './HostControls';
+import { selectIsSolo } from '../../game/selectors';
 import { selectPlayerNickname } from '../../connection/selectors';
 
 export default function SettingsPanelContent(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
   const toggleDarkMode = useStore((s) => s.ui.toggleDarkMode);
-  // console.log('Type of toggleDarkMode in SettingsPanelContent:', typeof toggleDarkMode); // Can be removed now
-
-  const hostNickname = useStore(selectHost);
   const isSolo = useStore(selectIsSolo);
-  const myNickname = useStore(selectPlayerNickname);
 
   const handleLeave = () => {
     // eslint-disable-next-line no-console
     console.log(isSolo ? 'Leaving solo mode' : 'Attempting to leave room');
   };
-
-  const isHost = !isSolo && hostNickname && myNickname === hostNickname;
 
   return (
     <div className="space-y-6 p-1"> {/* Added p-1 for slight spacing if toggle is near edge, adjust as needed */}
@@ -49,13 +42,6 @@ export default function SettingsPanelContent(): JSX.Element {
       >
         Leave Room
       </button>
-
-      {isHost && (
-        <div className="pt-2">
-          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">Host Controls</h3>
-          <HostControls />
-        </div>
-      )}
     </div>
   );
 }

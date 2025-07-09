@@ -28,9 +28,23 @@ def calculate_exact_score(correct_code: AirportCode, guessed_code: AirportCode) 
 
     Returns:
         100 points if the guess is correct (case-insensitive), 0 otherwise.
+        Also handles IATA/ICAO code equivalence (e.g., JFK = KJFK).
     """
-    if correct_code.upper() == guessed_code.upper():
+    correct_upper = correct_code.upper()
+    guessed_upper = guessed_code.upper()
+
+    # Direct match
+    if correct_upper == guessed_upper:
         return 100
+
+    # Check if both codes refer to the same airport coordinates
+    correct_coords = get_airport_coords(correct_upper)
+    guessed_coords = get_airport_coords(guessed_upper)
+
+    if correct_coords and guessed_coords and correct_coords == guessed_coords:
+        logger.info(f"Airport code normalization match: '{guessed_code}' -> '{correct_code}'")
+        return 100
+
     return 0
 
 

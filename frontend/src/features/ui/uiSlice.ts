@@ -10,6 +10,7 @@ export interface UiSlice {
   currentView: 'home' | 'game';
   isLoading: boolean;
   formError: string | null;
+  expandedPlaneHex: string | null;
   toggleDarkMode: () => void;
   setActivePanel: (panel: Panel) => void;
   togglePanelOpen: () => void;
@@ -17,6 +18,7 @@ export interface UiSlice {
   setLoading: (loading: boolean) => void;
   setFormError: (err: string | null) => void;
   clearFormError: () => void;
+  setExpandedPlane: (hex: string | null) => void;
 }
 
 export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
@@ -28,6 +30,7 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
   currentView: 'home',
   isLoading: false,
   formError: null,
+  expandedPlaneHex: null,
   toggleDarkMode: () =>
     set((state) => {
       state.ui.darkMode = !state.ui.darkMode;
@@ -55,5 +58,14 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
   clearFormError: () =>
     set((state) => {
       state.ui.formError = null;
+    }),
+  setExpandedPlane: (hex) =>
+    set((state) => {
+      state.ui.expandedPlaneHex = hex;
+      // Switch to planes panel when expanding a plane
+      if (hex !== null) {
+        state.ui.activePanel = 'planes';
+        state.ui.isPanelOpen = true;
+      }
     }),
 });

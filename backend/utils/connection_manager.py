@@ -197,19 +197,40 @@ class ConnectionManager:
             f"'{room_code}' (excluding {exclude_nickname})..."
         )
 
+        # Additional debug logging for roundStart messages
+        if message.get("type") == "roundStart":
+            logger.info(f"Broadcasting roundStart message: {message}")
+            logger.info(
+                f"Room '{room_code}' has {len(room_connection_states)} connected players: "
+                f"{list(room_connection_states.keys())}"
+            )
+
         for nickname, connection_state in room_connection_states.items():
             if nickname == exclude_nickname:
                 continue
             try:
                 # Extract websocket from ConnectionState
+                if message.get("type") == "roundStart":
+                    logger.info(f"Sending roundStart message to {nickname} in room {room_code}")
                 await self.send_personal_message(message, connection_state.websocket)
+                if message.get("type") == "roundStart":
+                    logger.info(
+                        f"Successfully sent roundStart message to {nickname} in room {room_code}"
+                    )
             except WebSocketDisconnect:
                 # Mark for disconnection, don't modify dict during iteration
                 disconnected_players.append(nickname)
+                if message.get("type") == "roundStart":
+                    logger.warning(
+                        f"Failed to send roundStart to {nickname} in room {room_code}: "
+                        "WebSocket disconnected"
+                    )
             except Exception as e:
                 logger.error(
                     f"Unexpected error broadcasting to {nickname} in room {room_code}: {e}"
                 )
+                if message.get("type") == "roundStart":
+                    logger.error(f"Error sending roundStart to {nickname} in room {room_code}: {e}")
 
         # Clean up disconnected players after iteration
         for nickname in disconnected_players:

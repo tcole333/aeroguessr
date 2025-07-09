@@ -48,6 +48,7 @@ from backend.schemas.ws import (
     RoundResultPayload,
     RoundStartPayload,
     SelectPlanePayload,
+    TransferHostPayload,
     WSMessage,
     WSMessageType,
 )
@@ -1422,11 +1423,19 @@ async def websocket_endpoint(
                             round_number=current_round_data_local.round_number,
                         )
                         round_start_message = WSMessage(
-                            type=WSMessageType.ROUND_START, payload=round_start_payload
+                            type=WSMessageType.ROUND_START, payload=round_start_payload.model_dump()
                         )
+
+                        # Debug logging for roundStart broadcast
+                        logger.info(f"About to broadcast roundStart message to room {room_code}")
+                        logger.info(f"RoundStart payload: {round_start_payload.model_dump()}")
+                        logger.info(f"Full message: {round_start_message.model_dump(mode='json')}")
+
                         await conn_manager.broadcast(
                             round_start_message.model_dump(mode="json"), room_code
                         )
+
+                        logger.info(f"roundStart broadcast completed for room {room_code}")
                         logger.info(
                             f"Round {current_round_data_local.round_number} started in room "
                             f"{room_code} by {nickname}. Plane: "
@@ -1493,8 +1502,91 @@ async def websocket_endpoint(
                         logger.info(f"Host {nickname} skipped round in room {room_code}.")
 
                     elif ws_msg.type == WSMessageType.TRANSFER_HOST:
-                        # ... (existing transfer host logic)
-                        pass  # Placeholder for brevity
+                        # Host transfers host privileges to another player
+                        if not is_host:
+                            await _send_error(
+                                ErrorCode.NOT_HOST, "Only the host can transfer host privileges."
+                            )
+                            continue
+
+                        try:
+                            transfer_payload = TransferHostPayload.model_validate(ws_msg.payload)
+                        except ValidationError as e:
+                            logger.warning(f"Invalid TRANSFER_HOST payload: {e}")
+                            await _send_error(
+                                ErrorCode.INVALID_PAYLOAD, f"Invalid transfer host payload: {e}"
+                            )
+                            continue
+
+                        target_nickname = transfer_payload.to_nickname.strip()
+
+                        # Cannot transfer to self
+                        if target_nickname == nickname:
+                            await _send_error(
+                                ErrorCode.CANNOT_TRANSFER_TO_SELF,
+                                "Cannot transfer host privileges to yourself.",
+                            )
+                            continue
+
+                        # Check if target player exists and is connected
+                        target_player = await room_service.get_player(
+                            redis, room_code, target_nickname
+                        )
+                        if not target_player:
+                            await _send_error(
+                                ErrorCode.PLAYER_NOT_FOUND,
+                                f"Player '{target_nickname}' not found in room.",
+                            )
+                            continue
+
+                        if not target_player.connected:
+                            await _send_error(
+                                ErrorCode.PLAYER_NOT_FOUND,
+                                f"Player '{target_nickname}' is not currently connected.",
+                            )
+                            continue
+
+                        # Update room metadata with new host
+                        room_meta_local = await room_service.get_room_meta(redis, room_code)
+                        if not room_meta_local:
+                            await _send_error(ErrorCode.ROOM_NOT_FOUND, "Room not found.")
+                            continue
+
+                        previous_host = room_meta_local.host_nickname
+                        room_meta_local.host_nickname = target_nickname
+                        room_meta_local.host_disconnected_ts = (
+                            None  # Clear any disconnect timestamp
+                        )
+
+                        success = await room_service.set_room_meta(
+                            redis, room_code, room_meta_local
+                        )
+                        if not success:
+                            await _send_error(
+                                ErrorCode.INTERNAL_SERVER_ERROR,
+                                "Failed to update room with new host.",
+                            )
+                            continue
+
+                        # Broadcast newHost message to all players
+                        new_host_payload = NewHostPayload(nickname=target_nickname)
+                        new_host_message = WSMessage(
+                            type=WSMessageType.NEW_HOST, payload=new_host_payload.model_dump()
+                        )
+                        await conn_manager.broadcast(new_host_message.model_dump(), room_code)
+
+                        logger.info(
+                            f"Host transferred from {previous_host} to {target_nickname} in "
+                            f"room {room_code}."
+                        )
+
+                        # Update local flag - current connection is no longer host
+                        is_host = False
+
+                        # Cancel any pending auto-transfer tasks since we have a new host
+                        if auto_transfer_host_task and not auto_transfer_host_task.done():
+                            auto_transfer_host_task.cancel()
+                            auto_transfer_host_task = None
 
                     elif ws_msg.type == WSMessageType.CLAIM_HOST:
                         # Non-host player requests to become host after original host disconnect.

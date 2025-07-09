@@ -14,9 +14,12 @@ interface SliceActions {
   setRoundStart: (p: any) => void;
   setRoundResult: (p: any) => void;
   setSelectedPlane: (hex: string | null) => void;
+  setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nick: string | null) => void;
   upsertPlanes: (p: any[]) => void;
   removePlanes: (ids: string[]) => void;
+  setExpandedPlane: (hex: string | null) => void;
+  setActivePanel: (panel: 'planes' | 'leaderboard' | 'settings') => void;
 }
 
 function handleInbound(
@@ -39,6 +42,10 @@ function handleInbound(
       break;
     case 'delta':
       if (msg.payload) {
+        // Only log if delta contains round data
+        if ((msg.payload as any).round) {
+          console.log('[WS] Received delta message with round data:', msg.payload);
+        }
         const { planes } = msg.payload as any;
         if (planes?.updated) {
           actions.upsertPlanes(planes.updated);
@@ -50,8 +57,13 @@ function handleInbound(
       }
       break;
     case 'roundStart':
-      actions.setRoundStart(msg.payload);
-      actions.setSelectedPlane(null);
+      try {
+        actions.setRoundStart(msg.payload);
+        // Ensure the active round plane is expanded in the UI
+        actions.setExpandedPlane(msg.payload.hex);
+      } catch (error) {
+        console.error('[WS] Error handling roundStart:', error);
+      }
       break;
     case 'roundResult':
       actions.setRoundResult(msg.payload);
@@ -60,7 +72,12 @@ function handleInbound(
       actions.setHostNickname(msg.payload.nickname);
       break;
     case 'planeSelectedConfirm':
-      actions.setSelectedPlane(null);
+      if (msg.payload?.hex) {
+        actions.setSelectedPlane(msg.payload.hex);
+        if (msg.payload.guess_direction) {
+          actions.setGuessDirection(msg.payload.guess_direction);
+        }
+      }
       break;
     default:
       // no-op for unhandled types
@@ -81,10 +98,13 @@ export function useWebSocketManager(
   const setRoundStart = useStore((s) => s.game.setRoundStart);
   const setRoundResult = useStore((s) => s.game.setRoundResult);
   const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
+  const setGuessDirection = useStore((s) => s.game.setGuessDirection);
   const setHostNickname = useStore((s) => s.game.setHostNickname);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
   const wsUrl = useStore((s) => s.connection.wsUrl);
+  const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
+  const setActivePanel = useStore((s) => s.ui.setActivePanel);
 
   useEffect(() => {
   const actions = {
@@ -93,9 +113,12 @@ export function useWebSocketManager(
     setRoundStart,
     setRoundResult,
     setSelectedPlane,
+    setGuessDirection,
     setHostNickname,
     upsertPlanes,
     removePlanes,
+    setExpandedPlane,
+    setActivePanel,
   };
     const offMsg = client.subscribe((m) =>
       handleInbound(m, updateLatency, setLastHeartbeat, actions),
@@ -123,9 +146,12 @@ export function useWebSocketManager(
     setRoundStart,
     setRoundResult,
     setSelectedPlane,
+    setGuessDirection,
     setHostNickname,
     upsertPlanes,
     removePlanes,
+    setExpandedPlane,
+    setActivePanel,
   ]);
 
   useEffect(() => {

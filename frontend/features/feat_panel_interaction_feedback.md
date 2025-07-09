@@ -5,17 +5,19 @@
 **Target PRD Sections:** `§4 User Experience & Visual Design`
 **Relevant Coding Standards:** `frontend/AGENTS.md – Sections 2,5,6,7,8,11`, `typescript_rules`
 **Depends On:**
+
 - `FE_PANEL_0001` (Sliding Panel Layout)
 - `FE_HOST_0001` (Frontend Host Controls)
 - `FE_STATE_0001` (Zustand gameSlice for selectedPlaneHex)
 - `feat_map_rendering.md` (Plane list panel content)
-**Approved Spec Version:** `spec_v1.0_20240524-01`
+  **Approved Spec Version:** `spec_v1.0_20240524-01`
 
 ---
 
 ### 1. Objective
 
 Enhance the user experience by providing immediate visual feedback when a user interacts with elements in the sliding panel. Specifically, this includes:
+
 - Indicating the currently selected plane in the `PlaneListPanelContent`.
 - Providing a "pressed" or "active" state for buttons in `HostControls`.
 
@@ -40,19 +42,20 @@ _Interface Contract_
 ### 4. Detailed Implementation Logic & Instructions
 
 1.  **Plane Selection Feedback (`PlaneListPanelContent.tsx`):**
-    *   When rendering the list of planes, each plane row should check if its `hex` code matches the `gameSlice.selectedPlaneHex` (accessed via `useStore` and the appropriate selector).
-    *   If a plane's `hex` matches `selectedPlaneHex`, apply a distinct style to that row (e.g., a different background color, a border, or increased font weight). Example Tailwind classes: `bg-blue-100 dark:bg-blue-800` or `ring-2 ring-primary-500`.
-    *   Ensure this highlighting is updated dynamically if `selectedPlaneHex` changes.
+
+    - When rendering the list of planes, each plane row should check if its `hex` code matches the `gameSlice.selectedPlaneHex` (accessed via `useStore` and the appropriate selector).
+    - If a plane's `hex` matches `selectedPlaneHex`, apply a distinct style to that row (e.g., a different background color, a border, or increased font weight). Example Tailwind classes: `bg-blue-100 dark:bg-blue-800` or `ring-2 ring-primary-500`.
+    - Ensure this highlighting is updated dynamically if `selectedPlaneHex` changes.
 
 2.  **Host Control Button Feedback (`HostControls.tsx`):**
-    *   For each button (`Start Round`, `Skip Round`, `Transfer Host`):
-        *   Utilize Tailwind's `active:` pseudo-class variants to provide immediate feedback on click. For example, `active:bg-blue-700 active:scale-95`.
-        *   Consider adding a subtle transition for these effects: `transition-transform duration-75 ease-in-out`.
-    *   If a button triggers an asynchronous action (like sending a WebSocket message), consider an optional "loading" or "pending" state if the action might take noticeable time. This is a stretch goal for this initial implementation and can be omitted if the WS interactions are typically very fast.
-        *   If implementing a loading state:
-            *   Use local component state (e.g., `useState`) to track if a button's action is in progress.
-            *   Disable the button and optionally show a spinner or change its text (e.g., "Starting...") while in the loading state.
-            *   Ensure the loading state is cleared upon success or failure of the WebSocket message. (This might require more complex state management or callbacks from the WebSocket client, potentially out of scope for this initial feedback feature).
+    - For each button (`Start Round`, `Skip Round`, `Transfer Host`):
+      - Utilize Tailwind's `active:` pseudo-class variants to provide immediate feedback on click. For example, `active:bg-blue-700 active:scale-95`.
+      - Consider adding a subtle transition for these effects: `transition-transform duration-75 ease-in-out`.
+    - If a button triggers an asynchronous action (like sending a WebSocket message), consider an optional "loading" or "pending" state if the action might take noticeable time. This is a stretch goal for this initial implementation and can be omitted if the WS interactions are typically very fast.
+      - If implementing a loading state:
+        - Use local component state (e.g., `useState`) to track if a button's action is in progress.
+        - Disable the button and optionally show a spinner or change its text (e.g., "Starting...") while in the loading state.
+        - Ensure the loading state is cleared upon success or failure of the WebSocket message. (This might require more complex state management or callbacks from the WebSocket client, potentially out of scope for this initial feedback feature).
 
 ### 5. What this Feature SHOULD NOT DO
 
@@ -63,9 +66,9 @@ _Interface Contract_
 ### 6. Crucial Considerations & LLM Pitfalls to Avoid
 
 - **Performance:** Ensure that dynamic styling changes for plane selection are efficient and do not cause lag, especially with a long list of planes. `React.memo` might be relevant for plane list items if not already used.
-- **Accessibility:** Ensure that visual feedback (e.g., color changes) has sufficient contrast and is not the *only* indicator of state if it's critical. For selected items, ARIA attributes like `aria-selected` might be appropriate if the list is treated as a selectable list. For buttons, standard focus and active states usually handle this.
+- **Accessibility:** Ensure that visual feedback (e.g., color changes) has sufficient contrast and is not the _only_ indicator of state if it's critical. For selected items, ARIA attributes like `aria-selected` might be appropriate if the list is treated as a selectable list. For buttons, standard focus and active states usually handle this.
 - **Clarity:** The feedback should be noticeable but not jarring. It should clearly indicate interaction without being distracting.
-- **Self-Contained Logic:** Implement this feature based *only* on this specification, the PRD, and Coding Standards. Do not assume knowledge from other features unless explicitly stated in "Depends On" and its interface contract.
+- **Self-Contained Logic:** Implement this feature based _only_ on this specification, the PRD, and Coding Standards. Do not assume knowledge from other features unless explicitly stated in "Depends On" and its interface contract.
 - **Error Handling Specifics:** This feature is UI-focused; error handling for the underlying actions (plane selection, host commands) is managed by their respective features.
 
 ### 7. Code Style & Formatting
@@ -76,19 +79,19 @@ _Interface Contract_
 ### 8. Unit Testing Requirements
 
 - **Files:**
-    - `src/features/planes/components/__tests__/PlaneListPanelContent.test.tsx`
-    - `src/features/settings/components/__tests__/HostControls.test.tsx`
+  - `src/features/planes/components/__tests__/PlaneListPanelContent.test.tsx`
+  - `src/features/settings/components/__tests__/HostControls.test.tsx`
 - **Focus:** Test that the visual feedback is applied correctly based on application state or interaction.
 - **Required Test Scenarios:**
-    1.  **Plane Selection Feedback:**
-        *   Test that a plane row receives the 'selected' style when its `hex` matches `gameSlice.selectedPlaneHex`.
-        *   Test that only one plane row (or none) has the 'selected' style.
-        *   Test that the style is removed if `selectedPlaneHex` becomes `null` or changes to a different hex.
-    2.  **Host Control Button Feedback (Visual States):**
-        *   While harder to test exact visual styles with Vitest/RTL, ensure that any conditional classes or attributes related to "active" or "pressed" states are applied/removed correctly.
-        *   If implementing a loading state:
-            *   Test that buttons enter a disabled/loading state when their action is initiated.
-            *   Test that they return to the normal state after the mocked action completes.
+  1.  **Plane Selection Feedback:**
+      - Test that a plane row receives the 'selected' style when its `hex` matches `gameSlice.selectedPlaneHex`.
+      - Test that only one plane row (or none) has the 'selected' style.
+      - Test that the style is removed if `selectedPlaneHex` becomes `null` or changes to a different hex.
+  2.  **Host Control Button Feedback (Visual States):**
+      - While harder to test exact visual styles with Vitest/RTL, ensure that any conditional classes or attributes related to "active" or "pressed" states are applied/removed correctly.
+      - If implementing a loading state:
+        - Test that buttons enter a disabled/loading state when their action is initiated.
+        - Test that they return to the normal state after the mocked action completes.
 - **Mocking:** Use standard Vitest mocking for Zustand store state and any actions.
 
 ### 9. Example Snippet (Illustrative)

@@ -40,7 +40,8 @@ multiple guesses until the next round.
   `state.game.round?.state === 'guessing'` and the current player has not guessed
   yet.
 
-*Interface Contract*
+_Interface Contract_
+
 - `webSocketClient.send({ type: 'guess', payload: { airport_code: string } })`
 
 ### 4. Detailed Implementation Logic & Instructions
@@ -56,7 +57,7 @@ multiple guesses until the next round.
 4.  Ensure the overlay is keyboard accessible and dismissible if the user taps
     outside (but not after submission).
 
-*Idempotency Design*: since guesses are one‑time per round, prevent duplicate
+_Idempotency Design_: since guesses are one‑time per round, prevent duplicate
 messages by disabling the submit button after the first send.
 
 ### 5. What this Feature SHOULD NOT DO
@@ -95,13 +96,13 @@ messages by disabling the submit button after the first send.
 // GuessForm.tsx (conceptual)
 export default function GuessForm() {
   const round = useStore(selectRound);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [disabled, setDisabled] = useState(false);
   const send = () => {
-    webSocketClient.send({ type: 'guess', payload: { airport_code: code } });
+    webSocketClient.send({ type: "guess", payload: { airport_code: code } });
     setDisabled(true);
   };
-  if (!round || round.state !== 'guessing') return null;
+  if (!round || round.state !== "guessing") return null;
   return (
     <form
       onSubmit={(e) => {
@@ -109,15 +110,15 @@ export default function GuessForm() {
         if (!code) return;
         send();
       }}
-      className="absolute inset-0 bg-black/50 flex items-center justify-center"
+      className="absolute inset-0 flex items-center justify-center bg-black/50"
     >
       <input
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
         maxLength={4}
-        className="text-black p-2"
+        className="p-2 text-black"
       />
-      <button type="submit" disabled={disabled} className="ml-2 btn">
+      <button type="submit" disabled={disabled} className="btn ml-2">
         Guess
       </button>
     </form>

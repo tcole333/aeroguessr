@@ -24,6 +24,7 @@ fastapi = "^0.115.12"
 websockets = "^15.0.1"
 pytest = "^8.3.5"
 geopy = "^2.4.1"
+ruff = "^0.12.2"
 
 
 [tool.poetry.group.dev.dependencies]

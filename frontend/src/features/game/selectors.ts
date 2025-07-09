@@ -8,3 +8,5 @@ export const selectIsSolo = (state: RootState) => state.game.isSolo;
 export const selectRoundTimeout = (state: RootState) => state.game.roundTimeout;
 export const selectSelectedPlane = (state: RootState) =>
   state.game.selectedPlaneHex;
+export const selectGuessDirection = (state: RootState) => state.game.guessDirection;
+export const selectUsedPlanes = (state: RootState) => state.game.usedPlaneHexes;

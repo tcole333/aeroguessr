@@ -27,7 +27,11 @@ export function useGuess(): UseGuessResult {
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
+    console.log('[useGuess] Round changed:', round);
+    console.log('[useGuess] Round state:', round?.state);
+    console.log('[useGuess] Timeout:', timeout);
     if (round && round.state === 'guessing') {
+      console.log('[useGuess] Setting guess form visible');
       setVisible(true);
       setCode('');
       setHasGuessed(false);

@@ -22,18 +22,21 @@ export interface GameSlice {
   round: RoundInfo | null;
   roundTimeout: number | null;
   selectedPlaneHex: string | null;
+  guessDirection: string | null;
+  usedPlaneHexes: Set<string>;
   hydrate: (state: FullRoomState) => void;
   applyDelta: (delta: DeltaPayload) => void;
   setRoundStart: (payload: RoundStartPayload) => void;
   setRoundResult: (payload: RoundResultPayload) => void;
   setSelectedPlane: (hex: string | null) => void;
+  setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nick: string | null) => void;
   leaveRoom: () => void;
 }
 
 const initialState: Omit<
   GameSlice,
-  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setHostNickname" | "leaveRoom"
+  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setSelectedPlane" | "setGuessDirection" | "setHostNickname" | "leaveRoom"
 > = {
   roomCode: null,
   players: {},
@@ -43,6 +46,8 @@ const initialState: Omit<
   round: null,
   roundTimeout: null,
   selectedPlaneHex: null,
+  guessDirection: null,
+  usedPlaneHexes: new Set(),
 };
 
 export const createGameSlice: StateCreator<
@@ -78,7 +83,11 @@ export const createGameSlice: StateCreator<
         });
       }
       if (delta.round) {
-        state.game.round = { ...delta.round };
+        // Only update round if we're not in an active guessing state
+        // This prevents delta messages from overriding the round during active gameplay
+        if (state.game.round?.state !== 'guessing') {
+          state.game.round = { ...delta.round };
+        }
       }
     }),
   setRoundStart: (payload) =>
@@ -91,6 +100,8 @@ export const createGameSlice: StateCreator<
       };
       state.game.roundTimeout = payload.timeout_s;
       state.game.selectedPlaneHex = null;
+      // Mark this plane as used - need to create new Set for Immer
+      state.game.usedPlaneHexes = new Set([...state.game.usedPlaneHexes, payload.hex]);
     }),
   setRoundResult: (payload) =>
     set((state) => {
@@ -106,6 +117,14 @@ export const createGameSlice: StateCreator<
   setSelectedPlane: (hex) =>
     set((state) => {
       state.game.selectedPlaneHex = hex;
+      // Clear guess direction when plane is deselected
+      if (!hex) {
+        state.game.guessDirection = null;
+      }
+    }),
+  setGuessDirection: (direction) =>
+    set((state) => {
+      state.game.guessDirection = direction;
     }),
   setHostNickname: (nick) =>
     set((state) => {

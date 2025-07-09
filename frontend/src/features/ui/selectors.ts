@@ -6,3 +6,4 @@ export const selectIsPanelOpen = (state: RootState) => state.ui.isPanelOpen;
 export const selectCurrentView = (state: RootState) => state.ui.currentView;
 export const selectIsLoading = (state: RootState) => state.ui.isLoading;
 export const selectFormError = (state: RootState) => state.ui.formError;
+export const selectExpandedPlane = (state: RootState) => state.ui.expandedPlaneHex;

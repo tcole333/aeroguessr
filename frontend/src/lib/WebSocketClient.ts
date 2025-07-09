@@ -84,6 +84,11 @@ export function createWebSocketClient(
     try {
       const msg = assertWsMessage(typeof data === 'string' ? data : String(data));
       if (msg) {
+        // Debug logging for roundStart messages
+        if (msg.type === 'roundStart') {
+          console.log('[WS] Received roundStart message from server:', msg);
+        }
+
         if (msg.type === 'pong') {
           missedPongs = 0;
           emitter.emit('message', msg);
