@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-09
 
 ### Active Development
-- **Current Branch:** feature/32-fix-leave-room-button
-- **Current Issue:** #32 - Bug: Leave room button functionality not working
-- **Status:** Completed - Fixed leave room functionality, updated schemas, resolved console errors
+- **Current Branch:** feature/31-standardize-nick-nickname-usage
+- **Current Issue:** #31 - Tech Debt: Standardize nick/nickname usage across codebase
+- **Status:** Completed - Fixed nickname inconsistencies, removed duplicated properties, resolved test failures
 
 ### Check for New Work
 ```bash
@@ -199,21 +199,21 @@ make ws-schema
 - [x] Fixed plane trails rendering (Issue #40) - reduced from 30 to 10 points for better performance
 
 ### Current State
-- **Branch:** feature/40-fix-plane-trails-rendering (PR #49 created)
+- **Branch:** feature/31-standardize-nick-nickname-usage (PR #50 created)
 - **Uncommitted changes:** No - all changes committed and pushed
 - **Tests passing:** Yes - Frontend (55/55), Backend (98/98), Integration tests exist
 - **Blockers:** None
 
 ### Next Session Should
-1. Review and merge PR #49 if CI passes (plane trails fix)
+1. Review and merge PR #50 if CI passes (nickname standardization)
 2. Pick up next highest priority issue from GitHub issues
 3. Consider fixing the pre-commit hook poetry path issue if needed
 
 ### Notes/Warnings
-- Pre-commit hook has poetry path issue in hook environment - may need `poetry` path fix in `.pre-commit-config.yaml`
-- Leave room functionality now works correctly and includes proper host transfer logic
-- Console validation errors for ping messages are resolved with bidirectional type generation
-- Plane trails now optimized (10 points vs 30) with proper fade-out effects working
+- Nickname inconsistencies resolved - removed duplicate playerNickname property
+- Frontend connection state now uses single nickname property consistently
+- All variable names standardized to use 'nickname' instead of 'nick'
+- Backend naming conventions maintained (snake_case for APIs, camelCase for frontend state)
 
 ## 🛠 Helper Scripts
 
