@@ -54,6 +54,15 @@ pre-commit run --all-files
 # Manual checks if needed:
 # - Backend: poetry run pytest tests/backend -m "not integration"
 # - Frontend: cd frontend && npm run test:ci && npm run build
+
+# Commit changes
+git add .
+git commit -m "feat: descriptive commit message"
+
+# Push changes (first time)
+git push -u origin feature/N-branch-name
+# Or for subsequent pushes
+git push
 ```
 
 ### 3. Update documentation
@@ -77,9 +86,53 @@ gh pr ready
 - Update any generated files:
   - API changes: `make openapi`
   - WebSocket changes: `make ws-schema`
+- Ensure PR has been reviewed (see section 6 for review checklist)
+- Rebase or squash commits if needed for clean history
 
 
-### 6. Creating new issues for features and bugs
+### 6. PR Review & Merge Process
+```bash
+# Check for open PRs
+gh pr list --state open
+
+# Review specific PR
+gh pr view 42  # View PR details
+gh pr diff 42  # View changes
+
+# Checkout PR for local testing
+gh pr checkout 42
+```
+
+#### PR Review Checklist
+- [ ] **Issue Reference**: PR description references the correct issue (`Closes #N`)
+- [ ] **Code Quality**:
+  - Follows project standards (@docs/project-standards.md)
+  - Has appropriate tests (unit/integration)
+  - Includes proper error handling
+  - Functions are documented with docstrings
+- [ ] **CI Status**: All GitHub Actions checks pass
+- [ ] **Documentation**:
+  - API changes have updated OpenAPI (`make openapi`)
+  - WebSocket changes have updated schema (`make ws-schema`)
+  - README updated if needed
+- [ ] **Testing**:
+  - Unit tests pass: `poetry run pytest tests/backend -m "not integration"`
+  - Frontend tests pass: `cd frontend && npm run test:ci`
+  - Integration tests pass: `make integration-test`
+- [ ] **Manual Testing**: Feature works as expected in local environment
+
+```bash
+# Merge PR (squash and merge recommended)
+gh pr merge 42 --squash --delete-branch
+
+# Close related issue if not auto-closed
+gh issue close 32 --comment "Fixed in PR #42"
+
+# Switch back to main and pull latest
+git checkout main && git pull
+```
+
+### 7. Creating new issues for features and bugs
 - Use the issue templates in @docs/ISSUE_TEMPLATE/
 - There are separate ones for features, bugs and tech-debt depending on the issue to be raised
 - Features should be small and self contained to allow for iterative development
