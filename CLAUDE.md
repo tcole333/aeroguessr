@@ -33,7 +33,7 @@ git checkout main && git pull
 
 # Fetch issues to view open items
 gh issue list --state open --assignee @me
-# Or view all issues 
+# Or view all issues
 gh issue list --state all
 
 # Decide on the next issue to work on
@@ -143,15 +143,16 @@ make ws-schema
 - [x] Fixed bidirectional ping/pong message type generation
 - [x] Added comprehensive tests for leave room functionality
 - [x] Resolved console validation errors for ping messages
+- [x] Fixed plane trails rendering (Issue #40) - reduced from 30 to 10 points for better performance
 
 ### Current State
-- **Branch:** feature/32-fix-leave-room-button (merged/ready to merge)
+- **Branch:** feature/40-fix-plane-trails-rendering (PR #49 created)
 - **Uncommitted changes:** No - all changes committed and pushed
-- **Tests passing:** Yes - Frontend (2/2), Backend (98/98), Integration tests exist
+- **Tests passing:** Yes - Frontend (55/55), Backend (98/98), Integration tests exist
 - **Blockers:** None
 
 ### Next Session Should
-1. Review and merge PR #47 if CI passes
+1. Review and merge PR #49 if CI passes (plane trails fix)
 2. Pick up next highest priority issue from GitHub issues
 3. Consider fixing the pre-commit hook poetry path issue if needed
 
@@ -159,6 +160,7 @@ make ws-schema
 - Pre-commit hook has poetry path issue in hook environment - may need `poetry` path fix in `.pre-commit-config.yaml`
 - Leave room functionality now works correctly and includes proper host transfer logic
 - Console validation errors for ping messages are resolved with bidirectional type generation
+- Plane trails now optimized (10 points vs 30) with proper fade-out effects working
 
 ## 🛠 Helper Scripts
 

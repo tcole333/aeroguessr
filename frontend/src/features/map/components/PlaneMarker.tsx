@@ -47,11 +47,18 @@ const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, o
 
   const trailSegments = React.useMemo(() => {
     if (!trail || trail.length < 2) return null;
+
+    // Limit to last 10 updates for shorter trails
+    const maxPoints = 10;
+    const recentTrail = trail.slice(-maxPoints);
+
+    if (recentTrail.length < 2) return null;
+
     const segments = [] as JSX.Element[];
-    for (let i = trail.length - 1; i > 0; i -= 1) {
-      const start = [trail[i][0], trail[i][1]] as [number, number];
-      const end = [trail[i - 1][0], trail[i - 1][1]] as [number, number];
-      const opacity = (trail.length - i) / trail.length;
+    for (let i = recentTrail.length - 1; i > 0; i -= 1) {
+      const start = [recentTrail[i][0], recentTrail[i][1]] as [number, number];
+      const end = [recentTrail[i - 1][0], recentTrail[i - 1][1]] as [number, number];
+      const opacity = (recentTrail.length - i) / recentTrail.length;
       segments.push(
         <Polyline
           key={i}

@@ -288,12 +288,12 @@ async def test_handle_message_trail_capping(
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
-    """Test that the position trail is capped at 30 points."""
+    """Test that the position trail is capped at 10 points."""
     # hex_id = sample_raw_message.hex_ident
     current_state: Optional[PlaneState] = None
 
-    # Send 31 messages
-    for i in range(31):
+    # Send 11 messages
+    for i in range(11):
         # Mock get_json to return the previous state (or None for the first call)
         mock_redis_client.get_model.return_value = current_state
         mock_redis_client.get_model.reset_mock()  # Reset count for each call
@@ -326,11 +326,11 @@ async def test_handle_message_trail_capping(
         current_state = saved_args.args[1]
         mock_redis_client.set_json.reset_mock()
 
-    # --- Assertions after 31 messages ---
+    # --- Assertions after 11 messages ---
     assert current_state is not None
 
     # Check trail length is capped
-    assert len(current_state.trail) == 30
+    assert len(current_state.trail) == 10
 
     # Check the first point (from i=0) is gone
     first_point = (
@@ -348,10 +348,10 @@ async def test_handle_message_trail_capping(
         (second_point_lat, second_point_lon, second_point_alt)
     )
 
-    # Check the last point (from i=30) is present
-    last_point_lat = sample_raw_message.latitude + 30 * 0.0001
-    last_point_lon = sample_raw_message.longitude - 30 * 0.0001
-    last_point_alt = sample_raw_message.altitude + 30 * 1.0
+    # Check the last point (from i=10) is present
+    last_point_lat = sample_raw_message.latitude + 10 * 0.0001
+    last_point_lon = sample_raw_message.longitude - 10 * 0.0001
+    last_point_alt = sample_raw_message.altitude + 10 * 1.0
     assert current_state.trail[-1] == pytest.approx(
         (last_point_lat, last_point_lon, last_point_alt)
     )

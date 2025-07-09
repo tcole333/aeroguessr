@@ -54,7 +54,7 @@ class PlaneState(BaseModel):
     last_update_ts: float = Field(..., description="Timestamp of the last update.")
     trail: List[Tuple[float, float, float]] = Field(
         default_factory=list,
-        description="List of recent (lat, lon, alt) tuples, capped at 30.",
+        description="List of recent (lat, lon, alt) tuples, capped at 10.",
     )
     callsign: Optional[str] = Field(None, description="Aircraft callsign (cached).")
     origin_country: Optional[str] = Field(
@@ -132,8 +132,8 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 smoothed_state_vector[2],
             )
             current_trail.append(new_point)
-            # Cap the trail at 30 points
-            if len(current_trail) > 30:
+            # Cap the trail at 10 points for shorter trails
+            if len(current_trail) > 10:
                 current_trail.pop(0)  # Remove the oldest point
 
             # === BEGIN ADDED LOGGING BEFORE CARRY OVER ===
