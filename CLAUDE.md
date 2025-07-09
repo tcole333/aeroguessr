@@ -29,9 +29,16 @@ GitHub Issues: https://github.com/tcole333/plane-game-v4/issues
 # Always start from main
 git checkout main && git pull
 
+# Review important docs like CLAUDE.md, READMEs, project-standards
+
+# Fetch issues to view open items
+gh issue list --state open --assignee @me
+# Or view all issues 
+gh issue list --state all
+
+# Decide on the next issue to work on
 # Create feature branch for issue #N
 git checkout -b feature/N-short-description
-
 # Or use the helper script
 ./scripts/new-feature.sh N
 ```
@@ -49,7 +56,12 @@ pre-commit run --all-files
 # - Frontend: cd frontend && npm run test:ci && npm run build
 ```
 
-### 3. Creating PRs
+### 3. Update documentation
+- Documentation should be updated after development is completed and tests are passing
+- Be sure to regenerate any of the type files or api docs if needed
+- Update the issue in github to reflect the updates and new status
+
+### 4. Creating PRs
 ```bash
 # Create draft PR
 gh pr create --title "feat: Short description" \
@@ -60,13 +72,14 @@ gh pr create --title "feat: Short description" \
 gh pr ready
 ```
 
-### 4. Before Merging
+### 5. Before Merging
 - All CI checks must pass
 - Update any generated files:
   - API changes: `make openapi`
   - WebSocket changes: `make ws-schema`
 
-### 5. Creating new issues for features and bugs
+
+### 6. Creating new issues for features and bugs
 - Use the issue templates in @docs/ISSUE_TEMPLATE/
 - There are separate ones for features, bugs and tech-debt depending on the issue to be raised
 - Features should be small and self contained to allow for iterative development
@@ -190,6 +203,8 @@ cp .env.example .env
 ```
 
 ## Known Issues & Workarounds
+- there might be issues with the poetry path in the terminal session, you can use the full path
+- like /opt/homebrew/bin/poetry run or try and source the .zprofile to see if it fixes it
 
 [Track any persistent issues or quirks here]
 
