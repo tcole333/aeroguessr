@@ -9,7 +9,6 @@ export interface ConnectionSlice {
   nickname: string | null;
   roomCode: string | null;
   wsUrl: string | null;
-  playerNickname: string | null;
   error: string | null;
   setStatus: (status: ConnectionStatus) => void;
   setError: (err: string | null) => void;
@@ -32,7 +31,6 @@ export const createConnectionSlice: StateCreator<
   nickname: null,
   roomCode: null,
   wsUrl: null,
-  playerNickname: null,
   error: null,
   setStatus: (status) =>
     set((state) => {
@@ -53,18 +51,17 @@ export const createConnectionSlice: StateCreator<
   setNickname: (nickname) =>
     set((state) => {
       state.connection.nickname = nickname;
-      state.connection.playerNickname = nickname;
     }),
   setConnectionDetails: ({ roomCode, wsUrl, nickname }) =>
     set((state) => {
       state.connection.roomCode = roomCode;
       state.connection.wsUrl = wsUrl;
-      state.connection.playerNickname = nickname;
+      state.connection.nickname = nickname;
     }),
   clearConnectionDetails: () =>
     set((state) => {
       state.connection.roomCode = null;
       state.connection.wsUrl = null;
-      state.connection.playerNickname = null;
+      state.connection.nickname = null;
     }),
 });

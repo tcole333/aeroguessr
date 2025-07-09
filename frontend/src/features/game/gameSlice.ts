@@ -30,7 +30,7 @@ export interface GameSlice {
   setRoundResult: (payload: RoundResultPayload) => void;
   setSelectedPlane: (hex: string | null) => void;
   setGuessDirection: (direction: string | null) => void;
-  setHostNickname: (nick: string | null) => void;
+  setHostNickname: (nickname: string | null) => void;
   leaveRoom: () => void;
 }
 
@@ -61,9 +61,9 @@ export const createGameSlice: StateCreator<
     set((state) => {
       state.game.players = stateSync.players;
       state.game.scores = {};
-      Object.entries(stateSync.players).forEach(([nick, data]) => {
+      Object.entries(stateSync.players).forEach(([nickname, data]) => {
         if (typeof data === 'object' && data && 'score' in data) {
-          state.game.scores[nick] = (data as any).score as number;
+          state.game.scores[nickname] = (data as any).score as number;
         }
       });
       if (stateSync.room_meta) {
@@ -78,8 +78,8 @@ export const createGameSlice: StateCreator<
   applyDelta: (delta) =>
     set((state) => {
       if (delta.scores) {
-        Object.entries(delta.scores).forEach(([nick, score]) => {
-          state.game.scores[nick] = score;
+        Object.entries(delta.scores).forEach(([nickname, score]) => {
+          state.game.scores[nickname] = score;
         });
       }
       if (delta.round) {
@@ -126,9 +126,9 @@ export const createGameSlice: StateCreator<
     set((state) => {
       state.game.guessDirection = direction;
     }),
-  setHostNickname: (nick) =>
+  setHostNickname: (nickname) =>
     set((state) => {
-      state.game.hostNickname = nick;
+      state.game.hostNickname = nickname;
     }),
   leaveRoom: () =>
     set((state) => {

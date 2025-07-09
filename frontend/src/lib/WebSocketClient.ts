@@ -59,7 +59,7 @@ export function createWebSocketClient(
   let lastUrl = '';
   const queue: OutboundMessage[] = [];
   let currentRoom = '';
-  let currentNick = '';
+  let currentNickname = '';
 
   function clearTimers() {
     if (heartbeat) clearInterval(heartbeat);
@@ -75,7 +75,7 @@ export function createWebSocketClient(
   function scheduleReconnect() {
     clearTimers();
     reconnectTimer = setTimeout(() => {
-      connect(currentRoom, currentNick, lastUrl);
+      connect(currentRoom, currentNickname, lastUrl);
       reconnectDelay = Math.min(reconnectDelay * 2, 4000);
     }, reconnectDelay + Math.floor(Math.random() * 200));
   }
@@ -109,13 +109,13 @@ export function createWebSocketClient(
     }
   }
 
-  function connect(room: string, nick: string, overrideUrl?: string) {
+  function connect(room: string, nickname: string, overrideUrl?: string) {
     currentRoom = room;
-    currentNick = nick;
+    currentNickname = nickname;
 
     // Allow callers to pass a fully-qualified WebSocket URL returned by the backend. If provided
     // it takes precedence over the constructed URL.
-    const url = overrideUrl ?? baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nick}`;
+    const url = overrideUrl ?? baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nickname}`;
 
     // If we are already connected (or connecting) to this exact URL, skip.
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) && url === lastUrl) {
