@@ -1,0 +1,64 @@
+# .github/ISSUE_TEMPLATE/tech-debt.yml
+name: Tech Debt
+description: Track technical debt or refactoring needs
+labels: ["tech-debt"]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: What needs to be improved/refactored?
+      placeholder: |
+        Current implementation of X is problematic because...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Current Problems
+      description: What issues does this cause?
+      placeholder: |
+        - Performance impact
+        - Maintenance difficulty
+        - Security concerns
+        - Code duplication
+
+  - type: textarea
+    attributes:
+      label: Proposed Solution
+      description: How should this be fixed?
+      placeholder: |
+        Refactor to use pattern X instead of Y...
+
+  - type: textarea
+    attributes:
+      label: Impact of Not Fixing
+      description: What happens if we don't address this?
+
+  - type: dropdown
+    attributes:
+      label: Priority
+      options:
+        - P1 - Address soon (blocks features)
+        - P2 - Address eventually (impacts maintenance)
+        - P3 - Nice to have (minor improvement)
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Code References
+      description: Links to specific files/lines
+      placeholder: |
+        - `backend/services/game.py#L45-L120`
+        - `frontend/components/Map.tsx`
+
+  - type: checkboxes
+    attributes:
+      label: Type
+      options:
+        - label: Performance optimization needed
+        - label: Code duplication
+        - label: Missing tests
+        - label: Documentation debt
+        - label: Dependency update needed
+        - label: Security concern

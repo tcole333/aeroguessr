@@ -1,0 +1,79 @@
+# .github/ISSUE_TEMPLATE/feature.yml
+name: Feature Request
+description: New feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: Clear description of what needs to be built
+      placeholder: |
+        As a [user type], I want to [action] so that [benefit].
+
+        Example: As a player, I want to see my guess accuracy percentage so that I can track my improvement.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Acceptance Criteria
+      description: What defines "done" for this feature
+      value: |
+        - [ ] Feature works as described
+        - [ ] Unit tests added with >80% coverage
+        - [ ] Integration test covers main path
+        - [ ] Documentation updated (if API changes)
+        - [ ] No regressions in existing features
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Technical Approach
+      description: Suggested implementation approach (can be refined during development)
+      placeholder: |
+        - Backend: Add new endpoint/service/model
+        - Frontend: New component/page/hook
+        - Database: Schema changes needed
+        - WebSocket: New message types
+
+  - type: textarea
+    attributes:
+      label: Testing Strategy
+      description: How should this be tested?
+      placeholder: |
+        - Unit tests: Test individual functions/components
+        - Integration tests: Test API endpoints
+        - Manual testing: Steps to verify in browser
+
+  - type: dropdown
+    attributes:
+      label: Priority
+      description: How urgent is this feature?
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Dependencies
+      description: Check all that apply
+      options:
+        - label: Depends on other issues (list in description)
+        - label: Requires database changes
+        - label: Requires API changes
+        - label: Requires WebSocket changes
+        - label: Requires new dependencies
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or examples
+      placeholder: |
+        - Link to similar features
+        - Screenshots/mockups
+        - External documentation

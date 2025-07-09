@@ -1,0 +1,65 @@
+# .github/ISSUE_TEMPLATE/bug.yml
+name: Bug Report
+description: Report a bug or issue
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: Clear description of the bug
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      value: |
+        1. Go to...
+        2. Click on...
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: What should happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Logs/Errors
+      description: Any relevant logs from logs/ directory or browser console
+      placeholder: |
+        Check logs/backend.log and logs/frontend.log
+        Paste relevant errors here
+
+  - type: dropdown
+    attributes:
+      label: Environment
+      description: Where does this occur?
+      options:
+        - Local development
+        - Docker environment
+        - Production
+
+  - type: dropdown
+    attributes:
+      label: Severity
+      options:
+        - Critical - System unusable
+        - High - Major feature broken
+        - Medium - Feature partially broken
+        - Low - Minor issue
+    validations:
+      required: true
