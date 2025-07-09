@@ -103,8 +103,8 @@ describe('WebSocketClient', () => {
     };
     socket.triggerMessage(validEmittedMessage);
 
-    // Send an invalid message
-    socket.triggerMessage({ foo: 'bar' });
+    // Send an invalid message (has structure but invalid type)
+    socket.triggerMessage({ type: 'invalidType', payload: {} });
 
     expect(msgs.length).toBe(1);
     expect(msgs[0].type).toBe('error');

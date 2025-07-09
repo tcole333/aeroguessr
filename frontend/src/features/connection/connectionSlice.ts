@@ -53,6 +53,7 @@ export const createConnectionSlice: StateCreator<
   setNickname: (nickname) =>
     set((state) => {
       state.connection.nickname = nickname;
+      state.connection.playerNickname = nickname;
     }),
   setConnectionDetails: ({ roomCode, wsUrl, nickname }) =>
     set((state) => {

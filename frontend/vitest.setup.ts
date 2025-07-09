@@ -5,7 +5,11 @@
 import "@testing-library/jest-dom";
 import { beforeAll, afterAll, afterEach } from "vitest";
 import "whatwg-fetch";
+import { enableMapSet } from "immer";
 import { server } from "./src/mocks/server";
+
+// Enable Immer MapSet plugin for tests
+enableMapSet();
 
 // Setup MSW server before tests
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

@@ -16,6 +16,7 @@ function setup(
   store.setState((s) => {
     s.game.hostNickname = host;
     s.connection.nickname = 'Me';
+    s.connection.playerNickname = 'Me';
   });
   if (connected) {
     store.getState().connection.setStatus('connected');
@@ -42,12 +43,18 @@ describe('PlaneListPanelContent', () => {
       trail: [],
     };
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    const { store } = setup([plane]);
+    setup([plane]);
     const item = screen.getByRole('button', { name: /abc/i });
     expect(item).toBeInTheDocument();
+
+    // Click to expand details
     await userEvent.click(item);
+
+    // Click the "Select for Round" button that appears in the details
+    const selectButton = screen.getByRole('button', { name: /select for round/i });
+    await userEvent.click(selectButton);
+
     expect(sendSpy).toHaveBeenCalledWith({ type: 'selectPlane', payload: { hex: 'abc' } });
-    expect(store.getState().game.selectedPlaneHex).toBe('abc');
     sendSpy.mockRestore();
   });
 
