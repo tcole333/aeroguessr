@@ -105,6 +105,10 @@ export function useWebSocketManager(
   const wsUrl = useStore((s) => s.connection.wsUrl);
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
   const setActivePanel = useStore((s) => s.ui.setActivePanel);
+  const isRejoinAttempt = useStore((s) => s.connection.isRejoinAttempt);
+  const setIsRejoinAttempt = useStore((s) => s.connection.setIsRejoinAttempt);
+  const clearConnectionDetails = useStore((s) => s.connection.clearConnectionDetails);
+  const setCurrentView = useStore((s) => s.ui.setCurrentView);
 
   useEffect(() => {
   const actions = {
@@ -123,12 +127,28 @@ export function useWebSocketManager(
     const offMsg = client.subscribe((m) =>
       handleInbound(m, updateLatency, setLastHeartbeat, actions),
     );
-    const offConn = client.on('connected', () => setStatus('connected'));
+    const offConn = client.on('connected', () => {
+      setStatus('connected');
+      // Clear rejoin attempt flag on successful connection
+      if (isRejoinAttempt) {
+        setIsRejoinAttempt(false);
+        console.log('[WebSocket] Successfully rejoined room');
+      }
+    });
     const offDisc = client.on('disconnected', () => setStatus('reconnecting'));
     const offErr = client.on('error', (e) => {
       log('ws error', e);
       setStatus('error');
       setError((e as Error).message);
+
+      // Handle rejoin failures
+      if (isRejoinAttempt) {
+        console.log('[WebSocket] Rejoin failed, redirecting to home');
+        setIsRejoinAttempt(false);
+        clearConnectionDetails();
+        setCurrentView('home');
+        setError('Unable to rejoin previous session. Please join again.');
+      }
     });
     return () => {
       offMsg();
@@ -152,6 +172,10 @@ export function useWebSocketManager(
     removePlanes,
     setExpandedPlane,
     setActivePanel,
+    isRejoinAttempt,
+    setIsRejoinAttempt,
+    clearConnectionDetails,
+    setCurrentView,
   ]);
 
   useEffect(() => {

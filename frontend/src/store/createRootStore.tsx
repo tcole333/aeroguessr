@@ -21,30 +21,43 @@ export interface RootState {
 
 export type RootStore = StoreApi<RootState>;
 
-// Define the part of UiSlice that is persisted
-type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode" | "isPanelOpen">;
+// Define the parts that are persisted
+type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode" | "isPanelOpen" | "currentView">;
+type PersistedConnectionState = Pick<ConnectionSlice, "nickname" | "roomCode" | "wsUrl">;
 
 export function createRootStore(): RootStore {
-  const persistOptions: PersistOptions<RootState, { ui: PersistedUiState }> = {
-    name: "plane-ui",
-    version: 1,
-    // Only persist activePanel, darkMode and isPanelOpen from the ui slice
+  const persistOptions: PersistOptions<RootState, { ui: PersistedUiState; connection: PersistedConnectionState }> = {
+    name: "plane-session",
+    version: 2,
+    // Persist UI preferences and connection details for rejoin functionality
     partialize: (state) => ({
       ui: {
         activePanel: state.ui.activePanel,
         darkMode: state.ui.darkMode,
         isPanelOpen: state.ui.isPanelOpen,
+        currentView: state.ui.currentView,
+      },
+      connection: {
+        nickname: state.connection.nickname,
+        roomCode: state.connection.roomCode,
+        wsUrl: state.connection.wsUrl,
       },
     }),
-    // Custom merge: ensure functions from initial state are kept for the ui slice
+    // Custom merge: ensure functions from initial state are kept
     merge: (persistedState, currentState) => {
-      const typedPersistedState = persistedState as { ui?: PersistedUiState }; // Type assertion
+      const typedPersistedState = persistedState as {
+        ui?: PersistedUiState;
+        connection?: PersistedConnectionState;
+      };
       return {
         ...currentState, // Start with current state (has functions)
-        ...typedPersistedState, // Overlay with persisted non-ui state
         ui: {
           ...currentState.ui, // Current ui slice (has functions)
           ...(typedPersistedState.ui || {}), // Overlay with persisted ui state values
+        },
+        connection: {
+          ...currentState.connection, // Current connection slice (has functions)
+          ...(typedPersistedState.connection || {}), // Overlay with persisted connection state values
         },
       };
     },

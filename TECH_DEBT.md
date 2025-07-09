@@ -19,13 +19,20 @@
 
 ---
 
-## 🐞 Item: Missing WebSocket Message Handlers (selectPlane, startRound, etc.)
+## ✅ Item: WebSocket Message Handlers (COMPLETED)
 
-- **Context:** The `_recv_loop` within `backend/routes/rooms.py::websocket_endpoint` currently only has basic logic for `ping`/`pong` and a placeholder for `guess`. Crucial game logic handlers for messages like `selectPlane`, `startRound`, `skipRound`, `transferHost`, `claimHost`, and `leave` are missing.
-- **Potential issues:** Core game functionality cannot proceed. Hosts cannot select planes or start rounds, players cannot leave cleanly via WS, etc.
-- **Why accepted:** Initial focus was on connection management and basic message flow.
-- **Next step:** Implement handlers for each missing message type within the `elif` chain in `_recv_loop`, interacting with `room_service` and `manager` as needed. Prioritize `selectPlane` and `startRound` for core gameplay testing.
-- **Code Ref:** `backend/routes/rooms.py#L633` (Start of `_recv_loop`)
+- **Context:** All WebSocket message handlers for core game functionality are now fully implemented in `backend/routes/rooms.py::websocket_endpoint`.
+- **Implemented handlers:**
+  - `ping`/`pong` - Bidirectional heartbeat messages
+  - `guess` - Player guessing with validation and race condition handling
+  - `selectPlane` - Host plane selection with data fetching and validation
+  - `startRound` - Host round starting with state transitions and broadcasting
+  - `skipRound` - Host round skipping with state reset
+  - `transferHost` - Host privilege transfer with validation
+  - `claimHost` - Host claiming after disconnect with timing validation
+  - `leave` - Clean player departure
+- **Status:** All core game functionality is working. Solo mode has separate handling.
+- **Code Ref:** `backend/routes/rooms.py` lines 946-1657 (Complete message handling implementation)
 
 ---
 
@@ -39,27 +46,32 @@
 
 ---
 
-## ⛳ Item: Placeholder Distance Calculation in Scoring
+## ✅ Item: Distance Scoring Implementation (COMPLETED)
 
-- **Context:** The `calculate_distance_km` function in `backend/services/scoring.py` uses a very rough approximation based on latitude/longitude differences.
-- **Potential issues:** Scoring in Distance mode will be inaccurate and potentially unfair.
-- **Why accepted:** Allows testing the Distance scoring mode logic flow without implementing full geographic calculations and airport data loading immediately.
-- **Next step:** Replace the placeholder with a proper geodesic distance calculation using a library like `geopy`. This also requires implementing the `get_airport_coords` function to fetch real coordinates, likely from a cached airport dataset.
-- **Code Ref:** `backend/services/scoring.py#L47`
+- **Context:** Distance scoring is fully implemented with proper geographic calculations and a comprehensive airport dataset.
+- **Implemented features:**
+  - `calculate_distance_km` - Uses proper haversine formula for great-circle distance calculations
+  - `get_airport_coords` - Retrieves airport coordinates from a comprehensive dataset
+  - `calculate_distance_score` - Implements linear scoring based on distance (100 points at 0km, 0 points at 1000km)
+  - Airport database with ~500K airports loaded from `sample_data/airports_min.json`
+  - Fallback dataset for core airports (BOS, JFK, PVD, etc.)
+- **Status:** Distance mode fully functional with accurate geographic calculations.
+- **Code Ref:** `backend/services/scoring.py`, `backend/utils/geo.py`, `backend/utils/airport_db.py`
 
 ---
 
-## ⛳ Item: Plane Selection Logic Placeholder
+## ✅ Item: Plane Selection Logic Implementation (COMPLETED)
 
-- **Context:** The `selectPlane` handler in `backend/routes/rooms.py` currently uses placeholder values (`BOS`, `destination`) for the correct airport code and guess direction. It also doesn't validate the selected plane hex against currently tracked aircraft.
-- **Potential issues:** The game cannot function correctly as the correct answer isn't determined from live/sample data. Invalid plane selections are possible.
-- **Why accepted:** Allows implementing the round state machine and message flow without integrating the plane data lookup logic from the ingest service immediately.
-- **Next step:** Modify the `selectPlane` handler to:
-  1. Fetch the selected plane's data (e.g., from `plane:{hex}` in Redis).
-  2. Validate that the plane exists and has origin/destination data.
-  3. Determine the correct `correct_airport_code` (origin or destination based on flight phase/direction).
-  4. Determine the `guess_direction` to send to clients.
-- **Code Ref:** `backend/routes/rooms.py#L498`
+- **Context:** The `selectPlane` handler in `backend/routes/rooms.py` is fully implemented with proper plane data validation and route determination.
+- **Implemented features:**
+  - Fetches selected plane data from Redis (`plane:{hex}`)
+  - Validates plane exists and has origin/destination data
+  - Determines correct airport code based on flight route data
+  - Determines guess direction (origin vs destination) based on flight phase
+  - Sends confirmation message to host with selected plane details
+  - Proper error handling for invalid plane selections
+- **Status:** Plane selection fully functional with live flight data integration.
+- **Code Ref:** `backend/routes/rooms.py` lines 1179-1333 (Complete selectPlane implementation)
 
 ---
 
@@ -70,5 +82,20 @@
 - **Why accepted:** Implementing standard WebSocket compression (permessage-deflate) requires potentially switching WebSocket libraries or adding complex middleware, adding significant effort upfront. Monitoring actual payload sizes during testing is needed first.
 - **Next step:** Monitor the size of broadcasted delta messages during integration/load testing. If average or peak sizes exceed thresholds (e.g., >1-2KB consistently), investigate adding permessage-deflate compression, potentially using the `websockets` library directly instead of FastAPI's built-in handling, or exploring FastAPI/Starlette middleware options.
 - **Code Ref:** `backend/services/broadcast.py` (TODO comment within `broadcast_plane_updates` function)
+
+---
+
+## ✅ Item: Browser Refresh Rejoin Functionality (COMPLETED)
+
+- **Context:** Players can now rejoin their game sessions after browser refresh, solving a major user experience issue.
+- **Implemented features:**
+  - Session persistence using Zustand persist middleware with localStorage
+  - Automatic rejoin logic on app startup via `useAutoRejoin` hook
+  - Connection details persistence (roomCode, wsUrl, nickname, currentView)
+  - Error handling for failed rejoin attempts with user feedback
+  - Graceful fallback to home page when rejoin fails
+  - UI indicators for rejoin status and connection errors
+- **Status:** Browser refresh no longer breaks game sessions. Users can seamlessly return to their game.
+- **Code Ref:** `frontend/src/hooks/useAutoRejoin.ts`, `frontend/src/store/createRootStore.tsx`, `frontend/src/hooks/useWebSocketManager.ts`
 
 ---

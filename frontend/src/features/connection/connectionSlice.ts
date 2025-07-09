@@ -10,6 +10,7 @@ export interface ConnectionSlice {
   roomCode: string | null;
   wsUrl: string | null;
   error: string | null;
+  isRejoinAttempt: boolean;
   setStatus: (status: ConnectionStatus) => void;
   setError: (err: string | null) => void;
   updateLatency: (latency: number) => void;
@@ -17,6 +18,7 @@ export interface ConnectionSlice {
   setNickname: (nickname: string | null) => void;
   setConnectionDetails: (d: { roomCode: string; wsUrl: string; nickname: string }) => void;
   clearConnectionDetails: () => void;
+  setIsRejoinAttempt: (isRejoin: boolean) => void;
 }
 
 export const createConnectionSlice: StateCreator<
@@ -32,6 +34,7 @@ export const createConnectionSlice: StateCreator<
   roomCode: null,
   wsUrl: null,
   error: null,
+  isRejoinAttempt: false,
   setStatus: (status) =>
     set((state) => {
       state.connection.status = status;
@@ -63,5 +66,10 @@ export const createConnectionSlice: StateCreator<
       state.connection.roomCode = null;
       state.connection.wsUrl = null;
       state.connection.nickname = null;
+      state.connection.isRejoinAttempt = false;
+    }),
+  setIsRejoinAttempt: (isRejoin) =>
+    set((state) => {
+      state.connection.isRejoinAttempt = isRejoin;
     }),
 });

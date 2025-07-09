@@ -1,0 +1,1 @@
+please review claude.md and the readme's and docs/project-standards.md then following the workflow select the next issue to work on, be sure to familiarize yourself with the context first, think through potential issues and how to address them, draft a plan and begin implementation

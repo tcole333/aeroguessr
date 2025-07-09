@@ -134,5 +134,9 @@ export const createGameSlice: StateCreator<
     set((state) => {
       Object.assign(state.game, initialState);
       state.connection.nickname = null;
+      state.connection.roomCode = null;
+      state.connection.wsUrl = null;
+      state.connection.isRejoinAttempt = false;
+      state.ui.currentView = 'home';
     }),
 });

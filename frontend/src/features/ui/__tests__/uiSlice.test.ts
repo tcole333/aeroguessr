@@ -6,7 +6,7 @@ describe("uiSlice", () => {
     const store = createRootStore();
     store.getState().ui.toggleDarkMode();
     expect(store.getState().ui.darkMode).toBe(true);
-    const persisted = localStorage.getItem("plane-ui");
+    const persisted = localStorage.getItem("plane-session");
     expect(persisted).toMatch(/"darkMode":true/);
   });
 
@@ -15,7 +15,7 @@ describe("uiSlice", () => {
     expect(store.getState().ui.isPanelOpen).toBe(true);
     store.getState().ui.togglePanelOpen();
     expect(store.getState().ui.isPanelOpen).toBe(false);
-    const persisted = localStorage.getItem("plane-ui");
+    const persisted = localStorage.getItem("plane-session");
     expect(persisted).toMatch(/"isPanelOpen":false/);
   });
 

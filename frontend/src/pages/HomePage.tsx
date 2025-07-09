@@ -2,9 +2,12 @@ import { useState } from 'react';
 import CreateRoomForm from '../features/game-setup/components/CreateRoomForm';
 import JoinRoomForm from '../features/game-setup/components/JoinRoomForm';
 import StartSoloForm from '../features/game-setup/components/StartSoloForm';
+import { useStore } from '../hooks/useStore';
 
 export default function HomePage(): JSX.Element {
   const [active, setActive] = useState<'create' | 'join' | 'solo' | null>(null);
+  const isRejoinAttempt = useStore((s) => s.connection.isRejoinAttempt);
+  const connectionError = useStore((s) => s.connection.error);
 
   return (
     <div className="p-4 space-y-6 max-w-md mx-auto">
@@ -12,6 +15,21 @@ export default function HomePage(): JSX.Element {
       <p className="text-center text-gray-600 dark:text-gray-300">
         Guess where flights are headed. Play solo or with friends!
       </p>
+
+      {/* Show rejoin status */}
+      {isRejoinAttempt && (
+        <div className="p-4 bg-blue-100 border border-blue-300 rounded text-center">
+          <p className="text-blue-800">Attempting to rejoin your previous session...</p>
+        </div>
+      )}
+
+      {/* Show connection error */}
+      {connectionError && (
+        <div className="p-4 bg-red-100 border border-red-300 rounded text-center">
+          <p className="text-red-800">{connectionError}</p>
+        </div>
+      )}
+
       <div className="space-y-4">
         <section>
           <button
