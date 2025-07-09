@@ -38,6 +38,9 @@ describe('SettingsPanelContent', () => {
     const { store } = setup();
     const { webSocketClient } = await import('../../../../hooks/useWebSocketManager');
 
+    // Mock localStorage.removeItem to verify it's called
+    const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
+
     // Set up some initial connection state
     store.getState().connection.setConnectionDetails({
       roomCode: 'TEST',
@@ -57,6 +60,12 @@ describe('SettingsPanelContent', () => {
     // Verify state was cleared and view returned to home
     expect(store.getState().connection.nickname).toBeNull();
     expect(store.getState().ui.currentView).toBe('home');
+
+    // Verify localStorage was cleared to prevent auto-rejoin
+    expect(removeItemSpy).toHaveBeenCalledWith('plane-session');
+
+    // Clean up
+    removeItemSpy.mockRestore();
   });
 
 

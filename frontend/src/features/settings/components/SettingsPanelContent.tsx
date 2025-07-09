@@ -25,6 +25,10 @@ export default function SettingsPanelContent(): JSX.Element {
 
     // Clean up WebSocket connection
     webSocketClient.destroy();
+
+    // Force clear persisted storage to prevent auto-rejoin
+    // This ensures the localStorage is cleared immediately
+    localStorage.removeItem('plane-session');
   };
 
   return (
