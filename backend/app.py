@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.routes import logging as logging_routes  # Import the logging router
 from backend.routes import rooms  # Import the rooms router
 from backend.routes.rooms import manager as connection_manager
 
@@ -69,8 +70,8 @@ root_logger.addHandler(console_handler)
 # Create rotating file handler
 file_handler = logging.handlers.RotatingFileHandler(
     LOG_FILE_PATH,
-    maxBytes=10 * 1024 * 1024,
-    backupCount=5,  # 10MB per file, 5 backups
+    maxBytes=5 * 1024 * 1024,  # 5MB per file for dev
+    backupCount=1,  # Keep only 1 backup for dev
 )
 file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
@@ -208,6 +209,7 @@ async def health_check() -> Dict[str, str]:
 
 # --- Routers & WebSocket --- #
 app.include_router(rooms.router)
+app.include_router(logging_routes.router)
 
 # Note: rooms.router already defines the WebSocket endpoint.
 # Explicitly adding it again with add_api_websocket_route might cause issues

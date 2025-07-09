@@ -59,7 +59,7 @@ ws-schema:
 # Add other common targets like lint, test, build, etc. here later
 
 # Run integration tests inside docker-compose. If pytest fails, capture
-# container logs to ``logs.txt`` for post-mortem before tearing down.
+# container logs to ``logs/integration.log`` for post-mortem before tearing down.
 integration-test:
 ifeq ($(SANDBOX_ENV),true)
 	@echo "--- (Sandbox) Starting integration test services (expecting pre-built images) ---"
@@ -76,7 +76,7 @@ endif
 	while ! curl -sf http://localhost:8000/healthz > /dev/null; do \
 	    if [ $$(($$(date +%s) - $$start_time)) -ge $$timeout ]; then \
 	        echo "ERROR: Backend service did not become healthy after $$timeout seconds."; \
-	        docker compose -f infra/docker-compose.test.yml logs --no-color > logs.txt || true; \
+	        docker compose -f infra/docker-compose.test.yml logs --no-color > logs/integration.log || true; \
 	        docker compose -f infra/docker-compose.test.yml down -v --remove-orphans || true; \
 	        exit 1; \
 	    fi; \
@@ -91,7 +91,7 @@ endif
 	pytest_exit_code=0; \
 	docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "$$TEST_CMD" || pytest_exit_code=$$?;
 	@echo "--- Collecting container logs ---"
-	@docker compose -f infra/docker-compose.test.yml logs --no-color > logs.txt
+	@docker compose -f infra/docker-compose.test.yml logs --no-color > logs/integration.log
 	@echo "--- Tearing down integration test services ---"
 	@docker compose -f infra/docker-compose.test.yml down -v --remove-orphans
 	@echo "--- Integration test run finished (Exit code: $$pytest_exit_code) ---"

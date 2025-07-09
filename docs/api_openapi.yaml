@@ -179,6 +179,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v0/logs/frontend:
+    post:
+      tags:
+      - logging
+      summary: Log Frontend Message
+      description: "Accept log messages from the frontend and write them to file.\n\
+        \nArgs:\n    entry: Log entry containing level, message, timestamp, and optional\
+        \ context\n\nReturns:\n    None (204 No Content)"
+      operationId: log_frontend_message_api_v0_logs_frontend_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogEntry'
+        required: true
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     HTTPValidationError:
@@ -190,6 +214,30 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    LogEntry:
+      properties:
+        level:
+          type: string
+          title: Level
+        message:
+          type: string
+          title: Message
+        timestamp:
+          type: number
+          title: Timestamp
+        context:
+          additionalProperties:
+            type: string
+          type: object
+          title: Context
+          default: {}
+      type: object
+      required:
+      - level
+      - message
+      - timestamp
+      title: LogEntry
+      description: Frontend log entry.
     Player:
       properties:
         nickname:
@@ -219,7 +267,7 @@ components:
       description: Represents a player within a game room.
       example:
         connected: true
-        last_seen_ts: 1752039809.7150269
+        last_seen_ts: 1752092793.49265
         nickname: PilotPete
         score: 150
     PlayerGuess:
@@ -374,7 +422,7 @@ components:
         view or state sync.
       example:
         code: WXYZ
-        created_ts: 1752039809.720812
+        created_ts: 1752092793.497752
         current_round:
           correct_airport_code: JFK
           guess_direction: destination
@@ -382,9 +430,9 @@ components:
             JoinerJane:
               guess: LGA
               nickname: JoinerJane
-              timestamp: 1752039804.720813
+              timestamp: 1752092788.4977548
           round_number: 3
-          round_start_time: 1752039799.720813
+          round_start_time: 1752092783.497754
           selected_plane_hex: a1b2c3
           state: accepting_guesses
         host_nickname: HostHarry
@@ -392,12 +440,12 @@ components:
         players:
           HostHarry:
             connected: true
-            last_seen_ts: 1752039809.720812
+            last_seen_ts: 1752092793.4977531
             nickname: HostHarry
             score: 100
           JoinerJane:
             connected: true
-            last_seen_ts: 1752039799.720812
+            last_seen_ts: 1752092783.4977531
             nickname: JoinerJane
             score: 50
         round_timeout_seconds: 45
@@ -461,9 +509,9 @@ components:
           PilotPete:
             guess: LGA
             nickname: PilotPete
-            timestamp: 1752039804.717209
+            timestamp: 1752092788.494762
         round_number: 3
-        round_start_time: 1752039799.7172081
+        round_start_time: 1752092783.494762
         selected_plane_hex: a1b2c3
         state: accepting_guesses
     RoundResultDetail:

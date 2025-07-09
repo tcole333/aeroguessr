@@ -224,19 +224,24 @@ make ws-schema
 - [x] Fixed plane trails rendering (Issue #40) - reduced from 30 to 10 points for better performance
 - [x] Standardized nick/nickname usage across frontend codebase (Issue #31, PR #50)
 - [x] Implemented browser refresh rejoin functionality (Issue #38, PR #51)
+- [x] Implemented comprehensive logging system (Issues #35, #36, PR #59)
 
 ### Current State
-- **Branch:** main (all work merged)
-- **Uncommitted changes:** No - all changes committed and merged
+- **Branch:** feature/logging-improvements (PR #59 ready for review)
+- **Uncommitted changes:** No - all changes committed and pushed
 - **Tests passing:** Yes - Frontend (59/59), Backend (98/98), Integration tests exist
 - **Blockers:** None
 
 ### Next Session Should
-1. Pick up next highest priority issue from GitHub issues
-2. Consider fixing the pre-commit hook poetry path issue if needed
-3. Review and address any integration test failures in TECH_DEBT.md
+1. Review and merge PR #59 (logging improvements) if CI passes
+2. Pick up next highest priority issue from GitHub issues
+3. Consider fixing the pre-commit hook poetry path issue if needed
 
 ### Notes/Warnings
+- **Logging system**: All logs now captured to files in `logs/` directory with automatic rotation
+- **Frontend logging**: Console logs automatically sent to backend and persisted to `logs/frontend.log`
+- **Integration tests**: Logs now saved to `logs/integration.log` instead of `logs.txt`
+- **Log rotation**: Development-friendly settings (5MB files, 1 day retention) vs production (daily rotation with compression)
 - Browser refresh rejoin functionality now fully implemented with session persistence
 - Nickname inconsistencies resolved - removed duplicate playerNickname property
 - Frontend connection state now uses single nickname property consistently

@@ -214,7 +214,7 @@ Integration tests require Docker services (backend, Redis) to be running.
   1.  Building and starting test Docker containers (`backend-test`, `redis-test`) using `infra/docker-compose.test.yml`.
   2.  Waiting for the backend to be healthy.
   3.  Executing tests marked with `integration`.
-  4.  Collecting container logs to `logs.txt`.
+  4.  Collecting container logs to `logs/integration.log`.
   5.  Tearing down the test containers.
   6.  Exiting with the pytest status code.
 

@@ -153,7 +153,7 @@ _Server → Client_
 - **Latency** ≤ 300 ms end‑to‑end map update.
 - **Scale** ≤ 10 players room / 5 rooms concurrently.
 - **Security** – anonymous, room code + nickname only; no cross‑room data leak.
-- **Logging** – JSON lines, rotated weekly (20 MiB, gzip, 7 copies).
+- **Logging** – JSON lines, rotated daily (10 MiB, no compression, 3 copies for dev).
 - **Accessibility** – colour‑blind safe palette; proper ARIA labels.
 - **Internationalisation** – ASCII nicknames only for v1.
 
@@ -193,7 +193,7 @@ _Server → Client_
 - Single `docker‑compose.yml` (backend API + Nginx for static React build).
 - **CI** – GitHub Actions: lint → test → build multi‑arch image → SSH into Pi → `docker compose pull && up -d`.
 - **Public access** – default Cloudflare Tunnel (`cloudflared tunnel run`); alternatives: Let's Encrypt + DDNS, or Tailscale Funnel (see README).
-- **Log rotation** – `/etc/logrotate.d/plane‑game`: weekly, size 20 M, compress.
+- **Log rotation** – `/etc/logrotate.d/plane‑game`: daily, size 10 M, no compress.
 
 ### 8.1 Map Tiles
 

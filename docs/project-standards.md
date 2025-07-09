@@ -157,9 +157,20 @@ console.error('Failed to load map tiles:', error);
 
 ### 4.3 Log Output
 - **Backend logs**: `logs/backend.log`
-- **Frontend logs**: Currently in browser console (TODO: capture to `logs/frontend.log`)
-- **Integration test logs**: Currently in `logs.txt` (TODO: move to `logs/integration.log`)
+- **Frontend logs**: `logs/frontend.log` (captured via logging API)
+- **Integration test logs**: `logs/integration.log`
 - **Format**: `[timestamp] [level] [module] message`
+
+### 4.4 Log Rotation
+- **Development Settings**:
+  - Rotate when file size exceeds 5MB
+  - Keep only 1 backup file
+  - Python's RotatingFileHandler for backend/frontend logs
+- **Production Settings** (via logrotate):
+  - Daily rotation
+  - Keep 1 day of history
+  - Compress rotated files
+  - Config in `infra/logrotate.d/plane-game`
 
 ## 5. API & WebSocket Standards
 

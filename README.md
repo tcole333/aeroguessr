@@ -195,6 +195,13 @@ docker compose -f infra/docker-compose.test.yml exec \
 [![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)]
 ````
 
+### 6.5 Logging
+
+- **Log Directory:** All application logs are stored in the `logs/` directory
+- **Frontend Logs:** Browser console logs are automatically captured to `logs/frontend.log`
+- **Integration Test Logs:** Test output saved to `logs/integration.log` for debugging failures
+- **Log Rotation:** Logs are automatically rotated to prevent disk space issues (configured via logrotate)
+
 ## 7. FAQ & Gotchas
 
 - **Map Tiles:** Uses OpenStreetMap by default. Be mindful of their [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/). Caching is implemented, but high volume may require switching providers (see [PRD §8.1](docs/PRD.md#81-map-tiles)).

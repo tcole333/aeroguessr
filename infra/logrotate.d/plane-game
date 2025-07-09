@@ -1,0 +1,36 @@
+# Log rotation configuration for Plane Game (Development)
+# Place this file in /etc/logrotate.d/ on the deployment server
+
+/home/pi/plane-game-v4/logs/*.log {
+    # Rotate daily
+    daily
+
+    # Keep only 1 rotated log (yesterday's log)
+    rotate 1
+
+    # Compress rotated logs to save space
+    compress
+
+    # Set maximum log size before rotation (5MB for dev)
+    maxsize 5M
+
+    # Don't rotate if the log file is empty
+    notifempty
+
+    # Create new log files with these permissions
+    create 0644 pi pi
+
+    # Truncate the original log file after creating a copy
+    copytruncate
+
+    # Add date to rotated filename
+    dateext
+    dateformat -%Y%m%d-%H%M%S
+
+    # Run this script after rotation
+    postrotate
+        # Send SIGHUP to any processes that need to reopen log files
+        # This is optional since we're using copytruncate
+        # killall -HUP uvicorn || true
+    endscript
+}
