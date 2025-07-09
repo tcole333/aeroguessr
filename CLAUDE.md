@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-09
 
 ### Active Development
-- **Current Branch:** feature/31-standardize-nick-nickname-usage
-- **Current Issue:** #31 - Tech Debt: Standardize nick/nickname usage across codebase
-- **Status:** Completed - Fixed nickname inconsistencies, removed duplicated properties, resolved test failures
+- **Current Branch:** main (no active feature branch)
+- **Current Issue:** None - ready for new work
+- **Status:** All previous work completed and merged
 
 ### Check for New Work
 ```bash
@@ -120,13 +120,38 @@ gh pr checkout 42
   - Frontend tests pass: `cd frontend && npm run test:ci`
   - Integration tests pass: `make integration-test`
 - [ ] **Manual Testing**: Feature works as expected in local environment
+- [ ] **Follow-up Issues**: Identify and create issues for improvements that shouldn't block merge
+- [ ] **Documentation Updates**: Update TECH_DEBT.md and session handoff notes
+
+#### Creating Follow-up Issues During Review
+**When to create follow-up issues:**
+- Performance optimizations identified but not critical
+- Code refactoring opportunities that don't affect functionality
+- Enhanced error handling or logging improvements
+- UI/UX improvements that aren't core to the current feature
+- Technical debt items discovered during review
+- Documentation enhancements beyond the current scope
+
+**Guidelines for follow-up issues:**
+- Label with appropriate priority (low/medium for most follow-ups)
+- Reference the original PR: "Follow-up from PR #42"
+- Include specific code references and suggested improvements
+- Don't create follow-up issues for critical bugs or security issues (these should block merge)
 
 ```bash
+# Create follow-up issue from review findings
+gh issue create --title "Performance: Optimize WebSocket message compression" \
+                --body "Follow-up from PR #42\n\nDuring review, identified opportunity to add permessage-deflate compression to reduce bandwidth usage..." \
+                --label "enhancement,performance"
+
 # Merge PR (squash and merge recommended)
 gh pr merge 42 --squash --delete-branch
 
 # Close related issue if not auto-closed
 gh issue close 32 --comment "Fixed in PR #42"
+
+# Update TECH_DEBT.md to reflect completion
+# Update session handoff notes with current status
 
 # Switch back to main and pull latest
 git checkout main && git pull
@@ -197,23 +222,27 @@ make ws-schema
 - [x] Added comprehensive tests for leave room functionality
 - [x] Resolved console validation errors for ping messages
 - [x] Fixed plane trails rendering (Issue #40) - reduced from 30 to 10 points for better performance
+- [x] Standardized nick/nickname usage across frontend codebase (Issue #31, PR #50)
+- [x] Implemented browser refresh rejoin functionality (Issue #38, PR #51)
 
 ### Current State
-- **Branch:** feature/31-standardize-nick-nickname-usage (PR #50 created)
-- **Uncommitted changes:** No - all changes committed and pushed
-- **Tests passing:** Yes - Frontend (55/55), Backend (98/98), Integration tests exist
+- **Branch:** main (all work merged)
+- **Uncommitted changes:** No - all changes committed and merged
+- **Tests passing:** Yes - Frontend (59/59), Backend (98/98), Integration tests exist
 - **Blockers:** None
 
 ### Next Session Should
-1. Review and merge PR #50 if CI passes (nickname standardization)
-2. Pick up next highest priority issue from GitHub issues
-3. Consider fixing the pre-commit hook poetry path issue if needed
+1. Pick up next highest priority issue from GitHub issues
+2. Consider fixing the pre-commit hook poetry path issue if needed
+3. Review and address any integration test failures in TECH_DEBT.md
 
 ### Notes/Warnings
+- Browser refresh rejoin functionality now fully implemented with session persistence
 - Nickname inconsistencies resolved - removed duplicate playerNickname property
 - Frontend connection state now uses single nickname property consistently
 - All variable names standardized to use 'nickname' instead of 'nick'
 - Backend naming conventions maintained (snake_case for APIs, camelCase for frontend state)
+- localStorage key changed from 'plane-ui' to 'plane-session' (may reset user preferences)
 
 ## 🛠 Helper Scripts
 
