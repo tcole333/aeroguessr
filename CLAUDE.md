@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-09
 
 ### Active Development
-- **Current Branch:** feature/58-fix-stale-flights
-- **Current Issue:** #58 - Bug: Stale flights remain visible in Planes panel
-- **Status:** Fixed and ready for review (PR #63)
+- **Current Branch:** main
+- **Current Issue:** None - ready for new work
+- **Status:** All previous work completed and merged
 
 ### Check for New Work
 ```bash
@@ -230,16 +230,16 @@ make ws-schema
 - [x] Implemented intelligent range-based plane filtering (Issue #58, PR #63)
 
 ### Current State
-- **Branch:** feature/58-fix-stale-flights (PR #63 ready for review)
-- **Uncommitted changes:** No - all changes committed to feature branch
-- **Tests passing:** Yes - Frontend (59/59), Backend (113/113), Integration tests exist
-- **Blockers:** None - awaiting PR review and merge
+- **Branch:** main
+- **Uncommitted changes:** None - all work merged
+- **Tests passing:** Yes - Frontend (59/59), Backend (113/113), Integration tests have failures noted in TECH_DEBT.md
+- **Blockers:** None - ready for new work
 
 ### Next Session Should
-1. Merge PR #63 after review (fix for Issue #58)
-2. Pick up next highest priority issue from GitHub issues  
-3. Consider fixing the pre-commit hook poetry path issue if needed
-4. Review and address any integration test failures in TECH_DEBT.md
+1. Pick up next highest priority issue from GitHub issues
+2. Consider fixing the pre-commit hook poetry path issue if needed
+3. Review and address integration test failures in TECH_DEBT.md
+4. Consider working on game UI enhancement issues (#55, #56, #57) for better user experience
 
 ### Notes/Warnings
 - **Critical Fix**: Redis WRONGTYPE error resolved - planes now move properly (PR #63)

@@ -73,3 +73,9 @@ export const createConnectionSlice: StateCreator<
       state.connection.isRejoinAttempt = isRejoin;
     }),
 });
+
+// Selectors
+export const selectRoomCode = (state: RootState) => state.connection.roomCode;
+export const selectNickname = (state: RootState) => state.connection.nickname;
+export const selectConnectionStatus = (state: RootState) => state.connection.status;
+export const selectWsUrl = (state: RootState) => state.connection.wsUrl;

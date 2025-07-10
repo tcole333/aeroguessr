@@ -1,7 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import SlidingPanel from '../SlidingPanel';
 import { StoreProvider } from '../../../store/createRootStore';
+
+// Mock the RoomCodeDisplay component
+vi.mock('../../ui/RoomCodeDisplay', () => ({
+  RoomCodeDisplay: ({ className }: { className?: string }) => (
+    <div className={className} data-testid="room-code-display">Room: TEST</div>
+  ),
+}));
 
 function renderPanel() {
   return render(
