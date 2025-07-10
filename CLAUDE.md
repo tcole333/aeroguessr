@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-10
 
 ### Active Development
-- **Current Branch:** feature/57-game-status-indicators
-- **Current Issue:** #57 - Game status and round progress indicators
-- **Status:** Implementation complete, PR #67 created and ready for review
+- **Current Branch:** main
+- **Current Issue:** None - ready for new work
+- **Status:** All previous work completed and merged
 
 ### Check for New Work
 ```bash
@@ -233,16 +233,16 @@ make ws-schema
 - [x] Implemented game status and round progress indicators (Issue #57, PR #67)
 
 ### Current State
-- **Branch:** feature/57-game-status-indicators
-- **Uncommitted changes:** CLAUDE.md updates only
+- **Branch:** main
+- **Uncommitted changes:** None - all work merged
 - **Tests passing:** Yes - Frontend (97/101, 4 skipped), Backend (113/113), Integration tests have failures noted in TECH_DEBT.md
-- **Blockers:** None - PR #67 ready for review
+- **Blockers:** None - ready for new work
 
 ### Next Session Should
-1. Wait for PR #67 review and merge
-2. Check for any new high-priority issues
-3. Consider fixing the pre-commit hook poetry path issue if needed
-4. Review and address integration test failures in TECH_DEBT.md
+1. Check for any new high-priority issues
+2. Consider fixing the pre-commit hook poetry path issue if needed
+3. Review and address integration test failures in TECH_DEBT.md
+4. Consider other UI improvements or backend enhancements
 
 ### Notes/Warnings
 - **Critical Fix**: Redis WRONGTYPE error resolved - planes now move properly (PR #63)
