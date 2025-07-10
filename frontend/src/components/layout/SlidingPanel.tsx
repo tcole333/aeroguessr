@@ -4,6 +4,7 @@ import LeaderboardPanelContent from '../../features/leaderboard/components/Leade
 import SettingsPanelContent from '../../features/settings/components/SettingsPanelContent';
 import { RoomCodeDisplay } from '../ui/RoomCodeDisplay';
 import { ScoreModeIndicator } from '../ui/ScoreModeIndicator';
+import { GameStatusIndicator } from '../ui/GameStatusIndicator';
 import { useStore } from '../../hooks/useStore';
 import {
   selectActivePanel,
@@ -47,8 +48,9 @@ export default function SlidingPanel(): JSX.Element {
           </button>
         </div>
         {isPanelOpen && (
-          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
             <ScoreModeIndicator />
+            <GameStatusIndicator />
           </div>
         )}
       </div>
