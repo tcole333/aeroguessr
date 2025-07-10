@@ -112,4 +112,23 @@ describe('WebSocketClient', () => {
       expect(msgs[0].payload?.message).toBe('test error');
     }
   });
+
+  it('does not reconnect after intentional destroy', () => {
+    const client = createWebSocketClient('ws://test');
+    client.connect('A', 'B');
+    const socket = sockets[0];
+    socket.triggerOpen();
+
+    // Call destroy which should set isIntentionalClose flag
+    client.destroy();
+
+    // Trigger the close event (this happens when socket.close() is called)
+    socket.triggerClose();
+
+    // Advance timers - should NOT create a new connection
+    vi.advanceTimersByTime(5000);
+
+    // Should still only have 1 socket (no reconnection)
+    expect(sockets.length).toBe(1);
+  });
 });

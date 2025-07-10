@@ -99,3 +99,24 @@
 - **Code Ref:** `frontend/src/hooks/useAutoRejoin.ts`, `frontend/src/store/createRootStore.tsx`, `frontend/src/hooks/useWebSocketManager.ts`
 
 ---
+
+## ✅ Item: Leaderboard Real-time Updates (COMPLETED - Issue #65)
+
+- **Context:** The leaderboard wasn't updating in real-time when players joined or left the room. This was accompanied by a more serious issue where host transfer wasn't working properly.
+- **Implemented features:**
+  - Added `playerJoined` and `playerLeft` WebSocket message handlers in frontend
+  - Implemented `addPlayer` and `removePlayer` actions in game slice
+  - Fixed WebSocket auto-reconnect issue preventing proper disconnection (added `isIntentionalClose` flag)
+  - Fixed backend immediate host transfer when host leaves
+  - Fixed critical backend bug where host validation used stale connection-scoped variables
+- **Backend Host Validation Fix:**
+  - Problem: Each WebSocket connection had its own `is_host` variable set at connection time
+  - This variable wasn't updated during automatic host transfers, preventing new hosts from performing actions
+  - Solution: Added `_check_is_host()` helper that dynamically queries Redis for current host status
+  - Updated all host-only commands (`selectPlane`, `startRound`, `skipRound`, `transferHost`) to use dynamic check
+- **Status:** Leaderboard updates in real-time and host transfer works seamlessly without page refresh.
+- **Code Ref:**
+  - Frontend: `frontend/src/hooks/useWebSocketManager.ts`, `frontend/src/features/game/gameSlice.ts`
+  - Backend: `backend/routes/rooms.py` lines 858-861 (_check_is_host), various handler updates
+
+---

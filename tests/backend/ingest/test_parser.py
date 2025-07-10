@@ -143,9 +143,9 @@ def test_parse_valid_msg_messages(
         # Use pytest.approx for float comparisons
         if isinstance(expected_value, float):
             # Check for None explicitly before comparing floats
-            assert (
-                actual_value is not None
-            ), f"Field '{field}' expected {expected_value} but got None"
+            assert actual_value is not None, (
+                f"Field '{field}' expected {expected_value} but got None"
+            )
             assert actual_value == pytest.approx(expected_value), f"Field '{field}' mismatch"
         else:
             assert actual_value == expected_value, f"Field '{field}' mismatch"
@@ -163,9 +163,9 @@ def test_parse_valid_msg_messages(
     }
     expected_none_fields = all_data_fields - set(expected_fields.keys())
     for field in expected_none_fields:
-        assert (
-            getattr(actual, field) is None
-        ), f"Field '{field}' should be None but is {getattr(actual, field)}"
+        assert getattr(actual, field) is None, (
+            f"Field '{field}' should be None but is {getattr(actual, field)}"
+        )
 
 
 @pytest.mark.parametrize(

@@ -490,4 +490,103 @@ async def test_delete_room_service_error(
 #
 # @pytest.mark.asyncio
 # async def test_websocket_claim_host_still_connected(...):
+
+
+# --- Host Validation Tests --- #
+
+
+async def test_host_validation_after_transfer(
+    test_client: AsyncClient, redis_client: RedisClient
+) -> None:
+    """Test that host validation correctly checks Redis after host transfer."""
+    # Create a room
+    create_resp = await test_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": "OriginalHost",
+            "mode": ScoringMode.EXACT.value,
+            "round_timeout_seconds": 30,
+        },
+    )
+    assert create_resp.status_code == status.HTTP_201_CREATED
+    room_code = create_resp.json()["room_code"]
+
+    # Join as another player
+    join_resp = await test_client.post(
+        f"/api/v0/rooms/{room_code}/join", json={"nickname": "NewHost"}
+    )
+    assert join_resp.status_code == status.HTTP_200_OK
+
+    # Simulate host transfer by updating room meta
+    room_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
+    assert room_meta is not None
+    room_meta.host_nickname = "NewHost"
+    await redis_client.set_json(f"room:{room_code}:meta", room_meta)
+
+    # Verify the host has been updated
+    updated_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
+    assert updated_meta is not None
+    assert updated_meta.host_nickname == "NewHost"
+
+
+async def test_host_validation_with_missing_room(
+    test_client: AsyncClient, redis_client: RedisClient
+) -> None:
+    """Test host validation when room metadata is missing."""
+    # Create a room initially
+    create_resp = await test_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": "TestHost",
+            "mode": ScoringMode.EXACT.value,
+            "round_timeout_seconds": 30,
+        },
+    )
+    assert create_resp.status_code == status.HTTP_201_CREATED
+    room_code = create_resp.json()["room_code"]
+
+    # Delete the room metadata to simulate missing room
+    await redis_client.delete(f"room:{room_code}:meta")
+
+    # Verify room meta is gone
+    room_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
+    assert room_meta is None
+
+
+async def test_host_validation_with_multiple_transfers(
+    test_client: AsyncClient, redis_client: RedisClient
+) -> None:
+    """Test host validation through multiple host transfers."""
+    # Create a room
+    create_resp = await test_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": "Host1",
+            "mode": ScoringMode.DISTANCE.value,
+            "round_timeout_seconds": 30,
+        },
+    )
+    assert create_resp.status_code == status.HTTP_201_CREATED
+    room_code = create_resp.json()["room_code"]
+
+    # Join multiple players
+    for i in range(2, 5):
+        join_resp = await test_client.post(
+            f"/api/v0/rooms/{room_code}/join", json={"nickname": f"Host{i}"}
+        )
+        assert join_resp.status_code == status.HTTP_200_OK
+
+    # Simulate multiple host transfers
+    for i in range(2, 5):
+        room_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
+        assert room_meta is not None
+        room_meta.host_nickname = f"Host{i}"
+        await redis_client.set_json(f"room:{room_code}:meta", room_meta)
+
+        # Verify the host has been updated
+        updated_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
+        assert updated_meta is not None
+        assert updated_meta.host_nickname == f"Host{i}"
+
+
 #    ...

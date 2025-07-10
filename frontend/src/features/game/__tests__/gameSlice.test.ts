@@ -67,4 +67,58 @@ describe("gameSlice", () => {
     expect(store.getState().game.players).toEqual({});
     expect(store.getState().connection.nickname).toBeNull();
   });
+
+  it("handles player join and leave", () => {
+    const store = createRootStore();
+
+    // Add first player
+    store.getState().game.addPlayer('Player1');
+    expect(store.getState().game.players['Player1']).toEqual({
+      nickname: 'Player1',
+      score: 0,
+      connected: true,
+      last_seen_ts: expect.any(Number),
+    });
+    expect(store.getState().game.scores['Player1']).toBe(0);
+
+    // Add second player
+    store.getState().game.addPlayer('Player2');
+    expect(store.getState().game.players['Player2']).toEqual({
+      nickname: 'Player2',
+      score: 0,
+      connected: true,
+      last_seen_ts: expect.any(Number),
+    });
+    expect(store.getState().game.scores['Player2']).toBe(0);
+
+    // Both players should exist
+    expect(Object.keys(store.getState().game.players)).toHaveLength(2);
+    expect(Object.keys(store.getState().game.scores)).toHaveLength(2);
+
+    // Remove first player
+    store.getState().game.removePlayer('Player1');
+    expect(store.getState().game.players['Player1']).toBeUndefined();
+    expect(store.getState().game.scores['Player1']).toBeUndefined();
+
+    // Second player should still exist
+    expect(store.getState().game.players['Player2']).toBeDefined();
+    expect(store.getState().game.scores['Player2']).toBe(0);
+    expect(Object.keys(store.getState().game.players)).toHaveLength(1);
+  });
+
+  it("handles host updates from newHost message", () => {
+    const store = createRootStore();
+
+    // Set initial host
+    store.getState().game.setHostNickname('InitialHost');
+    expect(store.getState().game.hostNickname).toBe('InitialHost');
+
+    // Update host
+    store.getState().game.setHostNickname('NewHost');
+    expect(store.getState().game.hostNickname).toBe('NewHost');
+
+    // Clear host
+    store.getState().game.setHostNickname(null);
+    expect(store.getState().game.hostNickname).toBeNull();
+  });
 });

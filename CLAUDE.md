@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-10
 
 ### Active Development
-- **Current Branch:** main
-- **Current Issue:** None - ready for new work
-- **Status:** All previous work completed and merged
+- **Current Branch:** feature/65-leaderboard-realtime-updates
+- **Current Issue:** #65 - Leaderboard real-time updates
+- **Status:** PR #69 updated with both fixes (leaderboard updates + WebSocket auto-reconnect)
 
 ### Check for New Work
 ```bash
@@ -231,12 +231,14 @@ make ws-schema
 - [x] Implemented round result modal with scoring feedback (Issue #55, PR #66)
 - [x] Added scoring mode indicator with round timer (Issue #56, PR #66)
 - [x] Implemented game status and round progress indicators (Issue #57, PR #67)
+- [x] Fixed leaderboard real-time updates (Issue #65, PR #69)
+- [x] Fixed critical backend host validation bug preventing new hosts from selecting planes (Issue #65, PR #69)
 
 ### Current State
-- **Branch:** main
-- **Uncommitted changes:** None - all work merged
-- **Tests passing:** Yes - Frontend (97/101, 4 skipped), Backend (113/113), Integration tests have failures noted in TECH_DEBT.md
-- **Blockers:** None - ready for new work
+- **Branch:** feature/65-leaderboard-realtime-updates
+- **Uncommitted changes:** CLAUDE.md, TECH_DEBT.md updates
+- **Tests passing:** Yes - Frontend (103/107, 4 skipped), Backend (113/113), Integration tests have failures noted in TECH_DEBT.md
+- **Blockers:** None - Ready to create PR #69
 
 ### Next Session Should
 1. Check for any new high-priority issues
@@ -262,6 +264,9 @@ make ws-schema
 - **Score Mode Indicator**: Timer component manages its own interval for countdown functionality
 - **Game Status Indicator**: Shows game phase, round number, and countdown timer with progress bar
 - **UI Enhancement Trilogy Complete**: Issues #55, #56, and #57 all implemented for comprehensive game feedback
+- **WebSocket Auto-Reconnect Fixed**: The WebSocket client now properly distinguishes between intentional disconnections (Leave Room) and unintentional ones (network issues)
+- **Host Transfer Fixed**: Backend now uses dynamic host validation instead of stale connection-scoped variables
+- **Critical Backend Fix**: Host validation bug prevented new hosts from performing actions - now checks Redis dynamically
 
 ## 🛠 Helper Scripts
 

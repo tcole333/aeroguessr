@@ -16,6 +16,8 @@ interface SliceActions {
   setSelectedPlane: (hex: string | null) => void;
   setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nick: string | null) => void;
+  addPlayer: (nickname: string) => void;
+  removePlayer: (nickname: string) => void;
   upsertPlanes: (p: any[]) => void;
   removePlanes: (ids: string[]) => void;
   setExpandedPlane: (hex: string | null) => void;
@@ -68,8 +70,23 @@ function handleInbound(
     case 'roundResult':
       actions.setRoundResult(msg.payload);
       break;
+    case 'playerJoined':
+      if (msg.payload?.nickname) {
+        actions.addPlayer(msg.payload.nickname);
+        console.log('[WS] Player joined:', msg.payload.nickname);
+      }
+      break;
+    case 'playerLeft':
+      if (msg.payload?.nickname) {
+        actions.removePlayer(msg.payload.nickname);
+        console.log('[WS] Player left:', msg.payload.nickname);
+      }
+      break;
     case 'newHost':
-      actions.setHostNickname(msg.payload.nickname);
+      if (msg.payload?.nickname) {
+        actions.setHostNickname(msg.payload.nickname);
+        console.log('[WS] New host assigned:', msg.payload.nickname);
+      }
       break;
     case 'planeSelectedConfirm':
       if (msg.payload?.hex) {
@@ -100,6 +117,8 @@ export function useWebSocketManager(
   const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
   const setGuessDirection = useStore((s) => s.game.setGuessDirection);
   const setHostNickname = useStore((s) => s.game.setHostNickname);
+  const addPlayer = useStore((s) => s.game.addPlayer);
+  const removePlayer = useStore((s) => s.game.removePlayer);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
   const wsUrl = useStore((s) => s.connection.wsUrl);
@@ -119,6 +138,8 @@ export function useWebSocketManager(
     setSelectedPlane,
     setGuessDirection,
     setHostNickname,
+    addPlayer,
+    removePlayer,
     upsertPlanes,
     removePlanes,
     setExpandedPlane,
@@ -168,6 +189,8 @@ export function useWebSocketManager(
     setSelectedPlane,
     setGuessDirection,
     setHostNickname,
+    addPlayer,
+    removePlayer,
     upsertPlanes,
     removePlanes,
     setExpandedPlane,

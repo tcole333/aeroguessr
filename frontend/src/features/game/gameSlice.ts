@@ -33,12 +33,14 @@ export interface GameSlice {
   setSelectedPlane: (hex: string | null) => void;
   setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nickname: string | null) => void;
+  addPlayer: (nickname: string) => void;
+  removePlayer: (nickname: string) => void;
   leaveRoom: () => void;
 }
 
 const initialState: Omit<
   GameSlice,
-  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setSelectedPlane" | "setGuessDirection" | "setHostNickname" | "leaveRoom"
+  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setSelectedPlane" | "setGuessDirection" | "setHostNickname" | "addPlayer" | "removePlayer" | "leaveRoom"
 > = {
   roomCode: null,
   players: {},
@@ -135,6 +137,24 @@ export const createGameSlice: StateCreator<
   setHostNickname: (nickname) =>
     set((state) => {
       state.game.hostNickname = nickname;
+    }),
+  addPlayer: (nickname) =>
+    set((state) => {
+      // Add player to players object with default data
+      state.game.players[nickname] = {
+        nickname,
+        score: 0,
+        connected: true,
+        last_seen_ts: Date.now() / 1000,
+      };
+      // Add to scores with 0 score
+      state.game.scores[nickname] = 0;
+    }),
+  removePlayer: (nickname) =>
+    set((state) => {
+      // Remove player from players and scores
+      delete state.game.players[nickname];
+      delete state.game.scores[nickname];
     }),
   leaveRoom: () =>
     set((state) => {

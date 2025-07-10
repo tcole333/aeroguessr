@@ -632,7 +632,9 @@ async def websocket_endpoint(
 
             # Broadcast newHost message
             new_host_payload = NewHostPayload(nickname=new_host.nickname)
-            new_host_message = WSMessage(type="newHost", payload=new_host_payload.model_dump())
+            new_host_message = WSMessage(
+                type=WSMessageType.NEW_HOST, payload=new_host_payload.model_dump()
+            )
             await conn_manager.broadcast(new_host_message.model_dump(), room_code)
 
         auto_transfer_host_task = asyncio.create_task(
@@ -852,6 +854,11 @@ async def websocket_endpoint(
             logger.warning(f"Failed to send error to {nickname} (already disconnected?).")
         except Exception as e:
             logger.error(f"Failed to send error message: {e}", exc_info=True)
+
+    async def _check_is_host() -> bool:
+        """Check if the current player is the host by fetching current room metadata."""
+        room_meta_check = await room_service.get_room_meta(redis, room_code)
+        return room_meta_check is not None and room_meta_check.host_nickname == nickname
 
     # --- Heartbeat Task --- #
     async def send_pings(ws: WebSocket, r_code: str, nick: str, mgr: ConnectionManager) -> None:
@@ -1177,7 +1184,8 @@ async def websocket_endpoint(
                         asyncio.create_task(_delayed_all_guessed_check())
 
                     elif ws_msg.type == WSMessageType.SELECT_PLANE:
-                        if not is_host:
+                        # Check host status dynamically to handle host transfers
+                        if not await _check_is_host():
                             await _send_error(
                                 ErrorCode.NOT_HOST, "Only the host can select a plane."
                             )
@@ -1332,7 +1340,8 @@ async def websocket_endpoint(
                         )
 
                     elif ws_msg.type == WSMessageType.START_ROUND:
-                        if not is_host:
+                        # Check host status dynamically to handle host transfers
+                        if not await _check_is_host():
                             await _send_error(
                                 ErrorCode.NOT_HOST, "Only the host can start the round."
                             )
@@ -1463,7 +1472,8 @@ async def websocket_endpoint(
                         round_timer_task.add_done_callback(conn_manager._remove_task_from_set)
 
                     elif ws_msg.type == WSMessageType.SKIP_ROUND:
-                        if not is_host:
+                        # Check host status dynamically to handle host transfers
+                        if not await _check_is_host():
                             await _send_error(
                                 ErrorCode.NOT_HOST, "Only the host can skip the round."
                             )
@@ -1503,7 +1513,8 @@ async def websocket_endpoint(
 
                     elif ws_msg.type == WSMessageType.TRANSFER_HOST:
                         # Host transfers host privileges to another player
-                        if not is_host:
+                        # Check host status dynamically to handle host transfers
+                        if not await _check_is_host():
                             await _send_error(
                                 ErrorCode.NOT_HOST, "Only the host can transfer host privileges."
                             )
@@ -1748,9 +1759,37 @@ async def websocket_endpoint(
         final_room_meta = await room_service.get_room_meta(redis, room_code)
         if final_room_meta and final_room_meta.host_nickname == nickname:
             logger.info(
-                f"Host {nickname} disconnected from room {room_code}. Initiating handover checks."
+                f"Host {nickname} disconnected from room {room_code}. "
+                f"Checking for immediate transfer."
             )
-            await _handle_host_disconnect()  # Start timers/allow claim
+
+            # Check if there are other connected players for immediate transfer
+            all_players = await room_service.get_all_players(redis, room_code)
+            connected_players = [
+                p for p in all_players.values() if p.connected and p.nickname != nickname
+            ]
+
+            if connected_players:
+                # Immediate transfer to first available player
+                new_host = connected_players[0]
+                final_room_meta.host_nickname = new_host.nickname
+                final_room_meta.host_disconnected_ts = None  # No disconnect timestamp needed
+                await room_service.set_room_meta(redis, room_code, final_room_meta)
+
+                # Broadcast newHost message immediately
+                new_host_payload = NewHostPayload(nickname=new_host.nickname)
+                new_host_message = WSMessage(
+                    type=WSMessageType.NEW_HOST, payload=new_host_payload.model_dump()
+                )
+                await conn_manager.broadcast(new_host_message.model_dump(), room_code)
+
+                logger.info(
+                    f"Immediately transferred host from {nickname} to "
+                    f"{new_host.nickname} in room {room_code}"
+                )
+            else:
+                # No other players, just record disconnect for future joins
+                await _handle_host_disconnect()  # Start timers/allow claim
         else:
             # If a non-host disconnected, clear any pending host disconnect timers
             # This might happen if host disconnects, then rejoins quickly before claim

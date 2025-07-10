@@ -9,12 +9,10 @@ target-version = "py312"
 # See full list: https://docs.astral.sh/ruff/rules/
 select = ["E", "F", "W", "I", "ANN", "B", "C4", "T20", "PYI"]
 ignore = [
-    "ANN101", # Missing type annotation for `self` in method
-    "ANN102", # Missing type annotation for `cls` in classmethod
+    # ANN101 and ANN102 have been removed in newer ruff versions
     # Allow missing return type annotations for tests for now
     # "ANN201", # Missing return type annotation for public function/method
     "B008", # Do not perform function call `Depends` in argument defaults;
-
 ]
 
 # Allow unused variables when underscore-prefixed.

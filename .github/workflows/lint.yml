@@ -25,13 +25,17 @@ jobs:
           cache: "pip" # cache pip dependencies
 
       - name: Install Ruff
-        run: pip install ruff
+        run: pip install ruff==0.12.2
 
       - name: Run Ruff Linter
         run: ruff check .
 
       - name: Run Ruff Formatter Check
-        run: ruff format --check .
+        run: |
+          # First show what would be changed
+          ruff format --diff . || true
+          # Then run the actual check
+          ruff format --check .
 
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v3

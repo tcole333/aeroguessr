@@ -60,6 +60,7 @@ export function createWebSocketClient(
   const queue: OutboundMessage[] = [];
   let currentRoom = '';
   let currentNickname = '';
+  let isIntentionalClose = false;
 
   function clearTimers() {
     if (heartbeat) clearInterval(heartbeat);
@@ -140,7 +141,14 @@ export function createWebSocketClient(
     socket.addEventListener('close', (ev) => {
       console.log(`[WS] Disconnected from ${url} (code=${ev.code}, reason=${ev.reason})`);
       emitter.emit('disconnected', undefined);
-      scheduleReconnect();
+
+      // Only reconnect if this wasn't an intentional close
+      if (!isIntentionalClose) {
+        scheduleReconnect();
+      } else {
+        // Reset the flag for next connection
+        isIntentionalClose = false;
+      }
     });
     socket.addEventListener('error', (e) => {
       console.error(`[WS] Error on ${url}:`, e);
@@ -179,6 +187,7 @@ export function createWebSocketClient(
       return () => emitter.off(event, cb as any);
     },
     destroy() {
+      isIntentionalClose = true;
       clearTimers();
       socket?.close();
       emitter.removeAll();

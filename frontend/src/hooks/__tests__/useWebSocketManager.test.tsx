@@ -158,4 +158,112 @@ describe('useWebSocketManager', () => {
     expect(store.getState().game.round).toBeNull();
     expect(store.getState().game.scores.A).toBe(105);
   });
+
+  it('handles playerJoined message', async () => {
+    function Test() {
+      useWebSocketManager('ROOM', 'ExistingPlayer');
+      return null;
+    }
+    render(<Test />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(sockets.length).toBeGreaterThan(0);
+    });
+
+    const socket = sockets[0];
+    const store = wrapperStore;
+    socket.triggerOpen();
+
+    // Trigger playerJoined message
+    socket.triggerMessage({
+      type: 'playerJoined',
+      payload: { nickname: 'NewPlayer' },
+    });
+
+    // Check that player was added to players and scores
+    expect(store.getState().game.players['NewPlayer']).toEqual({
+      nickname: 'NewPlayer',
+      score: 0,
+      connected: true,
+      last_seen_ts: expect.any(Number),
+    });
+    expect(store.getState().game.scores['NewPlayer']).toBe(0);
+  });
+
+  it('handles playerLeft message', async () => {
+    function Test() {
+      useWebSocketManager('ROOM', 'Nick');
+      return null;
+    }
+    render(<Test />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(sockets.length).toBeGreaterThan(0);
+    });
+
+    const socket = sockets[0];
+    const store = wrapperStore;
+    socket.triggerOpen();
+
+    // First add players via stateSync
+    socket.triggerMessage({
+      type: 'stateSync',
+      payload: {
+        room_meta: null,
+        players: {
+          Player1: { nickname: 'Player1', score: 50 },
+          Player2: { nickname: 'Player2', score: 30 }
+        }
+      },
+    });
+
+    expect(Object.keys(store.getState().game.players)).toHaveLength(2);
+    expect(store.getState().game.scores['Player1']).toBe(50);
+
+    // Trigger playerLeft message
+    socket.triggerMessage({
+      type: 'playerLeft',
+      payload: { nickname: 'Player1' },
+    });
+
+    // Check that player was removed
+    expect(store.getState().game.players['Player1']).toBeUndefined();
+    expect(store.getState().game.scores['Player1']).toBeUndefined();
+    expect(store.getState().game.players['Player2']).toBeDefined();
+    expect(Object.keys(store.getState().game.players)).toHaveLength(1);
+  });
+
+  it('handles newHost message', async () => {
+    function Test() {
+      useWebSocketManager('ROOM', 'Nick');
+      return null;
+    }
+    render(<Test />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(sockets.length).toBeGreaterThan(0);
+    });
+
+    const socket = sockets[0];
+    const store = wrapperStore;
+    socket.triggerOpen();
+
+    // Set initial host
+    socket.triggerMessage({
+      type: 'stateSync',
+      payload: {
+        room_meta: { host_nickname: 'OldHost' },
+        players: {}
+      },
+    });
+    expect(store.getState().game.hostNickname).toBe('OldHost');
+
+    // Trigger newHost message
+    socket.triggerMessage({
+      type: 'newHost',
+      payload: { nickname: 'NewHost' },
+    });
+
+    expect(store.getState().game.hostNickname).toBe('NewHost');
+  });
 });
