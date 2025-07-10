@@ -56,90 +56,18 @@ messages:
     payload:
       $ref: '#/$defs/PlaneSelectedConfirmPayload'
 $defs:
-  SelectPlanePayload:
-    description: Payload for the host selectPlane message.
+  PlayerJoinedPayload:
+    description: Payload for the playerJoined message.
     example:
-      hex: a1b2c3
+      nickname: NewPlayer123
     properties:
-      hex:
-        description: ICAO24 hex code of the selected plane.
-        title: Hex
+      nickname:
+        description: Nickname of the player who joined.
+        title: Nickname
         type: string
     required:
-    - hex
-    title: SelectPlanePayload
-    type: object
-  RoundResultPayload:
-    $defs:
-      RoundResultDetail:
-        description: Detailed result for a single player in a round.
-        properties:
-          nickname:
-            title: Nickname
-            type: string
-          guess:
-            anyOf:
-            - type: string
-            - type: 'null'
-            title: Guess
-          correct_code:
-            title: Correct Code
-            type: string
-          score_awarded:
-            title: Score Awarded
-            type: integer
-          current_total_score:
-            title: Current Total Score
-            type: integer
-        required:
-        - nickname
-        - guess
-        - correct_code
-        - score_awarded
-        - current_total_score
-        title: RoundResultDetail
-        type: object
-    description: Payload for the server roundResult message.
-    example:
-      next_host_nickname: null
-      results:
-      - correct_code: BOS
-        current_total_score: 150
-        guess: JFK
-        nickname: Player1
-        score_awarded: 0
-      - correct_code: BOS
-        current_total_score: 200
-        guess: BOS
-        nickname: Player2
-        score_awarded: 100
-    properties:
-      results:
-        description: List containing results for each player.
-        items:
-          $ref: '#/$defs/RoundResultDetail'
-        title: Results
-        type: array
-      next_host_nickname:
-        anyOf:
-        - type: string
-        - type: 'null'
-        default: null
-        description: Nickname of the player who will host the next round (if changed).
-        title: Next Host Nickname
-    required:
-    - results
-    title: RoundResultPayload
-    type: object
-  SkipRoundPayload:
-    description: Payload for the host skipRound message (currently empty).
-    properties: {}
-    title: SkipRoundPayload
-    type: object
-  ClaimHostPayload:
-    description: Payload for the player claimHost message (currently empty).
-    properties: {}
-    title: ClaimHostPayload
+    - nickname
+    title: PlayerJoinedPayload
     type: object
   GuessPayload:
     description: Payload for the player guess message.
@@ -154,41 +82,85 @@ $defs:
     - airport_code
     title: GuessPayload
     type: object
-  RoundStartPayload:
-    description: Payload for the server roundStart message.
+  SkipRoundPayload:
+    description: Payload for the host skipRound message (currently empty).
+    properties: {}
+    title: SkipRoundPayload
+    type: object
+  TransferHostPayload:
+    description: Payload for the host transferHost message.
     example:
-      direction: destination
-      hex: a1b2c3
-      round_number: 4
-      timeout_s: 30
+      to_nickname: SuccessorSam
     properties:
-      hex:
-        description: ICAO24 hex code of the plane for this round.
-        title: Hex
+      to_nickname:
+        description: Nickname of the player to transfer host to.
+        title: To Nickname
         type: string
-      timeout_s:
-        description: Duration of the guessing round in seconds.
-        title: Timeout S
-        type: integer
-      direction:
-        description: Whether to guess 'origin' or 'destination'.
-        title: Direction
-        type: string
-      round_number:
-        description: The current round number.
-        title: Round Number
-        type: integer
     required:
-    - hex
-    - timeout_s
-    - direction
-    - round_number
-    title: RoundStartPayload
+    - to_nickname
+    title: TransferHostPayload
     type: object
   LeavePayload:
     description: Payload for the player leave message (currently empty).
     properties: {}
     title: LeavePayload
+    type: object
+  PlaneSelectedConfirmPayload:
+    description: Payload sent to host confirming successful plane selection.
+    example:
+      destination: KJFK
+      guess_direction: destination
+      hex: a1b2c3
+      origin: KBOS
+    properties:
+      hex:
+        description: ICAO24 hex code of the selected plane.
+        title: Hex
+        type: string
+      origin:
+        description: Origin airport ICAO code.
+        title: Origin
+        type: string
+      destination:
+        description: Destination airport ICAO code.
+        title: Destination
+        type: string
+      guess_direction:
+        description: Which airport players will guess ('origin' or 'destination').
+        title: Guess Direction
+        type: string
+    required:
+    - hex
+    - origin
+    - destination
+    - guess_direction
+    title: PlaneSelectedConfirmPayload
+    type: object
+  PingPongPayload:
+    description: Payload for ping and pong messages.
+    example:
+      seq: 12345
+    properties:
+      seq:
+        description: Sequence number for matching ping/pong.
+        title: Seq
+        type: integer
+    required:
+    - seq
+    title: PingPongPayload
+    type: object
+  NewHostPayload:
+    description: Payload for the server newHost message.
+    example:
+      nickname: PromotedPlayer
+    properties:
+      nickname:
+        description: Nickname of the new host.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: NewHostPayload
     type: object
   ErrorPayload:
     $defs:
@@ -234,106 +206,10 @@ $defs:
     - message
     title: ErrorPayload
     type: object
-  PlayerLeftPayload:
-    description: Payload for the playerLeft message.
-    example:
-      nickname: LeavingPlayer456
-    properties:
-      nickname:
-        description: Nickname of the player who left.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: PlayerLeftPayload
-    type: object
-  PingPongPayload:
-    description: Payload for ping and pong messages.
-    example:
-      seq: 12345
-    properties:
-      seq:
-        description: Sequence number for matching ping/pong.
-        title: Seq
-        type: integer
-    required:
-    - seq
-    title: PingPongPayload
-    type: object
   StartRoundPayload:
     description: Payload for the host startRound message (currently empty).
     properties: {}
     title: StartRoundPayload
-    type: object
-  PlayerJoinedPayload:
-    description: Payload for the playerJoined message.
-    example:
-      nickname: NewPlayer123
-    properties:
-      nickname:
-        description: Nickname of the player who joined.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: PlayerJoinedPayload
-    type: object
-  TransferHostPayload:
-    description: Payload for the host transferHost message.
-    example:
-      to_nickname: SuccessorSam
-    properties:
-      to_nickname:
-        description: Nickname of the player to transfer host to.
-        title: To Nickname
-        type: string
-    required:
-    - to_nickname
-    title: TransferHostPayload
-    type: object
-  NewHostPayload:
-    description: Payload for the server newHost message.
-    example:
-      nickname: PromotedPlayer
-    properties:
-      nickname:
-        description: Nickname of the new host.
-        title: Nickname
-        type: string
-    required:
-    - nickname
-    title: NewHostPayload
-    type: object
-  PlaneSelectedConfirmPayload:
-    description: Payload sent to host confirming successful plane selection.
-    example:
-      destination: KJFK
-      guess_direction: destination
-      hex: a1b2c3
-      origin: KBOS
-    properties:
-      hex:
-        description: ICAO24 hex code of the selected plane.
-        title: Hex
-        type: string
-      origin:
-        description: Origin airport ICAO code.
-        title: Origin
-        type: string
-      destination:
-        description: Destination airport ICAO code.
-        title: Destination
-        type: string
-      guess_direction:
-        description: Which airport players will guess ('origin' or 'destination').
-        title: Guess Direction
-        type: string
-    required:
-    - hex
-    - origin
-    - destination
-    - guess_direction
-    title: PlaneSelectedConfirmPayload
     type: object
   DeltaPayload:
     $defs:
@@ -470,7 +346,7 @@ $defs:
           category: 2
           destination: KJFK
           hex_ident: a1b2c3
-          last_update_ts: 1752096111431.53
+          last_update_ts: 1752124585906.827
           lat: 42.36
           lat_v: 0.01
           lon: -71.05
@@ -518,6 +394,81 @@ $defs:
         description: Updated round state information.
     title: DeltaPayload
     type: object
+  ClaimHostPayload:
+    description: Payload for the player claimHost message (currently empty).
+    properties: {}
+    title: ClaimHostPayload
+    type: object
+  RoundResultPayload:
+    $defs:
+      RoundResultDetail:
+        description: Detailed result for a single player in a round.
+        properties:
+          nickname:
+            title: Nickname
+            type: string
+          guess:
+            anyOf:
+            - type: string
+            - type: 'null'
+            title: Guess
+          correct_code:
+            title: Correct Code
+            type: string
+          score_awarded:
+            title: Score Awarded
+            type: integer
+          current_total_score:
+            title: Current Total Score
+            type: integer
+          distance_km:
+            anyOf:
+            - type: number
+            - type: 'null'
+            default: null
+            description: Distance in km between guess and correct answer (Distance
+              mode only)
+            title: Distance Km
+        required:
+        - nickname
+        - guess
+        - correct_code
+        - score_awarded
+        - current_total_score
+        title: RoundResultDetail
+        type: object
+    description: Payload for the server roundResult message.
+    example:
+      next_host_nickname: null
+      results:
+      - correct_code: BOS
+        current_total_score: 150
+        guess: JFK
+        nickname: Player1
+        score_awarded: 0
+      - correct_code: BOS
+        current_total_score: 200
+        guess: BOS
+        nickname: Player2
+        score_awarded: 100
+    properties:
+      results:
+        description: List containing results for each player.
+        items:
+          $ref: '#/$defs/RoundResultDetail'
+        title: Results
+        type: array
+      next_host_nickname:
+        anyOf:
+        - type: string
+        - type: 'null'
+        default: null
+        description: Nickname of the player who will host the next round (if changed).
+        title: Next Host Nickname
+    required:
+    - results
+    title: RoundResultPayload
+    type: object
   FullRoomState:
     description: Represents the complete state of a room to be sent on connect.
     example:
@@ -542,4 +493,61 @@ $defs:
     - room_meta
     - players
     title: FullRoomState
+    type: object
+  PlayerLeftPayload:
+    description: Payload for the playerLeft message.
+    example:
+      nickname: LeavingPlayer456
+    properties:
+      nickname:
+        description: Nickname of the player who left.
+        title: Nickname
+        type: string
+    required:
+    - nickname
+    title: PlayerLeftPayload
+    type: object
+  RoundStartPayload:
+    description: Payload for the server roundStart message.
+    example:
+      direction: destination
+      hex: a1b2c3
+      round_number: 4
+      timeout_s: 30
+    properties:
+      hex:
+        description: ICAO24 hex code of the plane for this round.
+        title: Hex
+        type: string
+      timeout_s:
+        description: Duration of the guessing round in seconds.
+        title: Timeout S
+        type: integer
+      direction:
+        description: Whether to guess 'origin' or 'destination'.
+        title: Direction
+        type: string
+      round_number:
+        description: The current round number.
+        title: Round Number
+        type: integer
+    required:
+    - hex
+    - timeout_s
+    - direction
+    - round_number
+    title: RoundStartPayload
+    type: object
+  SelectPlanePayload:
+    description: Payload for the host selectPlane message.
+    example:
+      hex: a1b2c3
+    properties:
+      hex:
+        description: ICAO24 hex code of the selected plane.
+        title: Hex
+        type: string
+    required:
+    - hex
+    title: SelectPlanePayload
     type: object

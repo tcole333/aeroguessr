@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE. DO NOT EDIT.
  * Source: docs/api_openapi.yaml
- * Generated: 2025-07-09T03:24:46.089Z
+ * Generated: 2025-07-10T05:18:06.113Z
  */
 export const openapi = {
   "openapi": "3.1.0",
@@ -253,6 +253,41 @@ export const openapi = {
           }
         }
       }
+    },
+    "/api/v0/logs/frontend": {
+      "post": {
+        "tags": [
+          "logging"
+        ],
+        "summary": "Log Frontend Message",
+        "description": "Accept log messages from the frontend and write them to file.\n\nArgs:\n    entry: Log entry containing level, message, timestamp, and optional context\n\nReturns:\n    None (204 No Content)",
+        "operationId": "log_frontend_message_api_v0_logs_frontend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -269,6 +304,38 @@ export const openapi = {
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LogEntry": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp"
+          },
+          "context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Context",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "message",
+          "timestamp"
+        ],
+        "title": "LogEntry",
+        "description": "Frontend log entry."
       },
       "Player": {
         "properties": {
@@ -310,7 +377,7 @@ export const openapi = {
         "description": "Represents a player within a game room.",
         "example": {
           "connected": true,
-          "last_seen_ts": 1747541911.56653,
+          "last_seen_ts": 1752096052.185388,
           "nickname": "PilotPete",
           "score": 150
         }
@@ -518,7 +585,7 @@ export const openapi = {
         "description": "Represents the complete state of a game room, suitable for debug view or state sync.",
         "example": {
           "code": "WXYZ",
-          "created_ts": 1747541911.5707479,
+          "created_ts": 1752096052.1896489,
           "current_round": {
             "correct_airport_code": "JFK",
             "guess_direction": "destination",
@@ -526,11 +593,11 @@ export const openapi = {
               "JoinerJane": {
                 "guess": "LGA",
                 "nickname": "JoinerJane",
-                "timestamp": 1747541906.570749
+                "timestamp": 1752096047.1896498
               }
             },
             "round_number": 3,
-            "round_start_time": 1747541901.5707479,
+            "round_start_time": 1752096042.1896498,
             "selected_plane_hex": "a1b2c3",
             "state": "accepting_guesses"
           },
@@ -539,13 +606,13 @@ export const openapi = {
           "players": {
             "HostHarry": {
               "connected": true,
-              "last_seen_ts": 1747541911.5707479,
+              "last_seen_ts": 1752096052.1896489,
               "nickname": "HostHarry",
               "score": 100
             },
             "JoinerJane": {
               "connected": true,
-              "last_seen_ts": 1747541901.5707479,
+              "last_seen_ts": 1752096042.1896498,
               "nickname": "JoinerJane",
               "score": 50
             }
@@ -648,11 +715,11 @@ export const openapi = {
             "PilotPete": {
               "guess": "LGA",
               "nickname": "PilotPete",
-              "timestamp": 1747541906.568629
+              "timestamp": 1752096047.1874769
             }
           },
           "round_number": 3,
-          "round_start_time": 1747541901.568629,
+          "round_start_time": 1752096042.187476,
           "selected_plane_hex": "a1b2c3",
           "state": "accepting_guesses"
         }

@@ -46,6 +46,10 @@ class RoundResultDetail(BaseModel):
     correct_code: AirportCode
     score_awarded: int
     current_total_score: int
+    distance_km: Optional[float] = Field(
+        default=None,
+        description="Distance in km between guess and correct answer (Distance mode only)",
+    )
 
 
 class RoundData(BaseModel):

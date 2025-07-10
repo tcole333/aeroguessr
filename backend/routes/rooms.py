@@ -479,6 +479,7 @@ async def websocket_endpoint(
                         await _send_error(ErrorCode.ROOM_NOT_FOUND, "Room not found")
                         continue
 
+                    distance_km = None  # Only populated for Distance mode
                     if room_meta_local.mode == ScoringMode.EXACT:
                         score_awarded = scoring.calculate_exact_score(
                             correct_code=context.correct_airport_code,
@@ -489,6 +490,16 @@ async def websocket_endpoint(
                             correct_code=context.correct_airport_code,
                             guessed_code=guess_payload.airport_code,
                         )
+                        # Also calculate the actual distance for display
+                        from backend.utils.airport_db import get_airport_coords
+                        from backend.utils.geo import calculate_distance_km
+
+                        correct_coords = get_airport_coords(context.correct_airport_code)
+                        guessed_coords = get_airport_coords(guess_payload.airport_code)
+                        if correct_coords and guessed_coords and correct_coords != guessed_coords:
+                            distance_km = calculate_distance_km(correct_coords, guessed_coords)
+                        elif correct_coords == guessed_coords:
+                            distance_km = 0.0  # Exact match
 
                     updated = await room_service.update_player_score(
                         redis, room_code, nickname, score_awarded
@@ -501,6 +512,7 @@ async def websocket_endpoint(
                         correct_code=context.correct_airport_code or "",
                         score_awarded=score_awarded,
                         current_total_score=total_score,
+                        distance_km=distance_km,  # Add distance_km to results
                     )
                     result_payload = RoundResultPayload(results=[result_detail])
                     result_msg = WSMessage(
@@ -739,6 +751,7 @@ async def websocket_endpoint(
             player_guess: Optional[PlayerGuess] = round_data.guesses.get(p_nick)
             score_awarded = 0
             guessed_code = None
+            distance_km = None  # Only populated for Distance mode
 
             if player_guess:
                 guessed_code = player_guess.guess
@@ -750,6 +763,16 @@ async def websocket_endpoint(
                     score_awarded = scoring.calculate_distance_score(
                         correct_code=correct_code, guessed_code=guessed_code
                     )
+                    # Also calculate the actual distance for display
+                    from backend.utils.airport_db import get_airport_coords
+                    from backend.utils.geo import calculate_distance_km
+
+                    correct_coords = get_airport_coords(correct_code)
+                    guessed_coords = get_airport_coords(guessed_code)
+                    if correct_coords and guessed_coords and correct_coords != guessed_coords:
+                        distance_km = calculate_distance_km(correct_coords, guessed_coords)
+                    elif correct_coords == guessed_coords:
+                        distance_km = 0.0  # Exact match
                 else:
                     logger.error(f"Unknown scoring mode: {scoring_mode}")
 
@@ -782,6 +805,7 @@ async def websocket_endpoint(
                     correct_code=correct_code,
                     score_awarded=score_awarded,
                     current_total_score=current_total_score,
+                    distance_km=distance_km,  # Add distance_km to results
                 )
             )
 

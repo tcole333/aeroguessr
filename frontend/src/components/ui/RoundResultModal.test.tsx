@@ -218,4 +218,119 @@ describe('RoundResultModal', () => {
 
     expect(screen.queryByText(/In Distance mode/)).not.toBeInTheDocument();
   });
+
+  it('should display distance in km for Distance mode', () => {
+    store.getState().game.scoringMode = 'Distance';
+    store.getState().game.lastRoundResult = {
+      results: [
+        {
+          nickname: 'Player1',
+          guess: 'JFK',
+          correct_code: 'BOS',
+          score_awarded: 70,
+          current_total_score: 170,
+          distance_km: 305.5,
+        },
+        {
+          nickname: 'Player2',
+          guess: 'PVD',
+          correct_code: 'BOS',
+          score_awarded: 93,
+          current_total_score: 193,
+          distance_km: 70.2,
+        },
+      ],
+      next_host_nickname: null,
+    };
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.getByText(/306 km away/)).toBeInTheDocument();
+    expect(screen.getByText(/70 km away/)).toBeInTheDocument();
+  });
+
+  it('should display "Exact match!" for 0 km distance', () => {
+    store.getState().game.scoringMode = 'Distance';
+    store.getState().game.lastRoundResult = {
+      results: [
+        {
+          nickname: 'Player1',
+          guess: 'BOS',
+          correct_code: 'BOS',
+          score_awarded: 100,
+          current_total_score: 200,
+          distance_km: 0,
+        },
+      ],
+      next_host_nickname: null,
+    };
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.getByText(/Exact match!/)).toBeInTheDocument();
+  });
+
+  it('should not display distance for players who did not guess', () => {
+    store.getState().game.scoringMode = 'Distance';
+    store.getState().game.lastRoundResult = {
+      results: [
+        {
+          nickname: 'Player1',
+          guess: null,
+          correct_code: 'BOS',
+          score_awarded: 0,
+          current_total_score: 100,
+          distance_km: undefined,
+        },
+      ],
+      next_host_nickname: null,
+    };
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.getByText(/No guess/)).toBeInTheDocument();
+    expect(screen.queryByText(/km away/)).not.toBeInTheDocument();
+  });
+
+  it('should not display distance in Exact mode even if distance_km is provided', () => {
+    store.getState().game.scoringMode = 'Exact';
+    store.getState().game.lastRoundResult = {
+      results: [
+        {
+          nickname: 'Player1',
+          guess: 'JFK',
+          correct_code: 'BOS',
+          score_awarded: 0,
+          current_total_score: 100,
+          distance_km: 305.5, // Backend shouldn't send this, but testing UI behavior
+        },
+      ],
+      next_host_nickname: null,
+    };
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.queryByText(/km away/)).not.toBeInTheDocument();
+  });
+
+  it('should format large distances with comma separator', () => {
+    store.getState().game.scoringMode = 'Distance';
+    store.getState().game.lastRoundResult = {
+      results: [
+        {
+          nickname: 'Player1',
+          guess: 'LAX',
+          correct_code: 'BOS',
+          score_awarded: 0,
+          current_total_score: 100,
+          distance_km: 4178.5,
+        },
+      ],
+      next_host_nickname: null,
+    };
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.getByText(/4,179 km away/)).toBeInTheDocument();
+  });
 });

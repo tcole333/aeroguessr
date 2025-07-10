@@ -104,6 +104,13 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
                       Guessed: {result.guess || 'No guess'}
+                      {scoringMode === 'Distance' && result.distance_km !== undefined && result.guess && (
+                        <span className="ml-2">
+                          ({result.distance_km === 0
+                            ? 'Exact match!'
+                            : `${result.distance_km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km away`})
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
