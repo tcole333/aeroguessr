@@ -5,6 +5,7 @@ import SettingsPanelContent from '../../features/settings/components/SettingsPan
 import { RoomCodeDisplay } from '../ui/RoomCodeDisplay';
 import { ScoreModeIndicator } from '../ui/ScoreModeIndicator';
 import { GameStatusIndicator } from '../ui/GameStatusIndicator';
+import { CurrentHostDisplay } from '../ui/CurrentHostDisplay';
 import { useStore } from '../../hooks/useStore';
 import {
   selectActivePanel,
@@ -50,6 +51,7 @@ export default function SlidingPanel(): JSX.Element {
         {isPanelOpen && (
           <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
             <ScoreModeIndicator />
+            <CurrentHostDisplay />
             <GameStatusIndicator />
           </div>
         )}

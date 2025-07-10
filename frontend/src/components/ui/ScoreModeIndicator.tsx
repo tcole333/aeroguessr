@@ -1,5 +1,7 @@
 import React from 'react';
 import { useStore } from '../../hooks/useStore';
+import { selectScores } from '../../features/game/selectors';
+import { selectPlayerNickname } from '../../features/connection/selectors';
 
 interface ScoreModeIndicatorProps {
   className?: string;
@@ -9,6 +11,8 @@ export const ScoreModeIndicator: React.FC<ScoreModeIndicatorProps> = ({ classNam
   const scoringMode = useStore((s) => s.game.scoringMode);
   const round = useStore((s) => s.game.round);
   const roundTimeout = useStore((s) => s.game.roundTimeout);
+  const scores = useStore(selectScores);
+  const myNickname = useStore(selectPlayerNickname);
 
   if (!scoringMode) {
     return null;
@@ -30,12 +34,12 @@ export const ScoreModeIndicator: React.FC<ScoreModeIndicatorProps> = ({ classNam
         </span>
       </div>
 
-      {/* Round Status */}
-      {round && (
+      {/* User Score */}
+      {myNickname && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Round:</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Score:</span>
           <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-            {round.round_number || 0}
+            {scores[myNickname] || 0}
           </span>
         </div>
       )}

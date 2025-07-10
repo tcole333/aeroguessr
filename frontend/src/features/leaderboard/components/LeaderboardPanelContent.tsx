@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../../hooks/useStore';
-import { selectScores } from '../../game/selectors';
+import { selectScores, selectHost } from '../../game/selectors';
 import { selectPlayerNickname } from '../../connection/selectors';
+import { HostIndicator } from '../../../components/ui/HostIndicator';
 
 function Confetti(): JSX.Element {
   return (
@@ -21,6 +22,7 @@ function Confetti(): JSX.Element {
 export default function LeaderboardPanelContent(): JSX.Element {
   const scores = useStore(selectScores);
   const myNickname = useStore(selectPlayerNickname);
+  const hostNickname = useStore(selectHost);
   const sorted = useMemo(
     () => Object.entries(scores).sort((a, b) => b[1] - a[1]),
     [scores],
@@ -55,7 +57,10 @@ export default function LeaderboardPanelContent(): JSX.Element {
               nick === myNickname ? 'font-bold' : ''
             }`}
           >
-            <span>{nick}</span>
+            <span className="flex items-center gap-2">
+              <span>{nick}</span>
+              <HostIndicator isHost={nick === hostNickname} variant="inline" />
+            </span>
             <span>{score}</span>
           </li>
         ))}

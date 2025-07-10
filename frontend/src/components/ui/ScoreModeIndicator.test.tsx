@@ -40,17 +40,25 @@ describe('ScoreModeIndicator', () => {
     expect(screen.getByText('📍 Distance')).toBeInTheDocument();
   });
 
-  it('should show round number when round is active', () => {
+  it('should show user score when nickname exists', () => {
     store.getState().game.scoringMode = 'Exact';
-    store.getState().game.round = {
-      state: 'guessing',
-      round_number: 5,
-    };
+    store.getState().connection.setNickname('TestPlayer');
+    store.getState().game.applyDelta({ scores: { TestPlayer: 150 } });
 
     renderWithStore(<ScoreModeIndicator />);
 
-    expect(screen.getByText('Round:')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('Score:')).toBeInTheDocument();
+    expect(screen.getByText('150')).toBeInTheDocument();
+  });
+
+  it('should show zero score for new player', () => {
+    store.getState().game.scoringMode = 'Exact';
+    store.getState().connection.setNickname('NewPlayer');
+
+    renderWithStore(<ScoreModeIndicator />);
+
+    expect(screen.getByText('Score:')).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
   });
 
   it('should show timer when round is active', () => {
