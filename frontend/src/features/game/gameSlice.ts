@@ -24,6 +24,8 @@ export interface GameSlice {
   selectedPlaneHex: string | null;
   guessDirection: string | null;
   usedPlaneHexes: Set<string>;
+  scoringMode: 'Exact' | 'Distance' | null;
+  lastRoundResult: RoundResultPayload | null;
   hydrate: (state: FullRoomState) => void;
   applyDelta: (delta: DeltaPayload) => void;
   setRoundStart: (payload: RoundStartPayload) => void;
@@ -48,6 +50,8 @@ const initialState: Omit<
   selectedPlaneHex: null,
   guessDirection: null,
   usedPlaneHexes: new Set(),
+  scoringMode: null,
+  lastRoundResult: null,
 };
 
 export const createGameSlice: StateCreator<
@@ -73,6 +77,7 @@ export const createGameSlice: StateCreator<
         state.game.isSolo = Boolean(stateSync.room_meta.is_solo);
         state.game.roundTimeout =
           (stateSync.room_meta.round_timeout_seconds as number) || null;
+        state.game.scoringMode = (stateSync.room_meta.mode as 'Exact' | 'Distance') || null;
       }
     }),
   applyDelta: (delta) =>
@@ -113,6 +118,7 @@ export const createGameSlice: StateCreator<
       }
       state.game.round = null;
       state.game.roundTimeout = null;
+      state.game.lastRoundResult = payload;
     }),
   setSelectedPlane: (hex) =>
     set((state) => {

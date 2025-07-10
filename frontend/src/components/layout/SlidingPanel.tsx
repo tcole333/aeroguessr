@@ -3,6 +3,7 @@ import PlaneListPanelContent from '../../features/planes/components/PlaneListPan
 import LeaderboardPanelContent from '../../features/leaderboard/components/LeaderboardPanelContent';
 import SettingsPanelContent from '../../features/settings/components/SettingsPanelContent';
 import { RoomCodeDisplay } from '../ui/RoomCodeDisplay';
+import { ScoreModeIndicator } from '../ui/ScoreModeIndicator';
 import { useStore } from '../../hooks/useStore';
 import {
   selectActivePanel,
@@ -45,6 +46,11 @@ export default function SlidingPanel(): JSX.Element {
             <img src={isPanelOpen ? chevronDownUrl : chevronUpUrl} alt="" className="h-4 w-4" />
           </button>
         </div>
+        {isPanelOpen && (
+          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+            <ScoreModeIndicator />
+          </div>
+        )}
       </div>
       <PanelTabs className={`${!isPanelOpen ? 'md:hidden' : ''}`} />
       <div className={`flex-1 overflow-y-auto p-4 ${isPanelOpen ? '' : 'hidden'}`}>{content}</div>
