@@ -35,8 +35,9 @@ class DeltaFilter(logging.Filter):
         msg = record.getMessage()
         if '\\"type\\":\\"delta\\"' in msg:  # Check for '{"type":"delta"}'
             return False
-        if record.name == "backend.services.broadcast" and "Delta broadcasted" in msg:
-            return False
+        # Allow BCAST INFO messages through - they're important for debugging
+        # if record.name == "backend.services.broadcast" and "Delta broadcasted" in msg:
+        #     return False
         # The following will filter out the noisy DEBUG messages from websockets library if needed
         # if record.name == 'websockets.server' and record.levelno ==
         # logging.DEBUG and ('> TEXT' in msg or '< TEXT' in msg or '> CLOSE'

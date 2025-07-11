@@ -50,9 +50,11 @@ function handleInbound(
         }
         const { planes } = msg.payload as any;
         if (planes?.updated) {
+          console.log('[WS] Received plane updates:', planes.updated.length, 'planes');
           actions.upsertPlanes(planes.updated);
         }
         if (planes?.removed) {
+          console.log('[WS] Removing planes:', planes.removed);
           actions.removePlanes(planes.removed);
         }
         actions.applyDelta(msg.payload);

@@ -95,6 +95,7 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             # --- Task 42: Fetch Current Plane States ---
             # Use safe paging helper (avoids redis-py scan_iter bug)
             current_state_map = await _get_current_plane_state_map(redis_client)
+            logger.info(f"Fetched {len(current_state_map)} planes from Redis")
 
             # --- NEW: Filter stale planes based on range and signal quality ---
             stale_planes = await plane_filter.filter_stale_planes(current_state_map)
@@ -118,12 +119,16 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     updated_planes.append(current_plane)
 
             # Check for removed planes (present in last state but not current)
-            removed_plane_hexes = [
+            # Use a set to automatically avoid duplicates
+            removed_plane_hexes_set = {
                 hex_ident for hex_ident in last_state if hex_ident not in current_state_map
-            ]
+            }
 
-            # Add stale planes to the removal list for broadcasting
-            removed_plane_hexes.extend(stale_planes)
+            # Add stale planes to the removal set
+            removed_plane_hexes_set.update(stale_planes)
+
+            # Convert back to list for the delta payload
+            removed_plane_hexes = list(removed_plane_hexes_set)
 
             delta = PlaneDeltaUpdate(updated=updated_planes, removed=removed_plane_hexes)
 
@@ -132,13 +137,17 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     f"Delta calculated: {len(delta.updated)} updated, {len(delta.removed)} removed."
                 )
             else:
-                logger.debug("No changes detected in plane states.")
+                logger.info("No changes detected in plane states.")
 
             # Update last_state for the next iteration
             last_state = current_state_map
 
             # --- Task 44: Broadcast Delta --- #
             if delta.updated or delta.removed:
+                logger.info(
+                    f"Delta has {len(delta.updated)} updated "
+                    f"and {len(delta.removed)} removed planes"
+                )
                 # Serialise PlaneState models to primitives for safe JSON encoding
                 planes_updated_serialised = [p.model_dump() for p in delta.updated]
                 payload_dict = {
@@ -158,9 +167,9 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                 # Get active rooms and broadcast to each one
                 active_room_codes = list(manager.active_connections.keys())  # Get codes first
                 if not active_room_codes:
-                    logger.debug("No active rooms to broadcast to.")
+                    logger.info("No active rooms to broadcast to.")
                 else:
-                    logger.debug(f"Broadcasting delta to rooms: {active_room_codes}")
+                    logger.info(f"Broadcasting delta to rooms: {active_room_codes}")
                     for room_code in active_room_codes:
                         try:
                             # Pass the specific room_code to the broadcast method
