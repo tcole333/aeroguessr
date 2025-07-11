@@ -123,10 +123,16 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     updated_planes.append(current_plane)
 
             # Check for removed planes (present in last state but not in filtered current)
-            # Use a set to automatically avoid duplicates
-            removed_plane_hexes_set = {
-                hex_ident for hex_ident in last_state if hex_ident not in filtered_state_map
-            }
+            # Include both naturally removed planes and stale planes that were filtered
+            removed_plane_hexes_set = set()
+
+            # Add planes that were in last_state but not in current (including stale)
+            for hex_ident in last_state:
+                if hex_ident not in filtered_state_map:
+                    removed_plane_hexes_set.add(hex_ident)
+
+            # Also add stale planes that were just filtered out
+            removed_plane_hexes_set.update(stale_planes)
 
             # Convert back to list for the delta payload
             removed_plane_hexes = list(removed_plane_hexes_set)
@@ -145,7 +151,7 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
 
             # --- Task 44: Broadcast Delta --- #
             if delta.updated or delta.removed:
-                logger.info(
+                logger.debug(
                     f"Delta has {len(delta.updated)} updated "
                     f"and {len(delta.removed)} removed planes"
                 )
@@ -168,9 +174,9 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                 # Get active rooms and broadcast to each one
                 active_room_codes = list(manager.active_connections.keys())  # Get codes first
                 if not active_room_codes:
-                    logger.info("No active rooms to broadcast to.")
+                    logger.debug("No active rooms to broadcast to.")
                 else:
-                    logger.info(f"Broadcasting delta to rooms: {active_room_codes}")
+                    logger.debug(f"Broadcasting delta to rooms: {active_room_codes}")
                     for room_code in active_room_codes:
                         try:
                             # Pass the specific room_code to the broadcast method
@@ -179,8 +185,9 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                                 room_code=room_code,
                             )
                             logger.info(
-                                f"[BCAST INFO] Delta broadcasted to room '{room_code}' with "
+                                f"[BCAST] Delta broadcasted to room '{room_code}' with "
                                 f"{len(delta.updated)} updated / {len(delta.removed)} removed"
+                                + (f" - removed: {delta.removed}" if delta.removed else "")
                             )
                         except Exception as broadcast_error:
                             # Log error specific to this room, but continue broadcasting to others

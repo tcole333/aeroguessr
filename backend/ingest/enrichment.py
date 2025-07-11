@@ -20,6 +20,9 @@ FLIGHTAWARE_API_KEY = os.getenv("FLIGHTAWARE_API_KEY")
 AEROAPI_BASE_URL = "https://aeroapi.flightaware.com/aeroapi"
 AEROAPI_CACHE_TTL_SECONDS = 3600 * 6  # Cache route data for 6 hours
 
+# Check if we're in synthetic mode
+IS_FAKE_ADSB = os.getenv("FAKE_ADSB") == "1"
+
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)
 
@@ -99,12 +102,16 @@ async def fetch_opensky_data(hex_ident: str, redis_client: RedisClient) -> Optio
                 return None
 
     except httpx.HTTPStatusError as e:
-        logger.error(
-            (
-                f"OpenSky API request failed for {hex_ident}: {e.response.status_code} - "
-                f"{e.response.text}"
+        # Suppress 403 errors in synthetic mode - they're expected
+        if IS_FAKE_ADSB and e.response.status_code == 403:
+            logger.debug(f"OpenSky API 403 for {hex_ident} (expected in synthetic mode)")
+        else:
+            logger.error(
+                (
+                    f"OpenSky API request failed for {hex_ident}: {e.response.status_code} - "
+                    f"{e.response.text}"
+                )
             )
-        )
         return None
     except httpx.RequestError as e:
         logger.error(f"Error connecting to OpenSky API for {hex_ident}: {e}")
@@ -134,15 +141,10 @@ async def fetch_aeroapi_route(hex_ident: str, redis_client: RedisClient) -> Opti
         logger.info(f"FAKE_ADSB active. Returning mock route data for {hex_ident}.")
         mock_airports = ["KLAX", "KJFK", "KORD", "KSFO", "KMIA", None]
 
-        is_boston_origin = random.choice([True, False])
+        # Always make Boston the destination so synthetic planes can land and respawn
         other_airport = random.choice(mock_airports)
-
-        if is_boston_origin:
-            origin_icao = "KBOS"
-            destination_icao = other_airport
-        else:
-            origin_icao = other_airport
-            destination_icao = "KBOS"
+        origin_icao = other_airport
+        destination_icao = "KBOS"
 
         # Ensure that origin and destination are not both None if one is KBOS
         if origin_icao is None and destination_icao == "KBOS":

@@ -164,5 +164,7 @@ export const createGameSlice: StateCreator<
       state.connection.wsUrl = null;
       state.connection.isRejoinAttempt = false;
       state.ui.currentView = 'home';
+      // Clear planes when leaving room to prevent accumulation
+      state.planes.values = {};
     }),
 });

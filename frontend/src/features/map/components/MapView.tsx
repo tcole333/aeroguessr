@@ -46,14 +46,14 @@ export default function MapView({ onPlaneClick }: MapViewProps): JSX.Element {
   const planes = useStore(selectPlaneMap);
   const selectedPlaneHex = useStore(selectSelectedPlane);
 
-  // Debug logging
-  useEffect(() => {
-    const planeCount = Object.keys(planes).length;
-    console.log('[MapView] Planes in store:', planeCount);
-    if (planeCount > 0 && planeCount <= 5) {
-      console.log('[MapView] Plane details:', planes);
-    }
-  }, [planes]);
+  // Debug logging removed for production - uncomment if needed for debugging
+  // useEffect(() => {
+  //   const planeCount = Object.keys(planes).length;
+  //   console.log('[MapView] Planes in store:', planeCount);
+  //   if (planeCount > 0 && planeCount <= 5) {
+  //     console.log('[MapView] Plane details:', planes);
+  //   }
+  // }, [planes]);
 
   return (
     <MapContainer

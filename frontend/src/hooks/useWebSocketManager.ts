@@ -50,10 +50,12 @@ function handleInbound(
         }
         const { planes } = msg.payload as any;
         if (planes?.updated) {
-          console.log('[WS] Received plane updates:', planes.updated.length, 'planes');
+          // Only log significant updates or when debugging
+          // console.log('[WS] Received plane updates:', planes.updated.length, 'planes');
           actions.upsertPlanes(planes.updated);
         }
-        if (planes?.removed) {
+        if (planes?.removed && planes.removed.length > 0) {
+          // Only log when planes are actually removed
           console.log('[WS] Removing planes:', planes.removed);
           actions.removePlanes(planes.removed);
         }
@@ -123,6 +125,7 @@ export function useWebSocketManager(
   const removePlayer = useStore((s) => s.game.removePlayer);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
   const removePlanes = useStore((s) => s.planes.removePlanes);
+  const clearPlanes = useStore((s) => s.planes.clear);
   const wsUrl = useStore((s) => s.connection.wsUrl);
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
   const setActivePanel = useStore((s) => s.ui.setActivePanel);
@@ -206,9 +209,11 @@ export function useWebSocketManager(
   useEffect(() => {
     if (roomCode && nickname) {
       setStatus('connecting');
+      // Clear planes when connecting to a new room to prevent accumulation
+      clearPlanes();
       client.connect(roomCode, nickname, wsUrl ?? undefined);
     }
-  }, [roomCode, nickname, wsUrl, setStatus]);
+  }, [roomCode, nickname, wsUrl, setStatus, clearPlanes]);
 }
 
 export { client as webSocketClient };
