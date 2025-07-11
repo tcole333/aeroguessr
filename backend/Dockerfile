@@ -23,7 +23,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 RUN pip install poetry \
     && poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+    && poetry install --no-interaction --no-ansi --no-root
 
 # --- Application Code ---
 
@@ -40,4 +40,4 @@ EXPOSE 8000
 # Define the command to run the application (adjust `backend.app:app` as needed)
 # The command assumes the main FastAPI app instance is named `app` in `backend/app.py`
 # Using --reload is typically for development, remove it for production images.
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

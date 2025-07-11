@@ -7,9 +7,9 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 **Last Updated:** 2025-07-11
 
 ### Active Development
-- **Current Branch:** feature/73-airport-autocomplete-component
-- **Current Issue:** #73 - Create airport autocomplete React component
-- **Status:** Implementation complete, PR ready to be created
+- **Current Branch:** main
+- **Current Issue:** #90 - Create Frontend Dockerfile for production build
+- **Status:** Completed - Frontend Dockerfile created with multi-stage build and nginx serving
 
 ### Check for New Work
 ```bash
