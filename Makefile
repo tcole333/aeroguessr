@@ -8,8 +8,11 @@ help:
 	@echo "  start         Start all services (frontend, backend, Redis) using Docker Compose"
 	@echo "  stop          Stop all running services"
 	@echo "  dev           Start all services in development mode"
+	@echo "  dev-network   Start all services in development mode (network accessible, auto-detects IP)"
 	@echo "  frontend      Start frontend development server"
+	@echo "  frontend-network  Start frontend development server (network accessible)"
 	@echo "  backend       Start backend development server"
+	@echo "  backend-network   Start backend development server (network accessible WebSocket URLs)"
 	@echo "  openapi       Generate OpenAPI specification (docs/api_openapi.yaml)"
 	@echo "  help          Show this help message"
 	@echo "  integration-test    Spin up test services and run integration tests"
@@ -21,16 +24,49 @@ frontend:
 	@echo "--- Starting frontend development server ---"
 	@cd frontend && npm run dev
 
+# Target to start frontend development server with network access
+frontend-network:
+	@echo "--- Starting frontend development server (network accessible) ---"
+	@cd frontend && npm run dev -- --host 0.0.0.0
+
 # Target to start backend development server
 backend:
 	@echo "--- Starting backend development server ---"
 	@poetry run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+
+# Target to start backend development server with network WebSocket URLs
+backend-network:
+	@echo "--- Starting backend development server (network accessible WebSocket URLs) ---"
+	@if [ -z "$$NETWORK_IP" ]; then \
+		echo "❌ NETWORK_IP not set. This target should be called from dev-network or with NETWORK_IP set."; \
+		exit 1; \
+	fi; \
+	echo "🌐 WebSocket URLs will use: ws://$$NETWORK_IP:8000/"; \
+	WS_BASE_URL="ws://$$NETWORK_IP:8000/" poetry run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
 
 # Target to start all services in development mode
 dev:
 	@echo "--- Starting all services in development mode ---"
 	@docker compose -f infra/docker-compose.yml up redis -d
 	@make backend & make frontend
+
+# Target to start all services in development mode with network access
+dev-network:
+	@echo "--- Starting all services in development mode (network accessible) ---"
+	@# Auto-detect IP address (prioritize private network ranges)
+	@DETECTED_IP=$$(ifconfig 2>/dev/null | grep -E "inet (192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)" | head -1 | awk '{print $$2}' | sed 's/addr://'); \
+	if [ -z "$$DETECTED_IP" ]; then \
+		DETECTED_IP=$$(ip route get 1 2>/dev/null | grep -Po 'src \K\S+' | head -1); \
+	fi; \
+	if [ -z "$$DETECTED_IP" ]; then \
+		echo "❌ Could not automatically detect IP address"; \
+		echo "Please manually set NETWORK_IP environment variable:"; \
+		echo "export NETWORK_IP=192.168.1.100  # Replace with your actual IP"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Detected IP address: $$DETECTED_IP"; \
+	docker compose -f infra/docker-compose.yml up redis -d; \
+	NETWORK_IP=$$DETECTED_IP make backend-network & NETWORK_IP=$$DETECTED_IP make frontend-network
 
 # Target to start all services using Docker Compose
 start:

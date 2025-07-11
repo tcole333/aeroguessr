@@ -23,6 +23,8 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [justSelected, setJustSelected] = useState(false);
+  const [selectedValue, setSelectedValue] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -38,15 +40,31 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
 
   // Effect to perform search when debounced value changes
   useEffect(() => {
-    if (debouncedSearchTerm && hasInteracted) {
+    // Don't search if the input matches the selected value
+    if (debouncedSearchTerm === selectedValue && selectedValue !== '') {
+      setIsOpen(false); // Ensure dropdown is closed
+      return;
+    }
+
+    if (debouncedSearchTerm && hasInteracted && !justSelected) {
       search(debouncedSearchTerm);
       setIsOpen(true);
       setActiveIndex(-1);
-    } else {
+    } else if (!debouncedSearchTerm) {
       clearResults();
       setIsOpen(false);
     }
-  }, [debouncedSearchTerm, search, clearResults, hasInteracted]);
+  }, [debouncedSearchTerm, search, clearResults, hasInteracted, justSelected, selectedValue]);
+
+  // Reset justSelected flag after a delay
+  useEffect(() => {
+    if (justSelected) {
+      const timer = setTimeout(() => {
+        setJustSelected(false);
+      }, 500); // Increased from 200ms to ensure it outlasts debounce
+      return () => clearTimeout(timer);
+    }
+  }, [justSelected]);
 
   // Sync external value changes
   useEffect(() => {
@@ -58,20 +76,27 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    // Clear selected value if user is typing something different
+    if (newValue !== selectedValue) {
+      setSelectedValue('');
+    }
     setHasInteracted(true);
     onChange(newValue);
-  }, [onChange]);
+  }, [onChange, selectedValue]);
 
   // Handle airport selection
   const handleSelectAirport = useCallback((airport: Airport) => {
     const code = airport.iata || airport.icao;
     setInputValue(code);
+    setSelectedValue(code); // Track the selected value
     onChange(code);
     onSelect?.(airport);
     setIsOpen(false);
     setActiveIndex(-1);
+    setJustSelected(true);
+    clearResults(); // Clear results to prevent dropdown from showing them
     inputRef.current?.focus();
-  }, [onChange, onSelect]);
+  }, [onChange, onSelect, clearResults]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -142,11 +167,13 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
   // Clear button handler
   const handleClear = useCallback(() => {
     setInputValue('');
+    setSelectedValue(''); // Clear selected value
     onChange('');
     clearResults();
     setIsOpen(false);
     setActiveIndex(-1);
     setHasInteracted(false);
+    setJustSelected(false); // Reset selection state
     inputRef.current?.focus();
   }, [onChange, clearResults]);
 
@@ -164,7 +191,8 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (results.length > 0) {
+            // Only open if we have results and the input doesn't match a selected value
+            if (results.length > 0 && inputValue !== selectedValue) {
               setIsOpen(true);
             }
           }}
@@ -268,7 +296,7 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
       )}
 
       {/* No results message */}
-      {isOpen && !isLoading && hasInteracted && debouncedSearchTerm && results.length === 0 && (
+      {isOpen && !isLoading && hasInteracted && debouncedSearchTerm && results.length === 0 && debouncedSearchTerm !== selectedValue && (
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-3 text-center text-gray-500 dark:text-gray-400">
           No airports found
         </div>

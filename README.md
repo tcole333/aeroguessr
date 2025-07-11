@@ -60,15 +60,51 @@ _(Note: Port mapping might vary based on `docker-compose.yml` configuration)_
 
 _(Example usage snippets will be added as endpoints/messages are implemented)_
 
-## 6. Common Tasks
+## 6. Network Development
 
-### 6.1 Running Unit Tests
+To make the application accessible from other devices on your network (e.g., testing on mobile devices):
+
+### 6.1 Quick Setup
+
+```bash
+# Start all services in network mode (IP address auto-detected)
+make dev-network
+```
+
+The command automatically detects your computer's IP address and configures both frontend and backend for network access.
+
+### 6.2 Access from Other Devices
+
+- **Frontend**: `http://YOUR_IP:5173`
+- **Backend API**: `http://YOUR_IP:8000`
+- **API Documentation**: `http://YOUR_IP:8000/docs`
+
+### 6.3 Individual Service Commands
+
+```bash
+# Start just the frontend for network access
+make frontend-network
+
+# Start just the backend for network access (auto-detects IP)
+make backend-network
+```
+
+### 6.4 Network Development Notes
+
+- The `dev-network` command automatically detects your IP address and configures both frontend and backend for network access
+- WebSocket connections are properly configured to work across the network
+- Make sure your firewall allows connections on ports 5173 (frontend) and 8000 (backend)
+- If IP auto-detection fails, you can manually set `NETWORK_IP` environment variable before running the command
+
+## 7. Common Tasks
+
+### 7.1 Running Unit Tests
 
 ```python
 poetry run tests/
 ```
 
-### 6.2 Running Integration Tests
+### 7.2 Running Integration Tests
 
 #### Using the Makefile (Recommended)
 
@@ -106,7 +142,7 @@ If you need more control, you can run the steps individually:
 
 Ensure Docker and `docker-compose` are installed.
 
-### 6.3 Replaying Sample ADS-B Data (Offline Mode)
+### 7.3 Replaying Sample ADS-B Data (Offline Mode)
 
 ```bash
 # Ensure FAKE_ADSB flag is enabled so backend spawns the generator
@@ -126,9 +162,9 @@ When `FAKE_ADSB=1`, `backend.ingest.main` automatically spins up the sample
 feed even if you don't call `make sample-replay`. The Make target is provided
 for quick manual testing or if you want the generator to run independently.
 
-### 6.4 Testing Details
+### 7.4 Testing Details
 
-#### 6.4.1 Unit Tests
+#### 7.4.1 Unit Tests
 
 - **Location:** `tests/backend/`
 - **Fixtures:** Defined in `tests/backend/conftest.py`:
@@ -149,7 +185,7 @@ poetry run pytest --cov=backend \
   -m "not integration" tests/
 ```
 
-#### 6.4.2 Integration Tests
+#### 7.4.2 Integration Tests
 
 - **Location:** `tests/integration/`
 - **Marker:** Decorated with `@pytest.mark.integration` in test files.
@@ -179,7 +215,7 @@ docker compose -f infra/docker-compose.test.yml exec \
 
 ````
 
-#### 6.4.3 CI Pipeline
+#### 7.4.3 CI Pipeline
 - **Definition:** `.github/workflows/test.yml`
 - **Triggers:** Push/PR to `main`, manual dispatch
 - **Key steps:**
@@ -195,7 +231,7 @@ docker compose -f infra/docker-compose.test.yml exec \
 [![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)]
 ````
 
-### 6.5 Generating Airport Data
+### 7.5 Generating Airport Data
 
 The game uses airport coordinate data for distance scoring. The script generates two datasets:
 
@@ -213,14 +249,14 @@ This downloads the latest OurAirports database and creates both files. The front
 - Scheduled commercial service OR large airport classification
 - Additional metadata: name, city, country
 
-### 6.6 Logging
+### 7.6 Logging
 
 - **Log Directory:** All application logs are stored in the `logs/` directory
 - **Frontend Logs:** Browser console logs are automatically captured to `logs/frontend.log`
 - **Integration Test Logs:** Test output saved to `logs/integration.log` for debugging failures
 - **Log Rotation:** Logs are automatically rotated to prevent disk space issues (configured via logrotate)
 
-## 7. FAQ & Gotchas
+## 8. FAQ & Gotchas
 
 - **Map Tiles:** Uses OpenStreetMap by default. Be mindful of their [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/). Caching is implemented, but high volume may require switching providers (see [PRD §8.1](docs/PRD.md#81-map-tiles)).
 - **OpenSky API:** Requires credentials (`OPENSKY_USERNAME`, `OPENSKY_PASSWORD` in `.env`) for flight data enrichment. Free accounts have rate limits.

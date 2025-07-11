@@ -11,11 +11,13 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // Allow access from other devices on network
+    port: 5173, // Explicit port for clarity
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        ws: false,
+        ws: true, // Enable WebSocket proxying
       },
     },
   },

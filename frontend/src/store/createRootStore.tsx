@@ -1,7 +1,11 @@
 import { createStore, StoreApi } from "zustand";
 import { devtools, persist, PersistOptions } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { enableMapSet } from "immer";
 import React, { ReactNode, createContext, useRef } from "react";
+
+// Enable Immer MapSet plugin to work with Sets and Maps
+enableMapSet();
 
 import type { ConnectionSlice } from "../features/connection/connectionSlice";
 import { createConnectionSlice } from "../features/connection/connectionSlice";

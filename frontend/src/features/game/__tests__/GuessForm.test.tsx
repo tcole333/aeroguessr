@@ -28,28 +28,32 @@ describe('GuessForm', () => {
   it('submits guess and disables button', async () => {
     const { store } = setup();
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    await userEvent.type(screen.getByLabelText(/airport code/i), 'bos');
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
+    // Use the aria-label on the input instead of looking for label text
+    await userEvent.type(screen.getByLabelText(/airport guess/i), 'bos');
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
     expect(sendSpy).toHaveBeenCalledWith({ type: 'guess', payload: { airport_code: 'BOS' } });
-    expect(screen.getByRole('button', { name: /guess/i })).toBeDisabled();
+    // After submitting, the button text changes to "Guess Submitted"
+    expect(screen.getByRole('button', { name: /guess submitted/i })).toBeDisabled();
     sendSpy.mockRestore();
   });
 
   it('shows error on empty submit', async () => {
     setup();
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
     expect(sendSpy).not.toHaveBeenCalled();
-    expect(screen.getByText(/airport code required/i)).toBeInTheDocument();
+    // The error message from useGuess is "Please select or enter an airport code"
+    expect(screen.getByText(/please select or enter an airport code/i)).toBeInTheDocument();
     sendSpy.mockRestore();
   });
 
   it('prevents duplicate submit', async () => {
     setup();
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    await userEvent.type(screen.getByLabelText(/airport code/i), 'bos');
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
+    await userEvent.type(screen.getByLabelText(/airport guess/i), 'bos');
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
+    // Try to click the disabled button (which now shows "Guess Submitted")
+    await userEvent.click(screen.getByRole('button', { name: /guess submitted/i }));
     expect(sendSpy).toHaveBeenCalledTimes(1);
     sendSpy.mockRestore();
   });
@@ -57,13 +61,15 @@ describe('GuessForm', () => {
   it('resets after round ends', async () => {
     const { store } = setup();
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    await userEvent.type(screen.getByLabelText(/airport code/i), 'bos');
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
-    expect(screen.getByRole('button', { name: /guess/i })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/airport guess/i), 'bos');
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
+    // After submitting, the button text changes to "Guess Submitted"
+    expect(screen.getByRole('button', { name: /guess submitted/i })).toBeDisabled();
     act(() => {
       store.getState().game.setRoundResult({ results: [], next_host_nickname: null });
     });
-    expect(screen.queryByRole('button', { name: /guess/i })).toBeNull();
+    // After round ends, the form should be hidden
+    expect(screen.queryByRole('button')).toBeNull();
     sendSpy.mockRestore();
   });
 
@@ -74,8 +80,8 @@ describe('GuessForm', () => {
       .mockImplementation(() => {
         throw new Error('fail');
       });
-    await userEvent.type(screen.getByLabelText(/airport code/i), 'bos');
-    await userEvent.click(screen.getByRole('button', { name: /guess/i }));
+    await userEvent.type(screen.getByLabelText(/airport guess/i), 'bos');
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
     expect(screen.getByText('fail')).toBeInTheDocument();
     sendSpy.mockRestore();
   });

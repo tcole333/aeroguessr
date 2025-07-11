@@ -29,11 +29,11 @@ describe('useGuess', () => {
     });
     rerender();
 
-    act(() => result.current.setCode('bos'));
+    act(() => result.current.setInputValue('bos'));
     const spy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
 
     act(() => result.current.handleSubmit({ preventDefault() {} } as any));
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith({ type: 'guess', payload: { airport_code: 'BOS' } });
     expect(result.current.disabled).toBe(true);
 
     act(() => {
@@ -42,5 +42,6 @@ describe('useGuess', () => {
     rerender();
 
     await waitFor(() => expect(result.current.disabled).toBe(false));
+    spy.mockRestore();
   });
 });

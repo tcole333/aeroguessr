@@ -6,6 +6,7 @@ import { selectDarkMode } from '../../features/ui/selectors';
 import { useWebSocketManager } from '../../hooks/useWebSocketManager';
 import { selectRoomCode, selectPlayerNickname } from '../../features/connection/selectors';
 import { RoundResultModal } from '../ui/RoundResultModal';
+import GuessForm from '../../features/game/components/GuessForm';
 
 export default function AppShell(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
@@ -30,6 +31,8 @@ export default function AppShell(): JSX.Element {
       <SlidingPanel />
       {/* Modal for round results */}
       <RoundResultModal />
+      {/* Guess form modal */}
+      <GuessForm />
     </div>
   );
 }

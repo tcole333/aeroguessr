@@ -193,9 +193,15 @@ async def create_room(
         ) from e
 
     # Construct WebSocket URL dynamically
-    # Assuming the API is served at the root, adjust if behind a proxy with path prefix
-    # Use request.base_url to handle http/https correctly
-    base_ws_url = str(request.base_url).replace("http", "ws", 1)
+    # Check for environment variable override for network access
+    ws_base_url = os.getenv("WS_BASE_URL")
+    if ws_base_url:
+        # Use configured WebSocket base URL (for network access)
+        base_ws_url = ws_base_url
+    else:
+        # Use request.base_url to handle http/https correctly
+        base_ws_url = str(request.base_url).replace("http", "ws", 1)
+
     ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{room_data.host_nickname}"
 
     # Set Location header (as specified in PRD)
@@ -244,7 +250,12 @@ async def join_room(
     # Solo mode special case
     if room_code == "solo":
         solo_code, _ = await room_service.create_solo_room_instance(join_data.nickname, redis)
-        base_ws_url = str(request.base_url).replace("http", "ws", 1)
+        # Check for environment variable override for network access
+        ws_base_url = os.getenv("WS_BASE_URL")
+        if ws_base_url:
+            base_ws_url = ws_base_url
+        else:
+            base_ws_url = str(request.base_url).replace("http", "ws", 1)
         ws_url = f"{base_ws_url}api/v0/rooms/ws/{solo_code}/{join_data.nickname}"
         return RoomJoinResponse(room_code=solo_code, ws_url=ws_url)
 
@@ -292,7 +303,12 @@ async def join_room(
         ) from e
 
     # 5. Construct WebSocket URL
-    base_ws_url = str(request.base_url).replace("http", "ws", 1)
+    # Check for environment variable override for network access
+    ws_base_url = os.getenv("WS_BASE_URL")
+    if ws_base_url:
+        base_ws_url = ws_base_url
+    else:
+        base_ws_url = str(request.base_url).replace("http", "ws", 1)
     ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{join_data.nickname}"
 
     return RoomJoinResponse(room_code=room_code, ws_url=ws_url)

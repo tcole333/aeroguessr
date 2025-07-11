@@ -59,5 +59,5 @@ export async function joinRoomAPI(
 export async function startSoloGameAPI(
   params: RoomJoinRequest,
 ): Promise<RoomJoinResponse> {
-  return joinRoomAPI('SOLO', params);
+  return joinRoomAPI('solo', params);
 }
