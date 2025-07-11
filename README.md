@@ -195,7 +195,25 @@ docker compose -f infra/docker-compose.test.yml exec \
 [![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)]
 ````
 
-### 6.5 Logging
+### 6.5 Generating Airport Data
+
+The game uses airport coordinate data for distance scoring. The script generates two datasets:
+
+1. **Backend dataset** (`sample_data/airports_min.json`): ~500K airports for comprehensive coverage
+2. **Frontend dataset** (`frontend/src/assets/airports.json`): ~3K major airports for autocomplete (160KB gzipped)
+
+To regenerate airport data:
+
+```bash
+python backend/scripts/populate_airports_data.py
+```
+
+This downloads the latest OurAirports database and creates both files. The frontend dataset includes only airports with:
+- IATA codes (e.g., BOS, JFK, LAX)
+- Scheduled commercial service OR large airport classification
+- Additional metadata: name, city, country
+
+### 6.6 Logging
 
 - **Log Directory:** All application logs are stored in the `logs/` directory
 - **Frontend Logs:** Browser console logs are automatically captured to `logs/frontend.log`
