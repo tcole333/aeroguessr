@@ -102,30 +102,31 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             if stale_planes:
                 logger.info(f"Filtering {len(stale_planes)} stale planes: {stale_planes}")
                 await plane_filter.remove_planes_from_redis(stale_planes)
-                # Remove stale planes from current state map
-                for hex_id in stale_planes:
-                    current_state_map.pop(hex_id, None)
 
             # --- Task 43: Calculate Delta --- #
             updated_planes: List[PlaneState] = []
             removed_plane_hexes: List[str] = []
 
-            # Check for updated and new planes
-            for hex_ident, current_plane in current_state_map.items():
+            # Create a filtered state map without stale planes for comparison
+            filtered_state_map = {
+                hex_id: plane
+                for hex_id, plane in current_state_map.items()
+                if hex_id not in stale_planes
+            }
+
+            # Check for updated and new planes (using filtered state)
+            for hex_ident, current_plane in filtered_state_map.items():
                 last_plane = last_state.get(hex_ident)
                 # Add if new or if changed since last time
                 # Using Pydantic's default __ne__ which compares model fields
                 if last_plane is None or current_plane != last_plane:
                     updated_planes.append(current_plane)
 
-            # Check for removed planes (present in last state but not current)
+            # Check for removed planes (present in last state but not in filtered current)
             # Use a set to automatically avoid duplicates
             removed_plane_hexes_set = {
-                hex_ident for hex_ident in last_state if hex_ident not in current_state_map
+                hex_ident for hex_ident in last_state if hex_ident not in filtered_state_map
             }
-
-            # Add stale planes to the removal set
-            removed_plane_hexes_set.update(stale_planes)
 
             # Convert back to list for the delta payload
             removed_plane_hexes = list(removed_plane_hexes_set)
@@ -139,8 +140,8 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
             else:
                 logger.info("No changes detected in plane states.")
 
-            # Update last_state for the next iteration
-            last_state = current_state_map
+            # Update last_state for the next iteration (use filtered state)
+            last_state = filtered_state_map
 
             # --- Task 44: Broadcast Delta --- #
             if delta.updated or delta.removed:
