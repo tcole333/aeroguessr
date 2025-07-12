@@ -1,5 +1,118 @@
+# Complete Docker Compose configuration for Plane Game v4
+# Orchestrates all services: nginx, frontend, backend, redis
+# Production-ready deployment with proper networking and dependencies
+
+version: '3.8'
+
 services:
-  redis:
-    image: redis:7
+  # Nginx reverse proxy - main entry point
+  nginx:
+    image: nginx:alpine
+    container_name: plane-game-nginx
     ports:
-      - "6379:6379"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - plane-game-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend service - serves React app via nginx
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    container_name: plane-game-frontend
+    restart: unless-stopped
+    networks:
+      - plane-game-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Backend API service
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: plane-game-backend
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - ADSB_HOST=${ADSB_HOST:-127.0.0.1}
+      - ADSB_PORT=${ADSB_PORT:-30003}
+      - CENTER_LAT=${CENTER_LAT:-42.3656}
+      - CENTER_LON=${CENTER_LON:-71.0096}
+      - OPENSKY_USERNAME=${OPENSKY_USERNAME}
+      - OPENSKY_PASSWORD=${OPENSKY_PASSWORD}
+      - FLIGHTAWARE_API_KEY=${FLIGHTAWARE_API_KEY}
+      - FAKE_ADSB=${FAKE_ADSB:-0}
+      - FAKE_ADSB_FILE=${FAKE_ADSB_FILE:-synthetic}
+      - FAKE_ADSB_SPEED=${FAKE_ADSB_SPEED:-2.0}
+      - KALMAN_PROCESS_NOISE=${KALMAN_PROCESS_NOISE:-0.5}
+      - KALMAN_MEASUREMENT_NOISE=${KALMAN_MEASUREMENT_NOISE:-10.0}
+      - PLANE_TTL_SECONDS=${PLANE_TTL_SECONDS:-300}
+      - MAX_ANTENNA_RANGE_KM=${MAX_ANTENNA_RANGE_KM:-250}
+      - MIN_UPDATE_INTERVAL_SECONDS=${MIN_UPDATE_INTERVAL_SECONDS:-60}
+      - OSM_TILE_URL=${OSM_TILE_URL:-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
+      # Production settings
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - plane-game-network
+    volumes:
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis cache and game state
+  redis:
+    image: redis:7-alpine
+    container_name: plane-game-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+      - ../logs:/var/log/redis
+    restart: unless-stopped
+    networks:
+      - plane-game-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# Named volumes for data persistence
+volumes:
+  redis-data:
+    driver: local
+
+# Internal network for service communication
+networks:
+  plane-game-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

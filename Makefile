@@ -5,7 +5,7 @@
 # Default target: Show help
 help:
 	@echo "Available targets:"
-	@echo "  start         Start all services (frontend, backend, Redis) using Docker Compose"
+	@echo "  start         Start all services (nginx, frontend, backend, redis) using Docker Compose"
 	@echo "  stop          Stop all running services"
 	@echo "  dev           Start all services in development mode"
 	@echo "  dev-network   Start all services in development mode (network accessible, auto-detects IP)"
@@ -70,10 +70,10 @@ dev-network:
 
 # Target to start all services using Docker Compose
 start:
-	@echo "--- Starting all services ---"
+	@echo "--- Starting all services (nginx, frontend, backend, redis) ---"
 	@docker compose -f infra/docker-compose.yml up --build -d
-	@echo "Frontend available at http://localhost"
-	@echo "Backend API docs at http://localhost:8000/docs"
+	@echo "Application available at http://localhost"
+	@echo "Backend API docs at http://localhost/api/v0/docs (via nginx proxy)"
 
 # Target to stop all services
 stop:
