@@ -19,6 +19,7 @@ from backend.ingest.enrichment import (
     fetch_aeroapi_route,
     fetch_opensky_data,
 )
+from backend.ingest.enrichment_v2 import fetch_route_data_v2
 from backend.ingest.parser import RawMessage, parse_sbs_message
 from backend.ingest.smoother import PositionSmoother
 from backend.utils.redis_async import RedisClient
@@ -32,6 +33,7 @@ KALMAN_PROCESS_NOISE = float(os.getenv("KALMAN_PROCESS_NOISE", 0.5))
 KALMAN_MEASUREMENT_NOISE = float(os.getenv("KALMAN_MEASUREMENT_NOISE", 10.0))
 PLANE_TTL_SECONDS = int(os.getenv("PLANE_TTL_SECONDS", 300))
 RECONNECT_DELAY = 5  # Seconds to wait before retrying connection
+ENRICHMENT_V2_ENABLED = os.getenv("ENRICHMENT_V2_ENABLED", "1") == "1"  # Default to enabled
 
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)
@@ -119,7 +121,11 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         current_trail = [(measurement[0], measurement[1], measurement[2])]
         logger.info(f"Fetching enrichment data for new plane {hex_ident}.")
         enriched_data = await fetch_opensky_data(hex_ident, redis_client)
-        route_data = await fetch_aeroapi_route(hex_ident, redis_client)
+        # Use new enrichment system if enabled
+        if ENRICHMENT_V2_ENABLED:
+            route_data = await fetch_route_data_v2(hex_ident, redis_client, callsign=msg.callsign)
+        else:
+            route_data = await fetch_aeroapi_route(hex_ident, redis_client)
     else:
         last_time = last_timestamps.get(hex_ident, current_time)
         dt = max(0.01, current_time - last_time)
@@ -224,6 +230,7 @@ async def run_ingest_loop() -> None:
     """Connect to ADS-B source and process messages indefinitely."""
     redis_client = RedisClient()
     logger.info("Ingest loop starting. Connecting to Redis...")
+    logger.info(f"Enrichment V2 system enabled: {ENRICHMENT_V2_ENABLED}")
     # Test Redis connection early
     try:
         conn = await redis_client.get_connection()

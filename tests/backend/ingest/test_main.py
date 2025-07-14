@@ -74,6 +74,7 @@ def sample_raw_message() -> RawMessage:
 # --- Test Cases for handle_message ---
 
 
+@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
 @patch("backend.ingest.main.fetch_aeroapi_route", new_callable=AsyncMock)
 @patch("backend.ingest.main.fetch_opensky_data", new_callable=AsyncMock)
 async def test_handle_first_message(
@@ -157,6 +158,7 @@ async def test_handle_first_message(
     assert call_args.kwargs["expire_seconds"] == ingest_main.PLANE_TTL_SECONDS
 
 
+@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
 @patch("backend.ingest.main.fetch_aeroapi_route", new_callable=AsyncMock)
 @patch("backend.ingest.main.fetch_opensky_data", new_callable=AsyncMock)
 async def test_handle_subsequent_message(
@@ -280,6 +282,7 @@ async def test_handle_message_missing_position(
     mock_redis_client.set_json.assert_not_called()
 
 
+@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
 @patch("backend.ingest.main.fetch_aeroapi_route", return_value=None)
 @patch("backend.ingest.main.fetch_opensky_data", return_value=None)
 async def test_handle_message_trail_capping(
@@ -397,6 +400,7 @@ async def test_handle_message_kalman_error(
     mock_redis_client.set_json.assert_not_called()
 
 
+@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
 @patch("backend.ingest.main.fetch_aeroapi_route", return_value=None)
 @patch("backend.ingest.main.fetch_opensky_data", return_value=None)
 async def test_handle_message_redis_error(

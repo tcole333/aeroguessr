@@ -36,7 +36,7 @@
 
 ---
 
-## ⛳ Item: Flight Route Enrichment via AeroAPI
+## ✅ Item: Flight Route Enrichment via AeroAPI (COMPLETED)
 
 - **Context:** The ingest service (`backend/ingest/enrichment.py`) uses FlightAware's AeroAPI (`/flights/{hex_ident}`) to fetch origin and destination airport ICAO codes for flights, supplementing data from OpenSky.
 - **Potential issues:** Relies on a free tier AeroAPI key (`FLIGHTAWARE_API_KEY`) which may have usage limits. The lookup by hex ID might occasionally return multiple flights or fail for specific aircraft (e.g., military, very recent flights not yet fully processed by FlightAware). Error handling and caching (6hr TTL) are in place, but heavy usage could exceed free tier limits.
@@ -118,5 +118,30 @@
 - **Code Ref:**
   - Frontend: `frontend/src/hooks/useWebSocketManager.ts`, `frontend/src/features/game/gameSlice.ts`
   - Backend: `backend/routes/rooms.py` lines 858-861 (_check_is_host), various handler updates
+
+---
+
+## ⛳ Item: Improved Flight Enrichment System (V2)
+
+- **Context:** Replaced the original AeroAPI-based enrichment with a new two-stage system that combines OpenSky flight data with FlightAware schedule lookups. This addresses limitations in both APIs when used individually.
+- **Implementation:**
+  - **Stage 1 - OpenSky Flights**: Fetches recent flights by ICAO24 hex (last 24h), providing callsigns with timestamps
+  - **Stage 2 - FlightAware Schedule**: Looks up schedules by callsign to get origin/destination/aircraft info
+  - **Caching Strategy**: Two-tier Redis caching with 24h TTL for enrichment data and configurable schedule refresh
+  - **Fallback Logic**: Gracefully handles partial data, using OpenSky-only data when FlightAware lookups fail
+- **Key improvements:**
+  - More reliable data by cross-referencing multiple sources
+  - Better handling of edge cases (military flights, private aircraft, API failures)
+  - Configurable via `ENRICHMENT_V2_ENABLED` and `FLIGHT_SCHEDULE_REFRESH_HOURS` environment variables
+  - Maintains backward compatibility with V1 enrichment
+- **Potential issues:**
+  - Still relies on free tier API limits for both services
+  - Schedule lookups may miss very recent flight plan changes
+  - Some aircraft (especially GA/military) may lack schedule data entirely
+- **Next steps:**
+  - Monitor API usage patterns and cache hit rates
+  - Consider adding more data sources (e.g., ADS-B Exchange, FlightRadar24 APIs)
+  - Implement smarter caching based on flight patterns (e.g., longer TTL for scheduled commercial flights)
+- **Code Ref:** `backend/ingest/enrichment_v2.py`, `backend/ingest/enrichment.py` (EnrichmentService class)
 
 ---
