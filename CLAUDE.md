@@ -4,12 +4,12 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 
 ## 🎯 Current Work
 
-**Last Updated:** 2025-07-11
+**Last Updated:** 2025-07-12
 
 ### Active Development
-- **Current Branch:** main
-- **Current Issue:** #90 - Create Frontend Dockerfile for production build
-- **Status:** Completed - Frontend Dockerfile created with multi-stage build and nginx serving
+- **Current Branch:** feature/43-improve-flight-enrichment
+- **Current Issue:** #43 - Improve flight data enrichment
+- **Status:** Completed - Implemented dual-lookup enrichment system with scheduled flight matching
 
 ### Check for New Work
 ```bash
@@ -236,18 +236,19 @@ make ws-schema
 - [x] Prepared frontend-optimized airport dataset (Issue #72, PR #80)
 - [x] Created comprehensive airport autocomplete React component (Issue #73)
 - [x] Integrated airport autocomplete into game flow (Issue #74, PR #85)
+- [x] Implemented improved flight data enrichment with dual-lookup strategy (Issue #43)
 
 ### Current State
-- **Branch:** main
+- **Branch:** feature/43-improve-flight-enrichment
 - **Uncommitted changes:** None - all changes committed and pushed
-- **Tests passing:** Yes - All frontend tests (updated + new tests), Backend tests
-- **Blockers:** None - Airport autocomplete integration complete
+- **Tests passing:** Backend unit tests pass, integration tests have pre-existing failures
+- **Blockers:** None - Flight enrichment V2 fully implemented and integrated
 
 ### Next Session Should
-1. Check for any new high-priority issues in GitHub
-2. Review and address integration test failures in TECH_DEBT.md
-3. Consider fixing the pre-commit hook poetry path issue if needed
-4. Address follow-up issues from airport autocomplete integration
+1. Create PR for the improved flight enrichment feature (Issue #43)
+2. Check for any new high-priority issues in GitHub
+3. Review and address integration test failures in TECH_DEBT.md
+4. Consider fixing the pre-commit hook poetry path issue if needed
 5. Work on next highest priority feature or bug fixes
 
 ### Notes/Warnings
@@ -277,6 +278,9 @@ make ws-schema
 - **Component Features**: Debounced search (150ms), ARIA compliant, dark mode support, <50ms search performance, 36 unit tests
 - **Airport Autocomplete Integration**: Complete integration into game flow with proper state management and error handling (Issue #74, PR #85)
 - **Network Development**: Added make targets for network accessibility testing on mobile devices
+- **Flight Enrichment V2**: Implemented dual-lookup system that matches real-time ADS-B callsigns against scheduled flights for accurate origin/destination data
+- **Enrichment Strategy**: Primary lookup by callsign, fallback to hex->registration conversion, 12-hour schedule cache, built-in match rate monitoring
+- **Feature Flag**: `ENRICHMENT_V2_ENABLED=1` (default enabled) controls new enrichment system, maintains backward compatibility with V1
 
 ## 🛠 Helper Scripts
 
