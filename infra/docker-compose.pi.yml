@@ -1,0 +1,17 @@
+# Docker Compose override for Raspberry Pi deployment
+# This file extends docker-compose.yml with Pi-specific settings
+# Use: docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
+
+version: '3.8'
+
+services:
+  backend:
+    # For accessing dump1090 on the host, we need to use host networking
+    # or the special host.docker.internal hostname (if available)
+    environment:
+      # Override ADSB_HOST to use the Docker host gateway
+      # This allows the container to reach dump1090 on the host
+      - ADSB_HOST=host.docker.internal
+    # Add extra_hosts for older Docker versions that don't have host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

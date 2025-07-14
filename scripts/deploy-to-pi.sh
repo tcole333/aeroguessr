@@ -46,8 +46,8 @@ echo "⚠️  Please ensure FLIGHTAWARE_API_KEY is set in ${PROJECT_DIR}/.env on
 
 # 6. Build and start Docker containers
 echo "🐳 Building and starting Docker containers..."
-run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml build"
-run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml up -d"
+run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml build"
+run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d"
 
 # 7. Wait for services to be healthy
 echo "⏳ Waiting for services to start..."
@@ -55,11 +55,11 @@ sleep 10
 
 # 8. Check service status
 echo "✅ Checking service status..."
-run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml ps"
+run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml ps"
 
 # 9. Show logs
 echo "📋 Recent backend logs:"
-run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml logs backend --tail=20"
+run_on_pi "cd ${PROJECT_DIR} && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml logs backend --tail=20"
 
 # 10. Test endpoints
 echo "🧪 Testing endpoints..."

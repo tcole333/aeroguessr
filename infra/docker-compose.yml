@@ -68,6 +68,9 @@ services:
       - MAX_ANTENNA_RANGE_KM=${MAX_ANTENNA_RANGE_KM:-250}
       - MIN_UPDATE_INTERVAL_SECONDS=${MIN_UPDATE_INTERVAL_SECONDS:-60}
       - OSM_TILE_URL=${OSM_TILE_URL:-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
+      # Flight enrichment V2 settings
+      - ENRICHMENT_V2_ENABLED=${ENRICHMENT_V2_ENABLED:-1}
+      - FLIGHT_SCHEDULE_REFRESH_HOURS=${FLIGHT_SCHEDULE_REFRESH_HOURS:-6}
       # Production settings
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO

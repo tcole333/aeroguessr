@@ -29,27 +29,27 @@ monitor_enrichment() {
 
         # Check Redis for cached enrichment data
         echo "📦 Cached enrichment entries (V2):"
-        docker compose exec -T redis redis-cli KEYS "aeroapi_route_v2:*" | wc -l
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml exec -T redis redis-cli KEYS "aeroapi_route_v2:*" | wc -l
 
         echo ""
         echo "📦 Cached scheduled flights:"
-        docker compose exec -T redis redis-cli EXISTS "flight_schedule:KBOS" && echo "✅ Schedule cache exists" || echo "❌ No schedule cache"
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml exec -T redis redis-cli EXISTS "flight_schedule:KBOS" && echo "✅ Schedule cache exists" || echo "❌ No schedule cache"
 
         echo ""
         echo "✈️  Active planes:"
-        docker compose exec -T redis redis-cli KEYS "plane:*" | wc -l
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml exec -T redis redis-cli KEYS "plane:*" | wc -l
 
         echo ""
         echo "📊 Recent enrichment stats (last 5 minutes):"
-        docker compose logs backend --since=5m 2>/dev/null | grep -i "enrichment statistics" | tail -5
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml logs backend --since=5m 2>/dev/null | grep -i "enrichment statistics" | tail -5
 
         echo ""
         echo "🎯 Recent matches:"
-        docker compose logs backend --since=5m 2>/dev/null | grep -E "(Found flight|Match found)" | tail -10
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml logs backend --since=5m 2>/dev/null | grep -E "(Found flight|Match found)" | tail -10
 
         echo ""
         echo "❌ Recent failures:"
-        docker compose logs backend --since=5m 2>/dev/null | grep -E "(No match found|enrichment.*failed)" | tail -5
+        docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml logs backend --since=5m 2>/dev/null | grep -E "(No match found|enrichment.*failed)" | tail -5
 
         echo ""
         echo "🔄 Refreshing in 30 seconds..."
