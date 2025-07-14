@@ -4,12 +4,12 @@ This guide helps Claude Code work effectively on the Plane Game v4 codebase. For
 
 ## 🎯 Current Work
 
-**Last Updated:** 2025-07-12
+**Last Updated:** 2025-07-14
 
 ### Active Development
-- **Current Branch:** feature/43-improve-flight-enrichment
-- **Current Issue:** #43 - Improve flight data enrichment
-- **Status:** Completed - Implemented dual-lookup enrichment system with scheduled flight matching
+- **Current Branch:** main
+- **Current Issue:** #93 - Raspberry Pi deployment with live ADS-B integration
+- **Status:** Ready for deployment - Flight enrichment V2 merged, preparing to test with live data
 
 ### Check for New Work
 ```bash
@@ -212,9 +212,14 @@ make ws-schema
 
 ## 🤝 Session Handoff
 
-**Session Date:** 2025-07-11
+**Session Date:** 2025-07-14
 
 ### Work Completed
+- [x] Reviewed and merged flight enrichment V2 system (PR #97, Issue #43)
+- [x] Created deployment scripts for Raspberry Pi testing
+- [x] Created monitoring script for enrichment performance tracking
+
+### Previous Session (2025-07-11)
 - [x] Fixed leave room button functionality (Issue #32)
 - [x] Added missing WebSocket schema documentation for leave messages
 - [x] Implemented complete frontend leave room flow with state cleanup
@@ -239,17 +244,28 @@ make ws-schema
 - [x] Implemented improved flight data enrichment with dual-lookup strategy (Issue #43)
 
 ### Current State
-- **Branch:** feature/43-improve-flight-enrichment
-- **Uncommitted changes:** None - all changes committed and pushed
-- **Tests passing:** Backend unit tests pass, integration tests have pre-existing failures
-- **Blockers:** None - Flight enrichment V2 fully implemented and integrated
+- **Branch:** main
+- **Uncommitted changes:** CLAUDE.md updates only
+- **Tests passing:** All unit tests pass
+- **Blockers:** None - Ready for Pi deployment
+
+### Flight Enrichment V2 System
+- **Dual-lookup strategy**: Primary callsign match, fallback to registration
+- **Scheduled flights cache**: Fetches Boston departures/arrivals for 12-hour window
+- **Match rates**: Expected 80-90% for commercial traffic
+- **Monitoring**: Built-in statistics logging every 100 requests
+- **Feature flag**: `ENRICHMENT_V2_ENABLED=1` (enabled by default)
+
+### Deployment Scripts Created
+- `scripts/deploy-to-pi.sh` - Deploys code and starts Docker containers
+- `scripts/monitor-enrichment.sh` - Real-time monitoring of enrichment performance
 
 ### Next Session Should
-1. Create PR for the improved flight enrichment feature (Issue #43)
-2. Check for any new high-priority issues in GitHub
-3. Review and address integration test failures in TECH_DEBT.md
-4. Consider fixing the pre-commit hook poetry path issue if needed
-5. Work on next highest priority feature or bug fixes
+1. Deploy to Raspberry Pi using `./scripts/deploy-to-pi.sh`
+2. Set FLIGHTAWARE_API_KEY in Pi's .env file
+3. Monitor enrichment performance with `./scripts/monitor-enrichment.sh`
+4. Verify match rates meet expectations (80-90%)
+5. Address any issues found during live testing
 
 ### Notes/Warnings
 - **Critical Fix**: Redis WRONGTYPE error resolved - planes now move properly (PR #63)
@@ -278,9 +294,9 @@ make ws-schema
 - **Component Features**: Debounced search (150ms), ARIA compliant, dark mode support, <50ms search performance, 36 unit tests
 - **Airport Autocomplete Integration**: Complete integration into game flow with proper state management and error handling (Issue #74, PR #85)
 - **Network Development**: Added make targets for network accessibility testing on mobile devices
-- **Flight Enrichment V2**: Implemented dual-lookup system that matches real-time ADS-B callsigns against scheduled flights for accurate origin/destination data
+- **Flight Enrichment V2**: Implemented dual-lookup system matching live ADS-B data against FlightAware scheduled flights for accurate origin/destination data (Issue #43, PR #97)
 - **Enrichment Strategy**: Primary lookup by callsign, fallback to hex->registration conversion, 12-hour schedule cache, built-in match rate monitoring
-- **Feature Flag**: `ENRICHMENT_V2_ENABLED=1` (default enabled) controls new enrichment system, maintains backward compatibility with V1
+- **Deployment Ready**: Docker configuration complete, deployment scripts created for Raspberry Pi testing with live ADS-B data
 
 ## 🛠 Helper Scripts
 
