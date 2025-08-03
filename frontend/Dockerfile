@@ -9,7 +9,6 @@ WORKDIR /app
 
 # Copy package files for dependency installation
 COPY package*.json ./
-COPY pnpm-lock.yaml* ./
 
 # Install dependencies
 # Use npm since it's more universally available in Node.js images
