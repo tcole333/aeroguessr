@@ -29,13 +29,52 @@ function createIcon(rotation: number, isSelected: boolean = false): L.DivIcon {
 const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, onClick }) => {
   const { lat, lon, trail, lat_v, lon_v } = plane;
 
-  // Calculate heading from velocity vectors
+  // Keep track of previous heading for stability using useRef to avoid stale closures
+  const previousHeadingRef = React.useRef(0);
+
+  // Calculate heading from velocity vectors with stability improvements
   const hdg = React.useMemo(() => {
-    if (lat_v === 0 && lon_v === 0) return 0;
+    // Calculate speed magnitude
+    const speed = Math.sqrt(lat_v * lat_v + lon_v * lon_v);
+
+    // If speed is very low, try to calculate from trail
+    const MIN_SPEED_THRESHOLD = 0.001; // About 0.06 knots
+    if (speed < MIN_SPEED_THRESHOLD) {
+      // Try to calculate heading from trail if available
+      if (trail && trail.length >= 2) {
+        const lastPoint = trail[trail.length - 1];
+        const secondLastPoint = trail[trail.length - 2];
+        const trailLatDiff = lastPoint[0] - secondLastPoint[0];
+        const trailLonDiff = lastPoint[1] - secondLastPoint[1];
+        const trailSpeed = Math.sqrt(trailLatDiff * trailLatDiff + trailLonDiff * trailLonDiff);
+
+        if (trailSpeed > MIN_SPEED_THRESHOLD) {
+          const trailBearing = Math.atan2(trailLonDiff, trailLatDiff) * (180 / Math.PI);
+          const trailHeading = (trailBearing + 360) % 360;
+          previousHeadingRef.current = trailHeading;
+          return trailHeading;
+        }
+      }
+      // If no trail or trail speed too low, maintain previous heading
+      return previousHeadingRef.current;
+    }
+
     // Convert velocity to bearing in degrees
     const bearing = Math.atan2(lon_v, lat_v) * (180 / Math.PI);
-    return (bearing + 360) % 360; // Normalize to 0-360
-  }, [lat_v, lon_v]);
+    const newHeading = (bearing + 360) % 360; // Normalize to 0-360
+
+    // Apply smoothing for small heading changes
+    const headingDiff = Math.abs(newHeading - previousHeadingRef.current);
+    const MIN_HEADING_CHANGE = 5; // Degrees
+
+    // Only update heading if change is significant
+    if (headingDiff < MIN_HEADING_CHANGE || headingDiff > (360 - MIN_HEADING_CHANGE)) {
+      return previousHeadingRef.current;
+    }
+
+    previousHeadingRef.current = newHeading;
+    return newHeading;
+  }, [lat_v, lon_v, trail]);
 
   const icon = React.useMemo(() => createIcon(hdg, isSelected), [hdg, isSelected]);
 

@@ -295,6 +295,7 @@ async def test_handle_message_trail_capping(
     # hex_id = sample_raw_message.hex_ident
     current_state: Optional[PlaneState] = None
 
+    base_time = time.time()
     # Send 11 messages
     for i in range(11):
         # Mock get_json to return the previous state (or None for the first call)
@@ -302,7 +303,7 @@ async def test_handle_message_trail_capping(
         mock_redis_client.get_model.reset_mock()  # Reset count for each call
 
         # Create a slightly different message each time
-        msg_time = time.time()
+        msg_time = base_time + i * 0.1  # 100ms between messages
         msg = dataclasses.replace(
             sample_raw_message,
             timestamp=msg_time,
@@ -381,6 +382,9 @@ async def test_handle_message_kalman_error(
     smoother.predict = MagicMock()
     smoother.update = MagicMock(side_effect=np.linalg.LinAlgError("Test error"))
 
+    # Mock existing state for graceful recovery
+    mock_redis_client.get_model.return_value = None
+
     # --- Second message ---
     await asyncio.sleep(0.02)
     # Use dataclasses.replace for dataclass objects
@@ -396,8 +400,8 @@ async def test_handle_message_kalman_error(
     assert hex_id not in ingest_main.active_smoothers
     assert hex_id not in ingest_main.last_timestamps
 
-    # Check no Redis call was made after the error
-    mock_redis_client.set_json.assert_not_called()
+    # Check Redis was called with raw measurement after error (graceful recovery)
+    assert mock_redis_client.set_json.call_count == 1
 
 
 @patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment

@@ -87,6 +87,17 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     if not msg.latitude or not msg.longitude or not msg.altitude:
         return  # Skip messages without position
 
+    # Validate position is within reasonable bounds
+    if not (-90 <= msg.latitude <= 90):
+        logger.warning(f"Invalid latitude {msg.latitude} for {msg.hex_ident}")
+        return
+    if not (-180 <= msg.longitude <= 180):
+        logger.warning(f"Invalid longitude {msg.longitude} for {msg.hex_ident}")
+        return
+    if not (-1000 <= msg.altitude <= 60000):  # Allow below sea level, max 60k feet
+        logger.warning(f"Invalid altitude {msg.altitude} for {msg.hex_ident}")
+        return
+
     hex_ident = msg.hex_ident
     current_time = msg.timestamp
     measurement = np.array([msg.latitude, msg.longitude, msg.altitude])
@@ -128,9 +139,47 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             route_data = await fetch_aeroapi_route(hex_ident, redis_client)
     else:
         last_time = last_timestamps.get(hex_ident, current_time)
-        dt = max(0.01, current_time - last_time)
+        dt = current_time - last_time
+
+        # Validate time delta to prevent Kalman filter instability
+        if dt < 0:
+            logger.warning(f"Negative time delta for {hex_ident}: {dt}s. Skipping update.")
+            return
+        elif dt < 0.001:
+            logger.debug(f"Very small time delta for {hex_ident}: {dt}s. Skipping update.")
+            return
+        elif dt > 30.0:
+            logger.warning(f"Large time gap for {hex_ident}: {dt}s. Resetting smoother.")
+            # Reset smoother for large gaps
+            del active_smoothers[hex_ident]
+            del last_timestamps[hex_ident]
+            # Recursive call to create new smoother
+            await handle_message(msg, redis_client)
+            return
+
+        # Cap maximum prediction time to prevent divergence
+        dt = min(dt, 10.0)
 
         try:
+            # Check for unrealistic position changes before updating
+            if existing_state:
+                # Calculate distance traveled
+                lat_diff = measurement[0] - existing_state.lat
+                lon_diff = measurement[1] - existing_state.lon
+
+                # Rough distance calculation (degrees)
+                distance_deg = np.sqrt(lat_diff**2 + lon_diff**2)
+
+                # Maximum realistic speed: ~600 knots = ~0.17 degrees/second at equator
+                max_distance_deg = 0.17 * dt
+
+                if distance_deg > max_distance_deg:
+                    logger.warning(
+                        f"Unrealistic position jump for {hex_ident}: "
+                        f"{distance_deg:.4f} deg in {dt:.1f}s. Skipping update."
+                    )
+                    return
+
             smoother.predict(dt)
             smoother.update(measurement)
             smoothed_state_vector = smoother.state
@@ -188,11 +237,21 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     route_data = await fetch_aeroapi_route(hex_ident, redis_client)
 
         except np.linalg.LinAlgError as e:
-            logger.error(f"Kalman filter error for {hex_ident}: {e}. Resetting smoother.")
-            # Reset smoother on numerical instability
+            logger.error(f"Kalman filter numerical instability for {hex_ident}: {e}")
+            # Try to recover gracefully by using raw measurement
+            smoothed_state_vector = np.concatenate((measurement, np.zeros(3)))
+
+            # Reset the smoother but keep processing this update
+            logger.info(f"Resetting smoother for {hex_ident} and using raw measurement")
             del active_smoothers[hex_ident]
             del last_timestamps[hex_ident]
-            return
+
+            # Use existing trail or start new one
+            current_trail = existing_state.trail if existing_state else []
+            new_point = (measurement[0], measurement[1], measurement[2])
+            current_trail.append(new_point)
+            if len(current_trail) > 10:
+                current_trail.pop(0)
 
     # Prepare data for Redis, including the updated trail and enrichment data
     # Handle signal quality tracking

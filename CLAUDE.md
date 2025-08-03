@@ -212,14 +212,18 @@ make ws-schema
 
 ## 🤝 Session Handoff
 
-**Session Date:** 2025-07-14
+**Session Date:** 2025-08-03
 
 ### Work Completed
-- [x] Reviewed and merged flight enrichment V2 system (PR #97, Issue #43)
-- [x] Created deployment scripts for Raspberry Pi testing
-- [x] Created monitoring script for enrichment performance tracking
+- [x] Reviewed and merged PR #101 fixing ingest AttributeError (Issue #98)
+- [x] Created follow-up issues #102-104 for Redis state edge cases
+- [x] Reviewed and merged PR #105 fixing frontend Docker build (Issue #100)
+- [x] Fixed and merged PR #106 adding supervisord for auto-start (Issue #99)
+- [x] Successfully deployed all fixes to Raspberry Pi
+- [x] Investigated erratic plane movement with sub-agents
+- [x] Created comprehensive Issue #107 for plane tracking bugs
 
-### Previous Session (2025-07-11)
+### Previous Session (2025-07-14)
 - [x] Fixed leave room button functionality (Issue #32)
 - [x] Added missing WebSocket schema documentation for leave messages
 - [x] Implemented complete frontend leave room flow with state cleanup
@@ -247,25 +251,32 @@ make ws-schema
 - **Branch:** main
 - **Uncommitted changes:** CLAUDE.md updates only
 - **Tests passing:** All unit tests pass
-- **Blockers:** None - Ready for Pi deployment
+- **Blockers:** Issue #107 - Erratic plane movement on Pi
 
-### Flight Enrichment V2 System
-- **Dual-lookup strategy**: Primary callsign match, fallback to registration
-- **Scheduled flights cache**: Fetches Boston departures/arrivals for 12-hour window
-- **Match rates**: Expected 80-90% for commercial traffic
-- **Monitoring**: Built-in statistics logging every 100 requests
-- **Feature flag**: `ENRICHMENT_V2_ENABLED=1` (enabled by default)
+### Live Deployment Status
+- **Deployment:** Successfully deployed to Pi with all fixes (PRs #101, #105, #106)
+- **Services:** All running (supervisord managing API + ingest)
+- **V2 Enrichment:** Active but 0% match rate (only GA traffic observed)
+- **Critical Issue:** Planes freezing/jumping erratically on map (Issue #107)
 
-### Deployment Scripts Created
-- `scripts/deploy-to-pi.sh` - Deploys code and starts Docker containers
-- `scripts/monitor-enrichment.sh` - Real-time monitoring of enrichment performance
+### Plane Tracking Investigation (Issue #107)
+- **Root Causes Identified**:
+  - Kalman filter numerical instability causing resets
+  - Poor parameter tuning (process noise 0.5 too high, measurement noise 10.0 too conservative)
+  - No frontend position interpolation
+  - Unstable heading calculations
+- **Quick Fix**: Update Kalman parameters in Pi's .env:
+  ```
+  KALMAN_PROCESS_NOISE=0.01
+  KALMAN_MEASUREMENT_NOISE=3.0
+  ```
 
 ### Next Session Should
-1. Deploy to Raspberry Pi using `./scripts/deploy-to-pi.sh`
-2. Set FLIGHTAWARE_API_KEY in Pi's .env file
-3. Monitor enrichment performance with `./scripts/monitor-enrichment.sh`
-4. Verify match rates meet expectations (80-90%)
-5. Address any issues found during live testing
+1. Apply Kalman parameter fix to Pi and test
+2. Monitor for Kalman filter errors in logs
+3. Implement position validation (PR for Issue #107)
+4. Add frontend interpolation for smooth movement
+5. Test enrichment during commercial flight hours
 
 ### Notes/Warnings
 - **Critical Fix**: Redis WRONGTYPE error resolved - planes now move properly (PR #63)
@@ -297,6 +308,8 @@ make ws-schema
 - **Flight Enrichment V2**: Implemented dual-lookup system matching live ADS-B data against FlightAware scheduled flights for accurate origin/destination data (Issue #43, PR #97)
 - **Enrichment Strategy**: Primary lookup by callsign, fallback to hex->registration conversion, 12-hour schedule cache, built-in match rate monitoring
 - **Deployment Ready**: Docker configuration complete, deployment scripts created for Raspberry Pi testing with live ADS-B data
+- **Plane Tracking Issue**: Erratic plane movement identified (Issue #107) - Kalman filter parameters need tuning, numerical instability causes resets
+- **Supervisord Integration**: Backend container now uses supervisord to manage both API and ingest processes, ensuring automatic startup
 
 ## 🛠 Helper Scripts
 
