@@ -8,8 +8,10 @@ ENV PYTHONUNBUFFERED 1
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies if needed (e.g., for specific libraries)
-# RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+# Install system dependencies including supervisor
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
 # --- Dependency Installation (Choose one method) ---
 
@@ -27,8 +29,11 @@ RUN pip install poetry \
 
 # --- Application Code ---
 
-# Copy the rest of the application code into the container
-COPY . .
+# Copy backend code and configs
+COPY backend/ ./backend/
+COPY backend/supervisord.conf /app/supervisord.conf
+COPY backend/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # --- Port Exposure ---
 
@@ -37,7 +42,5 @@ EXPOSE 8000
 
 # --- Run Command ---
 
-# Define the command to run the application (adjust `backend.app:app` as needed)
-# The command assumes the main FastAPI app instance is named `app` in `backend/app.py`
-# Using --reload is typically for development, remove it for production images.
-CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use the entrypoint script to start both API and ingest services via supervisor
+CMD ["/app/entrypoint.sh"]

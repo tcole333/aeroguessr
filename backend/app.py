@@ -5,8 +5,9 @@ import logging
 import logging.handlers  # Added import
 import os  # Added import
 import sys  # Add sys import
+import time  # Add time import
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Dict
+from typing import Any, AsyncGenerator, Dict
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -94,7 +95,12 @@ root_logger.addHandler(file_handler)
 # uvicorn_error_logger.propagate = False
 
 
-logger = logging.getLogger(__name__)  # For specific use in this file, will inherit root config
+logger = logging.getLogger(__name__)
+
+# Configuration for health check
+INGEST_HEALTH_THRESHOLD_SECONDS = int(
+    os.getenv("INGEST_HEALTH_THRESHOLD_SECONDS", "60")
+)  # For specific use in this file, will inherit root config
 
 # --- End Centralized Logger Configuration ---
 
@@ -202,10 +208,57 @@ async def read_root() -> Dict[str, str]:
 
 
 @app.get("/healthz", status_code=status.HTTP_200_OK)
-async def health_check() -> Dict[str, str]:
-    """Health check endpoint to verify service status."""
-    # TODO: Add checks for Redis connection?
-    return {"status": "ok"}
+async def health_check() -> Dict[str, Any]:
+    """Health check endpoint to verify service status.
+
+    Checks:
+    - API is responsive
+    - Redis connection
+    - Ingest process (checks for recent plane updates)
+    """
+    health_status = {"status": "ok", "api": "healthy", "redis": "unknown", "ingest": "unknown"}
+
+    try:
+        # Check Redis connection
+        await redis_client.ping()
+        health_status["redis"] = "healthy"
+
+        # Check ingest process by looking for recent plane updates
+        # Get all plane keys
+        plane_keys = await redis_client.keys("plane:*")
+        if plane_keys:
+            # Get the most recent update timestamp
+            current_time = time.time()
+            recent_update_found = False
+
+            for key in plane_keys[:10]:  # Check up to 10 planes
+                plane_data = await redis_client.hgetall(key)
+                if plane_data and b"last_update_ts" in plane_data:
+                    try:
+                        last_update = float(plane_data[b"last_update_ts"])
+                        # Consider ingest healthy if we have updates within configured threshold
+                        if current_time - last_update < INGEST_HEALTH_THRESHOLD_SECONDS:
+                            recent_update_found = True
+                            break
+                    except (ValueError, TypeError):
+                        continue
+
+            health_status["ingest"] = "healthy" if recent_update_found else "unhealthy"
+        else:
+            health_status["ingest"] = "no_data"
+
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        health_status["redis"] = "unhealthy"
+        health_status["status"] = "degraded"
+
+    # Overall status
+    if health_status["redis"] == "unhealthy" or health_status["ingest"] == "unhealthy":
+        health_status["status"] = "unhealthy"
+    elif health_status["ingest"] == "no_data":
+        health_status["status"] = "degraded"
+
+    return health_status
 
 
 # --- Routers & WebSocket --- #
