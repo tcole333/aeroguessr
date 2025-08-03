@@ -131,7 +131,9 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         smoothed_state_vector = np.concatenate((measurement, np.zeros(3)))
         current_trail = [(measurement[0], measurement[1], measurement[2])]
         logger.info(f"Fetching enrichment data for new plane {hex_ident}.")
-        enriched_data = await fetch_opensky_data(hex_ident, redis_client)
+        # Skip OpenSky API calls when V2 enrichment is enabled to avoid rate limiting
+        if not ENRICHMENT_V2_ENABLED:
+            enriched_data = await fetch_opensky_data(hex_ident, redis_client)
         # Use new enrichment system if enabled
         if ENRICHMENT_V2_ENABLED:
             route_data = await fetch_route_data_v2(hex_ident, redis_client, callsign=msg.callsign)
@@ -227,7 +229,9 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 logger.info(
                     f"Re-fetching enrichment data for {hex_ident} due to missing Redis state."
                 )
-                enriched_data = await fetch_opensky_data(hex_ident, redis_client)
+                # Skip OpenSky API calls when V2 enrichment is enabled to avoid rate limiting
+                if not ENRICHMENT_V2_ENABLED:
+                    enriched_data = await fetch_opensky_data(hex_ident, redis_client)
                 # Use new enrichment system if enabled
                 if ENRICHMENT_V2_ENABLED:
                     route_data = await fetch_route_data_v2(
