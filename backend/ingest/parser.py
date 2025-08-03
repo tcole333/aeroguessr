@@ -122,8 +122,8 @@ def parse_sbs_message(sbs_line: str, timestamp: float) -> Optional[RawMessage]:
             message.altitude = _parse_int(parts[11])
             message.ground_speed = _parse_float(parts[12])
             message.track = _parse_float(parts[13])
-            message.latitude = _parse_float(parts[15])
-            message.longitude = _parse_float(parts[16])
+            message.latitude = _parse_float(parts[14])  # Fixed: was parts[15]
+            message.longitude = _parse_float(parts[15])  # Fixed: was parts[16]
         elif msg_type == 3:  # ES Airborne Position Message
             message.altitude = _parse_int(parts[11])
             message.latitude = _parse_float(parts[14])

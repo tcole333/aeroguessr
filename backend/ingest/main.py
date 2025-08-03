@@ -172,8 +172,26 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 # Rough distance calculation (degrees)
                 distance_deg = np.sqrt(lat_diff**2 + lon_diff**2)
 
-                # Maximum realistic speed: ~600 knots = ~0.17 degrees/second at equator
-                max_distance_deg = 0.17 * dt
+                # Maximum realistic speed:
+                # - Commercial jets: up to 600 knots cruise
+                # - Military/supersonic: up to 1200 knots
+                # - At equator: 1 degree ≈ 60 nautical miles
+                # - 1200 knots = 20 nm/min = 0.33 degrees/min = 0.0055 degrees/second
+                # - But ADS-B data can have delays/batching, so we need a buffer
+                # - Using 0.5 degrees/second to account for data delays and supersonic aircraft
+                # - This allows up to ~1800 knots apparent speed to handle data bursts
+                max_distance_deg = 0.5 * dt
+
+                # EMERGENCY: Handle extreme jumps from corrupted ADS-B data
+                # Seeing jumps of 25+ degrees (like Boston to Hawaii!)
+                if distance_deg > 5.0:  # More than 5 degrees is definitely wrong
+                    logger.error(
+                        f"EXTREME position jump for {hex_ident}: "
+                        f"{distance_deg:.4f} deg in {dt:.1f}s. Likely data corruption. "
+                        f"Old: ({existing_state.lat:.4f}, {existing_state.lon:.4f}) "
+                        f"New: ({measurement[0]:.4f}, {measurement[1]:.4f})"
+                    )
+                    return
 
                 if distance_deg > max_distance_deg:
                     logger.warning(
@@ -256,6 +274,23 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             current_trail.append(new_point)
             if len(current_trail) > 10:
                 current_trail.pop(0)
+
+    # Sanity check velocities - aircraft don't exceed ~0.01 deg/sec (about 600 knots)
+    # If Kalman filter produces extreme velocities, clamp them
+    max_velocity_deg_per_sec = 0.01  # ~600 knots at equator
+    lat_v = smoothed_state_vector[3]
+    lon_v = smoothed_state_vector[4]
+    velocity_magnitude = np.sqrt(lat_v**2 + lon_v**2)
+
+    if velocity_magnitude > max_velocity_deg_per_sec:
+        # Scale down velocities to maximum
+        scale_factor = max_velocity_deg_per_sec / velocity_magnitude
+        smoothed_state_vector[3] *= scale_factor
+        smoothed_state_vector[4] *= scale_factor
+        logger.warning(
+            f"Clamped extreme velocity for {hex_ident}: "
+            f"{velocity_magnitude:.6f} deg/s -> {max_velocity_deg_per_sec:.6f} deg/s"
+        )
 
     # Prepare data for Redis, including the updated trail and enrichment data
     # Handle signal quality tracking

@@ -39,6 +39,11 @@ run_on_pi "cd ${PROJECT_DIR} && sed -i 's/FAKE_ADSB=.*/FAKE_ADSB=0/' .env"
 run_on_pi "cd ${PROJECT_DIR} && sed -i 's/ADSB_HOST=.*/ADSB_HOST=127.0.0.1/' .env"
 run_on_pi "cd ${PROJECT_DIR} && sed -i 's/ENRICHMENT_V2_ENABLED=.*/ENRICHMENT_V2_ENABLED=1/' .env"
 
+# Update Kalman filter parameters for better plane tracking
+echo "🎯 Updating Kalman filter parameters..."
+run_on_pi "cd ${PROJECT_DIR} && sed -i 's/KALMAN_PROCESS_NOISE=.*/KALMAN_PROCESS_NOISE=0.01/' .env"
+run_on_pi "cd ${PROJECT_DIR} && sed -i 's/KALMAN_MEASUREMENT_NOISE=.*/KALMAN_MEASUREMENT_NOISE=3.0/' .env"
+
 # 5. Ensure FlightAware API key is set
 echo "🔑 Checking API keys..."
 run_on_pi "cd ${PROJECT_DIR} && grep -q 'FLIGHTAWARE_API_KEY=' .env || echo 'FLIGHTAWARE_API_KEY=' >> .env"

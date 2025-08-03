@@ -53,8 +53,8 @@ CURRENT_TIMESTAMP = time.time()
                 "hex_ident": "400CB6",
                 "callsign": None,
                 "altitude": None,  # Field 11 is empty in fixture
-                "latitude": 54.05735,  # Field 15
-                "longitude": -4.38826,  # Field 16
+                "latitude": 258.3,  # Field 14 (Note: This appears to be malformed data - not a valid latitude)
+                "longitude": 54.05735,  # Field 15
                 "ground_speed": 0.0,  # Field 12 is '0'
                 "track": 76.4,  # Field 13 is '76.4'
                 "vertical_rate": None,

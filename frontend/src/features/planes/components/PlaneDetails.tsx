@@ -155,8 +155,19 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   };
 
   const formatSpeed = (latV: number, lonV: number) => {
-    // Basic speed calculation from velocity components
-    const speedKts = Math.sqrt(latV * latV + lonV * lonV) * 3600 * 60; // rough conversion
+    // Speed calculation from velocity components
+    // Velocities are in degrees/second
+    // At equator: 1 degree ≈ 60 nautical miles
+    // Speed in degrees/second * 60 nm/degree * 3600 seconds/hour = knots
+    // But this needs latitude correction (cosine factor)
+    const speedDegPerSec = Math.sqrt(latV * latV + lonV * lonV);
+    const speedKts = speedDegPerSec * 60 * 3600; // Approximate, assumes equator
+
+    // Sanity check - aircraft don't fly faster than ~700 knots
+    if (speedKts > 1000) {
+      return 'Invalid';
+    }
+
     return `${Math.round(speedKts)} kts`;
   };
 
