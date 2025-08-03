@@ -150,11 +150,17 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 current_trail.pop(0)  # Remove the oldest point
 
             # === BEGIN ADDED LOGGING BEFORE CARRY OVER ===
-            logger.info(
-                f"INGEST_MAIN (Carry Over): Existing state for {hex_ident} before "
-                f"constructing enrichment - Origin: {existing_state.origin}, Dest: "
-                f"{existing_state.destination}"
-            )
+            if existing_state:
+                logger.info(
+                    f"INGEST_MAIN (Carry Over): Existing state for {hex_ident} before "
+                    f"constructing enrichment - Origin: {existing_state.origin}, Dest: "
+                    f"{existing_state.destination}"
+                )
+            else:
+                logger.warning(
+                    f"INGEST_MAIN: Smoother exists for {hex_ident} but no Redis state found. "
+                    f"Possible Redis expiration or data corruption."
+                )
             # === END ADDED LOGGING BEFORE CARRY OVER ===
             # Carry over existing enrichment data if available
             if existing_state:
@@ -167,6 +173,19 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     origin_icao=existing_state.origin,
                     destination_icao=existing_state.destination,
                 )
+            else:
+                # Redis state expired, re-fetch enrichment data
+                logger.info(
+                    f"Re-fetching enrichment data for {hex_ident} due to missing Redis state."
+                )
+                enriched_data = await fetch_opensky_data(hex_ident, redis_client)
+                # Use new enrichment system if enabled
+                if ENRICHMENT_V2_ENABLED:
+                    route_data = await fetch_route_data_v2(
+                        hex_ident, redis_client, callsign=msg.callsign
+                    )
+                else:
+                    route_data = await fetch_aeroapi_route(hex_ident, redis_client)
 
         except np.linalg.LinAlgError as e:
             logger.error(f"Kalman filter error for {hex_ident}: {e}. Resetting smoother.")
