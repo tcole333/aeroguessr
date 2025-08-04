@@ -18,6 +18,8 @@ function createIcon(rotation: number, isSelected: boolean = false): L.DivIcon {
     ? 'border: 2px solid #3b82f6; border-radius: 50%; background: rgba(59, 130, 246, 0.2); padding: 2px;'
     : '';
 
+  // Adjust rotation: the SVG points up (north), which is 0 degrees
+  // No adjustment needed as our heading calculation already matches this
   return L.divIcon({
     html: `<div style="${selectedStyle}"><img src="${planeIconUrl}" class="plane-icon" style="width:24px;height:24px;transform: rotate(${rotation}deg);"/></div>`,
     iconSize: isSelected ? [32, 32] : iconSize,
@@ -49,6 +51,7 @@ const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, o
         const trailSpeed = Math.sqrt(trailLatDiff * trailLatDiff + trailLonDiff * trailLonDiff);
 
         if (trailSpeed > MIN_SPEED_THRESHOLD) {
+          // Same calculation as velocity-based heading
           const trailBearing = Math.atan2(trailLonDiff, trailLatDiff) * (180 / Math.PI);
           const trailHeading = (trailBearing + 360) % 360;
           previousHeadingRef.current = trailHeading;
@@ -60,6 +63,8 @@ const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, o
     }
 
     // Convert velocity to bearing in degrees
+    // atan2 expects (y, x) where x is east-west (longitude) and y is north-south (latitude)
+    // We want: 0° = North, 90° = East, 180° = South, 270° = West
     const bearing = Math.atan2(lon_v, lat_v) * (180 / Math.PI);
     const newHeading = (bearing + 360) % 360; // Normalize to 0-360
 
@@ -94,10 +99,11 @@ const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, o
     if (recentTrail.length < 2) return null;
 
     const segments = [] as JSX.Element[];
-    for (let i = recentTrail.length - 1; i > 0; i -= 1) {
+    for (let i = 0; i < recentTrail.length - 1; i++) {
       const start = [recentTrail[i][0], recentTrail[i][1]] as [number, number];
-      const end = [recentTrail[i - 1][0], recentTrail[i - 1][1]] as [number, number];
-      const opacity = (recentTrail.length - i) / recentTrail.length;
+      const end = [recentTrail[i + 1][0], recentTrail[i + 1][1]] as [number, number];
+      // Opacity decreases for older segments (i=0 is oldest)
+      const opacity = (i + 1) / recentTrail.length;
       segments.push(
         <Polyline
           key={i}

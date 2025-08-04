@@ -33,10 +33,21 @@ async function handleResponse(res: Response): Promise<any> {
   return res.json();
 }
 
+// Get base URL from environment or default to relative path
+// If accessing via production domain, use production URL; otherwise use relative
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname === 'aeroguessr.com') {
+    return 'https://aeroguessr.com/api/v0';
+  }
+  return import.meta.env.VITE_API_BASE_URL || '/api/v0';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 export async function createRoomAPI(
   params: RoomCreateRequest,
 ): Promise<RoomCreateResponse> {
-  const res = await fetch('/api/v0/rooms', {
+  const res = await fetch(`${API_BASE_URL}/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -48,7 +59,7 @@ export async function joinRoomAPI(
   roomCode: string,
   params: RoomJoinRequest,
 ): Promise<RoomJoinResponse> {
-  const res = await fetch(`/api/v0/rooms/${roomCode}/join`, {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomCode}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),

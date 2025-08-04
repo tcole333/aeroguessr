@@ -14,7 +14,7 @@ from backend.ingest import main as ingest_main
 from backend.ingest.enrichment import EnrichedData, RouteData
 from backend.ingest.main import PlaneState  # Import PlaneState directly
 from backend.ingest.parser import RawMessage
-from backend.ingest.smoother import PositionSmoother
+from backend.ingest.smoother_enu import PositionSmootherENU
 from backend.utils.redis_async import RedisClient
 
 # Mark all tests in this module as async
@@ -111,7 +111,7 @@ async def test_handle_first_message(
 
     # Check smoother was created and timestamp stored
     assert hex_id in ingest_main.active_smoothers
-    assert isinstance(ingest_main.active_smoothers[hex_id], PositionSmoother)
+    assert isinstance(ingest_main.active_smoothers[hex_id], PositionSmootherENU)
     assert hex_id in ingest_main.last_timestamps
     assert ingest_main.last_timestamps[hex_id] == sample_raw_message.timestamp
 
@@ -206,7 +206,7 @@ async def test_handle_subsequent_message(
     smoother.predict = MagicMock()
     smoother.update = MagicMock()
     mock_state_vector = np.array([42.124, -71.457, 35005.0, 0.001, -0.001, 5.0])
-    with patch.object(PositionSmoother, "state", new_callable=PropertyMock) as mock_prop:
+    with patch.object(PositionSmootherENU, "state", new_callable=PropertyMock) as mock_prop:
         mock_prop.return_value = mock_state_vector
 
         # --- Second message ---
@@ -317,7 +317,7 @@ async def test_handle_message_trail_capping(
             # smoother = ingest_main.active_smoothers[hex_id]
             mock_state_vector = np.array([msg.latitude, msg.longitude, msg.altitude, 0.0, 0.0, 0.0])
             # Patch the property within a context manager for each iteration > 0
-            with patch.object(PositionSmoother, "state", new_callable=PropertyMock) as mock_prop:
+            with patch.object(PositionSmootherENU, "state", new_callable=PropertyMock) as mock_prop:
                 mock_prop.return_value = mock_state_vector
                 await ingest_main.handle_message(msg, mock_redis_client)
         else:

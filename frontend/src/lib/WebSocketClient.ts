@@ -42,11 +42,17 @@ export interface WebSocketClient {
   destroy(): void;
 }
 
+// Determine WebSocket base URL based on current hostname
+const getWsBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname === 'aeroguessr.com') {
+    return 'wss://aeroguessr.com';
+  }
+  return ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE_URL) as string | undefined) ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+};
+
 export function createWebSocketClient(
-  baseUrl: string =
-    // eslint-disable-next-line no-undef
-    ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE) as string | undefined) ||
-    (typeof window !== 'undefined' ? window.location.origin : ''),
+  baseUrl: string = getWsBaseUrl(),
 ): WebSocketClient {
   let socket: WebSocket | null = null;
   const log = debug('plane:ws');
@@ -116,7 +122,19 @@ export function createWebSocketClient(
 
     // Allow callers to pass a fully-qualified WebSocket URL returned by the backend. If provided
     // it takes precedence over the constructed URL.
-    const url = overrideUrl ?? baseUrl.replace(/^http/, 'ws') + `/api/v0/rooms/ws/${room}/${nickname}`;
+    let url = overrideUrl;
+    if (!url) {
+      // If baseUrl already includes /api/v0, don't add it again
+      const wsBase = baseUrl.replace(/^http/, 'ws');
+      url = wsBase.includes('/api/v0')
+        ? `${wsBase}/rooms/ws/${room}/${nickname}`
+        : `${wsBase}/api/v0/rooms/ws/${room}/${nickname}`;
+    }
+
+    // Ensure we use wss:// when on HTTPS
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('ws://')) {
+      url = url.replace('ws://', 'wss://');
+    }
 
     // If we are already connected (or connecting) to this exact URL, skip.
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) && url === lastUrl) {

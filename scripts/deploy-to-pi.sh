@@ -71,9 +71,30 @@ echo "🧪 Testing endpoints..."
 echo "Health check:"
 curl -s "http://${PI_HOST}/api/v0/healthz" | jq .
 
+# 11. Check if Cloudflare tunnel should be set up
+echo ""
+echo "🌐 Cloudflare Tunnel Setup"
+if run_on_pi "command -v cloudflared &> /dev/null"; then
+    echo "✅ cloudflared is installed"
+    if run_on_pi "sudo systemctl is-active --quiet cloudflared"; then
+        echo "✅ Cloudflare tunnel is running"
+        echo "🌍 Your game should be accessible at https://aeroguessr.com"
+    else
+        echo "⚠️  Cloudflare tunnel is not running"
+        echo "Run the setup script on the Pi:"
+        echo "   ssh ${PI_USER}@${PI_HOST} 'cd ${PROJECT_DIR} && bash scripts/setup-cloudflare-tunnel.sh'"
+    fi
+else
+    echo "⚠️  cloudflared is not installed"
+    echo "To expose your game to the internet via aeroguessr.com:"
+    echo "   ssh ${PI_USER}@${PI_HOST} 'cd ${PROJECT_DIR} && bash scripts/setup-cloudflare-tunnel.sh'"
+fi
+
 echo ""
 echo "✨ Deployment complete!"
-echo "📱 Access the game at: http://${PI_HOST}"
+echo "📱 Local access: http://${PI_HOST}"
+echo "🌍 Public access: https://aeroguessr.com (requires Cloudflare tunnel)"
+echo ""
 echo "📊 Monitor enrichment stats in backend logs:"
 echo "   ssh ${PI_USER}@${PI_HOST} 'cd ${PROJECT_DIR} && docker compose logs -f backend | grep -i enrichment'"
 echo ""

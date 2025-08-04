@@ -21,7 +21,7 @@ from backend.ingest.enrichment import (
 )
 from backend.ingest.enrichment_v2 import fetch_route_data_v2
 from backend.ingest.parser import RawMessage, parse_sbs_message
-from backend.ingest.smoother import PositionSmoother
+from backend.ingest.smoother_enu import PositionSmootherENU
 from backend.utils.redis_async import RedisClient
 
 # --- Configuration ---
@@ -31,6 +31,8 @@ ADSB_HOST = os.getenv("ADSB_HOST", "127.0.0.1")
 ADSB_PORT = int(os.getenv("ADSB_PORT", 30003))
 KALMAN_PROCESS_NOISE = float(os.getenv("KALMAN_PROCESS_NOISE", 0.5))
 KALMAN_MEASUREMENT_NOISE = float(os.getenv("KALMAN_MEASUREMENT_NOISE", 10.0))
+CENTER_LAT = float(os.getenv("CENTER_LAT", "0.0"))
+CENTER_LON = float(os.getenv("CENTER_LON", "0.0"))
 PLANE_TTL_SECONDS = int(os.getenv("PLANE_TTL_SECONDS", 300))
 RECONNECT_DELAY = 5  # Seconds to wait before retrying connection
 ENRICHMENT_V2_ENABLED = os.getenv("ENRICHMENT_V2_ENABLED", "1") == "1"  # Default to enabled
@@ -77,7 +79,7 @@ class PlaneState(BaseModel):
 
 
 # Runtime state (in-memory)
-active_smoothers: Dict[str, PositionSmoother] = {}
+active_smoothers: Dict[str, PositionSmootherENU] = {}
 last_timestamps: Dict[str, float] = {}
 
 
@@ -101,6 +103,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     hex_ident = msg.hex_ident
     current_time = msg.timestamp
     measurement = np.array([msg.latitude, msg.longitude, msg.altitude])
+    measurement_tuple = (msg.latitude, msg.longitude, msg.altitude)
     redis_key = f"plane:{hex_ident}"
 
     # Try to get existing state first using get_model utility
@@ -121,14 +124,13 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
 
     if smoother is None:
         logger.info(f"Creating new smoother for {hex_ident}.")
-        smoother = PositionSmoother(
-            initial_pos=measurement,
-            process_noise=KALMAN_PROCESS_NOISE,
-            measurement_noise=KALMAN_MEASUREMENT_NOISE,
+        smoother = PositionSmootherENU(
+            initial_pos_deg_ft=measurement_tuple,
+            origin_ll=(CENTER_LAT, CENTER_LON),
         )
         active_smoothers[hex_ident] = smoother
         last_timestamps[hex_ident] = current_time
-        smoothed_state_vector = np.concatenate((measurement, np.zeros(3)))
+        smoothed_state_vector = smoother.state
         current_trail = [(measurement[0], measurement[1], measurement[2])]
         logger.info(f"Fetching enrichment data for new plane {hex_ident}.")
         # Skip OpenSky API calls when V2 enrichment is enabled to avoid rate limiting
@@ -201,7 +203,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     return
 
             smoother.predict(dt)
-            smoother.update(measurement)
+            smoother.update(measurement_tuple)
             smoothed_state_vector = smoother.state
             last_timestamps[hex_ident] = current_time
             # logger.debug(f"Updated smoother for {hex_ident}. dt={dt:.2f}s")

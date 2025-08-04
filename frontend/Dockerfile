@@ -8,14 +8,14 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 # Copy package files for dependency installation
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # Install dependencies
 # Use npm since it's more universally available in Node.js images
 RUN npm ci --silent
 
 # Copy source code
-COPY . .
+COPY frontend/ .
 
 # Build the application for production
 # Skip TypeScript checking for now and build directly with Vite

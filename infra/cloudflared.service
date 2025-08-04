@@ -1,0 +1,34 @@
+[Unit]
+Description=Cloudflare Tunnel for aeroguessr.com
+Documentation=https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/
+After=network-online.target docker.service
+Wants=network-online.target
+# Make sure tunnel starts after Docker containers
+Requires=docker.service
+
+[Service]
+Type=notify
+User=pi
+Group=pi
+# Run the tunnel with the config file
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate run
+# Restart on failure with delay
+Restart=always
+RestartSec=5
+# Environment
+Environment="TUNNEL_ORIGIN_CERT=/home/pi/.cloudflared/cert.pem"
+# Resource limits
+LimitNOFILE=65536
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/.cloudflared
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudflared
+
+[Install]
+WantedBy=multi-user.target
