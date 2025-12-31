@@ -31,6 +31,7 @@ RUN pip install poetry \
 
 # Copy backend code and configs
 COPY backend/ ./backend/
+COPY sample_data/ ./sample_data/
 COPY backend/supervisord.conf /app/supervisord.conf
 COPY backend/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

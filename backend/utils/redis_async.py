@@ -226,6 +226,37 @@ class RedisClient:
             # Ensure fields are passed correctly to the underlying client
             return await conn.hdel(hash_key, *fields)
 
+    async def set(
+        self,
+        key: str,
+        value: str,
+        expire_seconds: Optional[int] = None,
+    ) -> bool:
+        """Store a simple string value in Redis.
+
+        Args:
+            key: The Redis key.
+            value: The string value to store.
+            expire_seconds: Optional TTL in seconds.
+
+        Returns:
+            True if the set operation was successful, False otherwise.
+        """
+        async with await self.get_connection() as conn:
+            return await conn.set(key, value, ex=expire_seconds)  # type: ignore
+
+    async def get(self, key: str) -> Optional[str]:
+        """Retrieve a string value from Redis.
+
+        Args:
+            key: The Redis key.
+
+        Returns:
+            The string value if the key exists, otherwise None.
+        """
+        async with await self.get_connection() as conn:
+            return await conn.get(key)
+
     async def exists(self, key: str) -> bool:
         """Check if a key exists in Redis."""
         async with await self.get_connection() as conn:
