@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Test script to verify SBS parser coordinate bug and propose fix"""
+# ruff: noqa: T201, E501
+"""Test script to verify SBS parser coordinate bug and propose fix."""
 
 import sys
 

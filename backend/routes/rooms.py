@@ -507,13 +507,12 @@ async def websocket_endpoint(
                             guessed_code=guess_payload.airport_code,
                         )
                         # Also calculate the actual distance for display
-                        from backend.utils.airport_db import get_airport_coords
-                        from backend.utils.geo import calculate_distance_km
-
-                        correct_coords = get_airport_coords(context.correct_airport_code)
-                        guessed_coords = get_airport_coords(guess_payload.airport_code)
+                        correct_coords = scoring.get_airport_coords(context.correct_airport_code)
+                        guessed_coords = scoring.get_airport_coords(guess_payload.airport_code)
                         if correct_coords and guessed_coords and correct_coords != guessed_coords:
-                            distance_km = calculate_distance_km(correct_coords, guessed_coords)
+                            distance_km = scoring.calculate_distance_km(
+                                correct_coords, guessed_coords
+                            )
                         elif correct_coords == guessed_coords:
                             distance_km = 0.0  # Exact match
 
@@ -780,13 +779,10 @@ async def websocket_endpoint(
                         correct_code=correct_code, guessed_code=guessed_code
                     )
                     # Also calculate the actual distance for display
-                    from backend.utils.airport_db import get_airport_coords
-                    from backend.utils.geo import calculate_distance_km
-
-                    correct_coords = get_airport_coords(correct_code)
-                    guessed_coords = get_airport_coords(guessed_code)
+                    correct_coords = scoring.get_airport_coords(correct_code)
+                    guessed_coords = scoring.get_airport_coords(guessed_code)
                     if correct_coords and guessed_coords and correct_coords != guessed_coords:
-                        distance_km = calculate_distance_km(correct_coords, guessed_coords)
+                        distance_km = scoring.calculate_distance_km(correct_coords, guessed_coords)
                     elif correct_coords == guessed_coords:
                         distance_km = 0.0  # Exact match
                 else:

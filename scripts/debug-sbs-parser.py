@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-"""Debug script to analyze SBS message parsing"""
+# ruff: noqa: T201, E501
+"""Debug script to analyze SBS message parsing."""
 
 # Sample MSG,2 line from fixture
-msg2_line = "MSG,2,496,603,400CB6,13168,2008/10/13,12:24:32.414,2008/10/13,12:28:52.074,,,0,76.4,258.3,54.05735,-4.38826,,,,,,0"
+msg2_line = (
+    "MSG,2,496,603,400CB6,13168,2008/10/13,12:24:32.414,"
+    "2008/10/13,12:28:52.074,,,0,76.4,258.3,54.05735,-4.38826,,,,,,0"
+)
 
 # Sample MSG,3 line from fixture
-msg3_line = "MSG,3,496,211,4CA2D6,10057,2008/11/28,14:53:50.594,2008/11/28,14:58:51.153,,37000,,,51.45735,-1.02826,,,0,0,0,0"
+msg3_line = (
+    "MSG,3,496,211,4CA2D6,10057,2008/11/28,14:53:50.594,"
+    "2008/11/28,14:58:51.153,,37000,,,51.45735,-1.02826,,,0,0,0,0"
+)
 
 
-def analyze_msg(line, msg_type):
+def analyze_msg(line: str, msg_type: int) -> None:
     parts = line.split(",")
     print(f"\nAnalyzing MSG type {msg_type}:")
     print(f"Total fields: {len(parts)}")

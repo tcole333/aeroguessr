@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+# ruff: noqa: T201, E501
 """
 Raw ADS-B Data Quality Analyzer
 Captures and analyzes raw SBS-1 data from dump1090 to identify data quality issues.
+
+Note: This is a CLI script that uses print statements intentionally for user output.
 """
 
 import math
@@ -14,7 +17,7 @@ from typing import Dict, List, Tuple
 class FlightMessage:
     """Represents a single ADS-B message"""
 
-    def __init__(self, raw_line: str):
+    def __init__(self, raw_line: str) -> None:
         self.raw = raw_line.strip()
         self.timestamp = time.time()
         self.fields = self.raw.split(",")
@@ -44,7 +47,7 @@ class FlightMessage:
 class FlightTracker:
     """Tracks a single flight and analyzes data quality"""
 
-    def __init__(self, hex_ident: str):
+    def __init__(self, hex_ident: str) -> None:
         self.hex_ident = hex_ident
         self.callsign = None
         self.messages: List[FlightMessage] = []
@@ -56,7 +59,7 @@ class FlightTracker:
         self.update_gaps: List[float] = []
         self.last_update_time = None
 
-    def add_message(self, msg: FlightMessage):
+    def add_message(self, msg: FlightMessage) -> None:
         """Add a message to this flight's history"""
         self.messages.append(msg)
 
@@ -78,7 +81,7 @@ class FlightTracker:
             if len(self.position_updates) >= 2:
                 self._check_position_jump()
 
-    def _check_position_jump(self):
+    def _check_position_jump(self) -> None:
         """Check for unrealistic position jumps between last two updates"""
         if len(self.position_updates) < 2:
             return
@@ -183,7 +186,7 @@ class FlightTracker:
         }
 
 
-def capture_and_analyze(host="localhost", port=30003, duration=120):
+def capture_and_analyze(host: str = "localhost", port: int = 30003, duration: int = 120) -> None:
     """Capture ADS-B data and analyze quality"""
     print(f"Connecting to dump1090 at {host}:{port}...")
 

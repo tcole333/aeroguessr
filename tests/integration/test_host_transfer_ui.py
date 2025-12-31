@@ -1,13 +1,11 @@
 """Integration tests for host transfer UI updates."""
 
 import asyncio
-from typing import AsyncGenerator, Tuple
+from typing import Any, AsyncGenerator, Dict, Tuple
 
 import httpx
 import pytest
 from httpx_ws import aconnect_ws
-
-from backend.schemas.websocket import InboundMessage, OutboundMessage
 
 
 @pytest.fixture
@@ -54,11 +52,11 @@ async def test_host_transfer_broadcasts_to_all_clients(
             await host_ws.receive_json()  # playerJoined for player
 
             # Host transfers to player
-            transfer_msg = InboundMessage(
-                type="transferHost",
-                payload={"to_nickname": "NormalPlayer"},
-            )
-            await host_ws.send_json(transfer_msg.model_dump())
+            transfer_msg: Dict[str, Any] = {
+                "type": "transferHost",
+                "payload": {"to_nickname": "NormalPlayer"},
+            }
+            await host_ws.send_json(transfer_msg)
 
             # Both clients should receive newHost message
             host_received = False
@@ -66,16 +64,14 @@ async def test_host_transfer_broadcasts_to_all_clients(
 
             # Check host receives newHost
             msg_data = await host_ws.receive_json()
-            msg = OutboundMessage(**msg_data)
-            if msg.type == "newHost":
-                assert msg.payload["nickname"] == "NormalPlayer"
+            if msg_data.get("type") == "newHost":
+                assert msg_data["payload"]["nickname"] == "NormalPlayer"
                 host_received = True
 
             # Check player receives newHost
             msg_data = await player_ws.receive_json()
-            msg = OutboundMessage(**msg_data)
-            if msg.type == "newHost":
-                assert msg.payload["nickname"] == "NormalPlayer"
+            if msg_data.get("type") == "newHost":
+                assert msg_data["payload"]["nickname"] == "NormalPlayer"
                 player_received = True
 
             assert host_received and player_received
@@ -98,8 +94,8 @@ async def test_host_leaves_room_transfers_host(
             await host_ws.receive_json()  # playerJoined
 
             # Host leaves room
-            leave_msg = InboundMessage(type="leave", payload={})
-            await host_ws.send_json(leave_msg.model_dump())
+            leave_msg: Dict[str, Any] = {"type": "leave", "payload": {}}
+            await host_ws.send_json(leave_msg)
 
             # Player should receive both playerLeft and newHost messages
             player_left_received = False
@@ -108,13 +104,12 @@ async def test_host_leaves_room_transfers_host(
             # Receive messages (order may vary)
             for _ in range(2):
                 msg_data = await player_ws.receive_json()
-                msg = OutboundMessage(**msg_data)
 
-                if msg.type == "playerLeft":
-                    assert msg.payload["nickname"] == "HostPlayer"
+                if msg_data.get("type") == "playerLeft":
+                    assert msg_data["payload"]["nickname"] == "HostPlayer"
                     player_left_received = True
-                elif msg.type == "newHost":
-                    assert msg.payload["nickname"] == "NormalPlayer"
+                elif msg_data.get("type") == "newHost":
+                    assert msg_data["payload"]["nickname"] == "NormalPlayer"
                     new_host_received = True
 
             assert player_left_received and new_host_received
@@ -154,11 +149,11 @@ async def test_multiple_players_host_transfer_updates(
                 await player1_ws.receive_json()  # playerJoined for player2
 
                 # Host transfers to Player2
-                transfer_msg = InboundMessage(
-                    type="transferHost",
-                    payload={"to_nickname": "Player2"},
-                )
-                await host_ws.send_json(transfer_msg.model_dump())
+                transfer_msg: Dict[str, Any] = {
+                    "type": "transferHost",
+                    "payload": {"to_nickname": "Player2"},
+                }
+                await host_ws.send_json(transfer_msg)
 
                 # All three clients should receive newHost message
                 received_count = 0
@@ -166,9 +161,8 @@ async def test_multiple_players_host_transfer_updates(
                 # Check all clients receive the message
                 for ws in [host_ws, player1_ws, player2_ws]:
                     msg_data = await ws.receive_json()
-                    msg = OutboundMessage(**msg_data)
-                    if msg.type == "newHost":
-                        assert msg.payload["nickname"] == "Player2"
+                    if msg_data.get("type") == "newHost":
+                        assert msg_data["payload"]["nickname"] == "Player2"
                         received_count += 1
 
                 assert received_count == 3
@@ -191,11 +185,11 @@ async def test_host_state_persists_after_transfer(
             await host_ws.receive_json()  # playerJoined
 
             # Transfer host
-            transfer_msg = InboundMessage(
-                type="transferHost",
-                payload={"to_nickname": "NormalPlayer"},
-            )
-            await host_ws.send_json(transfer_msg.model_dump())
+            transfer_msg: Dict[str, Any] = {
+                "type": "transferHost",
+                "payload": {"to_nickname": "NormalPlayer"},
+            }
+            await host_ws.send_json(transfer_msg)
 
             # Wait for newHost messages
             await host_ws.receive_json()

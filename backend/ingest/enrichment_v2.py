@@ -20,6 +20,12 @@ import httpx
 from pydantic import BaseModel
 
 from backend.ingest.enrichment import RouteData
+from backend.ingest.flightaware_scheduled import (
+    lookup_flight_by_callsign,
+    lookup_flight_by_registration,
+)
+from backend.ingest.hex_to_registration import hex_to_registration
+from backend.utils.redis_async import RedisClient
 
 
 class RouteLookupMeta(BaseModel):
@@ -30,13 +36,6 @@ class RouteLookupMeta(BaseModel):
     callsign_used: Optional[str] = None
     registration_used: Optional[str] = None
 
-
-from backend.ingest.flightaware_scheduled import (
-    lookup_flight_by_callsign,
-    lookup_flight_by_registration,
-)
-from backend.ingest.hex_to_registration import hex_to_registration
-from backend.utils.redis_async import RedisClient
 
 # --- Configuration ---
 ROUTE_CACHE_TTL_SECONDS = 3600 * 6  # 6 hours for positive results
@@ -301,9 +300,7 @@ async def _cache_route_data(
         logger.error(f"Redis error caching route data: {e}")
 
 
-async def _cache_meta(
-    meta_key: str, meta: RouteLookupMeta, redis_client: RedisClient
-) -> None:
+async def _cache_meta(meta_key: str, meta: RouteLookupMeta, redis_client: RedisClient) -> None:
     """Cache lookup metadata for debugging/display purposes.
 
     Args:

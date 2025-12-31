@@ -2,6 +2,10 @@
 
 Tests that nginx properly routes requests to frontend and backend services
 and handles WebSocket connections correctly.
+
+NOTE: These tests require a full nginx deployment (not just backend-test).
+They are currently skipped as nginx is not available in the standard
+integration test Docker setup.
 """
 
 import asyncio
@@ -10,7 +14,9 @@ import httpx
 import httpx_ws
 import pytest
 
-from tests.integration.conftest import BASE_URL
+# Base URL for nginx - assumes nginx is running on localhost:80
+# These tests require the full production-like Docker Compose setup
+BASE_URL = "http://localhost"
 
 
 class TestNginxIntegration:
