@@ -37,6 +37,11 @@ PLANE_TTL_SECONDS = int(os.getenv("PLANE_TTL_SECONDS", 300))
 RECONNECT_DELAY = 5  # Seconds to wait before retrying connection
 ENRICHMENT_V2_ENABLED = os.getenv("ENRICHMENT_V2_ENABLED", "1") == "1"  # Default to enabled
 
+# Backoff schedule for enrichment retries: aggressive early, then back off
+# [0, 1, 3, 10, 30, 60] seconds between attempts
+ENRICHMENT_BACKOFF = [0, 1, 3, 10, 30, 60]
+MAX_ENRICHMENT_ATTEMPTS = len(ENRICHMENT_BACKOFF)
+
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)
 
@@ -75,7 +80,37 @@ class PlaneState(BaseModel):
     update_count: int = Field(
         default=1, description="Number of position updates received for this plane."
     )
-    # TODO: Add other fields like ground speed, track etc. later
+    # Enrichment retry tracking
+    enrichment_attempts: int = Field(
+        default=0, description="Number of enrichment attempts made."
+    )
+    last_enrichment_ts: Optional[float] = Field(
+        default=None, description="Timestamp of last enrichment attempt."
+    )
+
+
+def should_retry_enrichment(state: PlaneState, current_time: float) -> bool:
+    """Check if we should retry enrichment based on backoff schedule.
+
+    Args:
+        state: Current plane state with enrichment tracking fields.
+        current_time: Current timestamp.
+
+    Returns:
+        True if enrichment should be retried, False otherwise.
+    """
+    if state.enrichment_attempts >= MAX_ENRICHMENT_ATTEMPTS:
+        return False  # Given up after max attempts
+
+    if state.last_enrichment_ts is None:
+        return True  # Never tried
+
+    # Get backoff delay for current attempt number
+    backoff_index = min(state.enrichment_attempts, len(ENRICHMENT_BACKOFF) - 1)
+    backoff_seconds = ENRICHMENT_BACKOFF[backoff_index]
+    time_since_last = current_time - state.last_enrichment_ts
+
+    return time_since_last >= backoff_seconds
 
 
 # Runtime state (in-memory)
@@ -89,8 +124,41 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     """Process a parsed RawMessage: enrich, update smoother, store in Redis."""
     # Handle MSG,1 (callsign only) messages - cache the callsign even without position
     if msg.callsign and msg.callsign.strip():
-        callsign_cache[msg.hex_ident] = msg.callsign.strip()
-        logger.debug(f"Cached callsign for {msg.hex_ident}: {msg.callsign.strip()}")
+        callsign = msg.callsign.strip()
+        callsign_cache[msg.hex_ident] = callsign
+        logger.debug(f"Cached callsign for {msg.hex_ident}: {callsign}")
+
+        # Trigger enrichment immediately when callsign arrives for planes missing route data
+        if ENRICHMENT_V2_ENABLED:
+            redis_key = f"plane:{msg.hex_ident}"
+            existing_state = await redis_client.get_model(redis_key, PlaneState)
+            if (
+                existing_state
+                and existing_state.origin is None
+                and existing_state.destination is None
+            ):
+                logger.info(
+                    f"Callsign {callsign} arrived for {msg.hex_ident} - triggering enrichment"
+                )
+                route_data = await fetch_route_data_v2(
+                    msg.hex_ident, redis_client, callsign=callsign
+                )
+                if route_data and (route_data.origin_icao or route_data.destination_icao):
+                    # Update the plane state with new route data
+                    existing_state.origin = route_data.origin_icao
+                    existing_state.destination = route_data.destination_icao
+                    existing_state.callsign = callsign
+                    existing_state.enrichment_attempts = (
+                        existing_state.enrichment_attempts + 1
+                    )
+                    existing_state.last_enrichment_ts = time.time()
+                    await redis_client.set_json(
+                        redis_key, existing_state, expire_seconds=PLANE_TTL_SECONDS
+                    )
+                    logger.info(
+                        f"Enrichment SUCCESS on callsign arrival: {msg.hex_ident}/{callsign} "
+                        f"→ {route_data.origin_icao} → {route_data.destination_icao}"
+                    )
 
     if not msg.latitude or not msg.longitude or not msg.altitude:
         return  # Skip messages without position (but callsign was cached above)
@@ -253,39 +321,31 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     destination_icao=existing_state.destination,
                 )
 
-                # Check if we should retry enrichment:
-                # - No origin/destination in existing state
-                # - We now have a callsign (either new or cached)
-                # - The existing state didn't have a callsign (initial enrichment was without it)
-                current_callsign = msg.callsign or callsign_cache.get(hex_ident)
+                # Check if we should retry enrichment using backoff schedule
                 if (
                     existing_state.origin is None
                     and existing_state.destination is None
-                    and current_callsign
-                    and not existing_state.callsign
+                    and should_retry_enrichment(existing_state, current_time)
+                    and ENRICHMENT_V2_ENABLED
                 ):
-                    logger.info(
-                        f"Retrying enrichment for {hex_ident} - callsign {current_callsign} "
-                        f"now available (was missing during initial enrichment)"
+                    current_callsign = msg.callsign or callsign_cache.get(hex_ident)
+                    attempt_num = existing_state.enrichment_attempts + 1
+                    logger.debug(
+                        f"Retry enrichment attempt {attempt_num}/{MAX_ENRICHMENT_ATTEMPTS} "
+                        f"for {hex_ident} (callsign: {current_callsign})"
                     )
-                    # Clear the negative cache so retry actually works
-                    negative_cache_key = f"aeroapi_route_v2_neg:{hex_ident}"
-                    try:
-                        await redis_client.delete(negative_cache_key)
-                        logger.debug(f"Cleared negative cache for {hex_ident}")
-                    except Exception as e:
-                        logger.warning(f"Failed to clear negative cache for {hex_ident}: {e}")
-
-                    # Retry enrichment with the callsign
-                    if ENRICHMENT_V2_ENABLED:
-                        route_data = await fetch_route_data_v2(
-                            hex_ident, redis_client, callsign=current_callsign
+                    route_data = await fetch_route_data_v2(
+                        hex_ident, redis_client, callsign=current_callsign
+                    )
+                    # Track this attempt - will be saved when PlaneState is stored below
+                    # Note: enrichment_attempts and last_enrichment_ts will be updated
+                    # in the PlaneState constructor at the end of this function
+                    if route_data and (route_data.origin_icao or route_data.destination_icao):
+                        logger.info(
+                            f"Enrichment retry SUCCESS for {hex_ident}/{current_callsign} "
+                            f"(attempt {attempt_num}): "
+                            f"{route_data.origin_icao} → {route_data.destination_icao}"
                         )
-                        if route_data and (route_data.origin_icao or route_data.destination_icao):
-                            logger.info(
-                                f"Enrichment retry SUCCESS for {hex_ident}/{current_callsign}: "
-                                f"{route_data.origin_icao} -> {route_data.destination_icao}"
-                            )
             else:
                 # Redis state expired, re-fetch enrichment data
                 logger.info(
@@ -349,6 +409,29 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         first_seen_ts = current_time
         update_count = 1
 
+    # Handle enrichment attempt tracking
+    # We attempted enrichment if:
+    # 1. New plane (smoother is None at start) - initial enrichment
+    # 2. Existing plane with retry conditions met (checked via should_retry_enrichment)
+    if existing_state:
+        # Check if we attempted enrichment this cycle
+        did_attempt_enrichment = (
+            existing_state.origin is None
+            and existing_state.destination is None
+            and should_retry_enrichment(existing_state, current_time)
+            and ENRICHMENT_V2_ENABLED
+        )
+        if did_attempt_enrichment:
+            enrichment_attempts = existing_state.enrichment_attempts + 1
+            last_enrichment_ts = current_time
+        else:
+            enrichment_attempts = existing_state.enrichment_attempts
+            last_enrichment_ts = existing_state.last_enrichment_ts
+    else:
+        # New plane - this is attempt 1
+        enrichment_attempts = 1
+        last_enrichment_ts = current_time
+
     # Determine callsign from: enriched_data > msg.callsign > cache > existing state
     resolved_callsign = (
         (enriched_data.callsign if enriched_data else None)
@@ -374,6 +457,8 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         destination=route_data.destination_icao if route_data else None,
         first_seen_ts=first_seen_ts,
         update_count=update_count,
+        enrichment_attempts=enrichment_attempts,
+        last_enrichment_ts=last_enrichment_ts,
     )
 
     # === BEGIN RE-ADDED LOGGING ===

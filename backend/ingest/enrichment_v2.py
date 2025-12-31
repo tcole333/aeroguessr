@@ -40,7 +40,6 @@ from backend.utils.redis_async import RedisClient
 
 # --- Configuration ---
 ROUTE_CACHE_TTL_SECONDS = 3600 * 6  # 6 hours for positive results
-NEGATIVE_CACHE_TTL_SECONDS = 3600 * 1  # 1 hour for negative results (not found)
 IS_FAKE_ADSB = os.getenv("FAKE_ADSB") == "1"
 
 FLIGHTAWARE_API_KEY = os.getenv("FLIGHTAWARE_API_KEY")
@@ -58,7 +57,6 @@ match_stats = {
     "direct_api_matches": 0,
     "no_matches": 0,
     "cache_hits": 0,
-    "negative_cache_hits": 0,
 }
 
 
@@ -100,17 +98,6 @@ async def fetch_route_data_v2(
             return cached_data
     except Exception as e:
         logger.error(f"Redis error checking route cache v2 for {hex_ident}: {e}")
-
-    # Check negative cache (avoid repeated API calls for unknown aircraft)
-    negative_cache_key = f"aeroapi_route_v2_neg:{hex_ident}"
-    try:
-        negative_cached = await redis_client.get(negative_cache_key)
-        if negative_cached:
-            logger.debug(f"Negative cache hit for route data v2: {hex_ident}")
-            match_stats["negative_cache_hits"] += 1
-            return None
-    except Exception as e:
-        logger.error(f"Redis error checking negative cache for {hex_ident}: {e}")
 
     logger.debug(f"Cache miss for route data v2: {hex_ident}. Starting multi-tier lookup.")
 
@@ -189,8 +176,8 @@ async def fetch_route_data_v2(
             await _cache_meta(meta_key, meta, redis_client)
             return route_data
 
-    # No match found - cache negative result to avoid repeated API calls
-    # Determine why we couldn't find data
+    # No match found - rely on backoff retry instead of negative caching
+    # Determine why we couldn't find data (for debugging)
     if not clean_callsign and not registration:
         detail = "no_callsign_or_registration"
     elif not clean_callsign:
@@ -198,14 +185,13 @@ async def fetch_route_data_v2(
     else:
         detail = "not_found"
 
-    logger.warning(
+    logger.debug(
         f"No route data found for {hex_ident} "
         f"(callsign: {clean_callsign or 'none'}, registration: {registration or 'unknown'})"
     )
     match_stats["no_matches"] += 1
-    await _cache_negative_result(negative_cache_key, redis_client)
 
-    # Store metadata about the failed lookup
+    # Store metadata about the failed lookup (for debugging)
     meta = RouteLookupMeta(
         detail=detail,
         callsign_used=clean_callsign,
@@ -315,20 +301,6 @@ async def _cache_route_data(
         logger.error(f"Redis error caching route data: {e}")
 
 
-async def _cache_negative_result(cache_key: str, redis_client: RedisClient) -> None:
-    """Cache a negative lookup result to avoid repeated API calls.
-
-    Args:
-        cache_key: Redis key for negative cache
-        redis_client: Redis client
-    """
-    try:
-        await redis_client.set(cache_key, "not_found", expire_seconds=NEGATIVE_CACHE_TTL_SECONDS)
-        logger.debug(f"Cached negative result for {cache_key}")
-    except Exception as e:
-        logger.error(f"Redis error caching negative result: {e}")
-
-
 async def _cache_meta(
     meta_key: str, meta: RouteLookupMeta, redis_client: RedisClient
 ) -> None:
@@ -406,7 +378,6 @@ def _log_match_statistics() -> None:
     direct_api_rate = (match_stats["direct_api_matches"] / total) * 100
     no_match_rate = (match_stats["no_matches"] / total) * 100
     cache_hit_rate = (match_stats["cache_hits"] / total) * 100
-    negative_cache_rate = (match_stats["negative_cache_hits"] / total) * 100
 
     # Calculate total success rate (any match type)
     success_rate = callsign_rate + registration_rate + direct_api_rate + cache_hit_rate
@@ -418,8 +389,7 @@ def _log_match_statistics() -> None:
         f"Schedule/Reg: {registration_rate:.1f}%, "
         f"DirectAPI: {direct_api_rate:.1f}%, "
         f"Cache: {cache_hit_rate:.1f}%] "
-        f"NoMatch: {no_match_rate:.1f}%, "
-        f"NegCache: {negative_cache_rate:.1f}%"
+        f"NoMatch: {no_match_rate:.1f}%"
     )
 
 
@@ -439,7 +409,6 @@ def get_match_statistics() -> dict:
                 "direct_api_match_rate": 0.0,
                 "no_match_rate": 0.0,
                 "cache_hit_rate": 0.0,
-                "negative_cache_hit_rate": 0.0,
                 "success_rate": 0.0,
             },
             "counts": match_stats.copy(),
@@ -459,7 +428,6 @@ def get_match_statistics() -> dict:
             "direct_api_match_rate": direct_api_rate,
             "no_match_rate": (match_stats["no_matches"] / total) * 100,
             "cache_hit_rate": cache_hit_rate,
-            "negative_cache_hit_rate": (match_stats["negative_cache_hits"] / total) * 100,
             "success_rate": success_rate,
         },
         "counts": match_stats.copy(),
@@ -476,6 +444,5 @@ def reset_match_statistics() -> None:
         "direct_api_matches": 0,
         "no_matches": 0,
         "cache_hits": 0,
-        "negative_cache_hits": 0,
     }
     logger.info("Match statistics reset")
