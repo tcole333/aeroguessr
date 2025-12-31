@@ -81,13 +81,19 @@ class PlaneState(BaseModel):
 # Runtime state (in-memory)
 active_smoothers: Dict[str, PositionSmootherENU] = {}
 last_timestamps: Dict[str, float] = {}
+callsign_cache: Dict[str, str] = {}  # hex_ident -> callsign
 
 
 # --- Main Ingest Logic ---
 async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     """Process a parsed RawMessage: enrich, update smoother, store in Redis."""
+    # Handle MSG,1 (callsign only) messages - cache the callsign even without position
+    if msg.callsign and msg.callsign.strip():
+        callsign_cache[msg.hex_ident] = msg.callsign.strip()
+        logger.debug(f"Cached callsign for {msg.hex_ident}: {msg.callsign.strip()}")
+
     if not msg.latitude or not msg.longitude or not msg.altitude:
-        return  # Skip messages without position
+        return  # Skip messages without position (but callsign was cached above)
 
     # Validate position is within reasonable bounds
     if not (-90 <= msg.latitude <= 90):
@@ -137,8 +143,10 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         if not ENRICHMENT_V2_ENABLED:
             enriched_data = await fetch_opensky_data(hex_ident, redis_client)
         # Use new enrichment system if enabled
+        # Use cached callsign if not present in current message (MSG,1 arrives before position)
+        callsign = msg.callsign or callsign_cache.get(hex_ident)
         if ENRICHMENT_V2_ENABLED:
-            route_data = await fetch_route_data_v2(hex_ident, redis_client, callsign=msg.callsign)
+            route_data = await fetch_route_data_v2(hex_ident, redis_client, callsign=callsign)
         else:
             route_data = await fetch_aeroapi_route(hex_ident, redis_client)
     else:
@@ -253,9 +261,11 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 if not ENRICHMENT_V2_ENABLED:
                     enriched_data = await fetch_opensky_data(hex_ident, redis_client)
                 # Use new enrichment system if enabled
+                # Use cached callsign if not present in current message
+                callsign = msg.callsign or callsign_cache.get(hex_ident)
                 if ENRICHMENT_V2_ENABLED:
                     route_data = await fetch_route_data_v2(
-                        hex_ident, redis_client, callsign=msg.callsign
+                        hex_ident, redis_client, callsign=callsign
                     )
                 else:
                     route_data = await fetch_aeroapi_route(hex_ident, redis_client)
@@ -305,6 +315,14 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         first_seen_ts = current_time
         update_count = 1
 
+    # Determine callsign from: enriched_data > msg.callsign > cache > existing state
+    resolved_callsign = (
+        (enriched_data.callsign if enriched_data else None)
+        or msg.callsign
+        or callsign_cache.get(hex_ident)
+        or (existing_state.callsign if existing_state else None)
+    )
+
     plane_data = PlaneState(
         hex_ident=hex_ident,
         lat=smoothed_state_vector[0],
@@ -315,7 +333,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         alt_v=smoothed_state_vector[5],
         last_update_ts=current_time,
         trail=current_trail,
-        callsign=enriched_data.callsign if enriched_data else None,
+        callsign=resolved_callsign,
         origin_country=enriched_data.origin_country if enriched_data else None,
         category=enriched_data.category if enriched_data else None,
         origin=route_data.origin_icao if route_data else None,
