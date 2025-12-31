@@ -252,6 +252,40 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     origin_icao=existing_state.origin,
                     destination_icao=existing_state.destination,
                 )
+
+                # Check if we should retry enrichment:
+                # - No origin/destination in existing state
+                # - We now have a callsign (either new or cached)
+                # - The existing state didn't have a callsign (initial enrichment was without it)
+                current_callsign = msg.callsign or callsign_cache.get(hex_ident)
+                if (
+                    existing_state.origin is None
+                    and existing_state.destination is None
+                    and current_callsign
+                    and not existing_state.callsign
+                ):
+                    logger.info(
+                        f"Retrying enrichment for {hex_ident} - callsign {current_callsign} "
+                        f"now available (was missing during initial enrichment)"
+                    )
+                    # Clear the negative cache so retry actually works
+                    negative_cache_key = f"aeroapi_route_v2_neg:{hex_ident}"
+                    try:
+                        await redis_client.delete(negative_cache_key)
+                        logger.debug(f"Cleared negative cache for {hex_ident}")
+                    except Exception as e:
+                        logger.warning(f"Failed to clear negative cache for {hex_ident}: {e}")
+
+                    # Retry enrichment with the callsign
+                    if ENRICHMENT_V2_ENABLED:
+                        route_data = await fetch_route_data_v2(
+                            hex_ident, redis_client, callsign=current_callsign
+                        )
+                        if route_data and (route_data.origin_icao or route_data.destination_icao):
+                            logger.info(
+                                f"Enrichment retry SUCCESS for {hex_ident}/{current_callsign}: "
+                                f"{route_data.origin_icao} -> {route_data.destination_icao}"
+                            )
             else:
                 # Redis state expired, re-fetch enrichment data
                 logger.info(
