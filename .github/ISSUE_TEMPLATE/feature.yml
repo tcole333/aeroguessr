@@ -1,4 +1,3 @@
-# .github/ISSUE_TEMPLATE/feature.yml
 name: Feature Request
 description: New feature or enhancement
 labels: ["enhancement"]

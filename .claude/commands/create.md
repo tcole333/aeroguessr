@@ -3,7 +3,7 @@
   1. **Understand the issue** described in the text and its business impact
   2. **Locate the relevant code** in our codebase (components, services, tests, schemas, types)
   3. **Identify the type**: bug, feature, or tech debt (check all templates in
-  docs/ISSUE_TEMPLATE/)
+  .github/ISSUE_TEMPLATE/)
   4. **Select the relevant issue template** and understand its required fields
   5. **Think through potential stumbling blocks** including:
      - Edge cases and error conditions
