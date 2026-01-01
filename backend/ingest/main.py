@@ -81,9 +81,7 @@ class PlaneState(BaseModel):
         default=1, description="Number of position updates received for this plane."
     )
     # Enrichment retry tracking
-    enrichment_attempts: int = Field(
-        default=0, description="Number of enrichment attempts made."
-    )
+    enrichment_attempts: int = Field(default=0, description="Number of enrichment attempts made.")
     last_enrichment_ts: Optional[float] = Field(
         default=None, description="Timestamp of last enrichment attempt."
     )
@@ -148,9 +146,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                     existing_state.origin = route_data.origin_icao
                     existing_state.destination = route_data.destination_icao
                     existing_state.callsign = callsign
-                    existing_state.enrichment_attempts = (
-                        existing_state.enrichment_attempts + 1
-                    )
+                    existing_state.enrichment_attempts = existing_state.enrichment_attempts + 1
                     existing_state.last_enrichment_ts = time.time()
                     await redis_client.set_json(
                         redis_key, existing_state, expire_seconds=PLANE_TTL_SECONDS
