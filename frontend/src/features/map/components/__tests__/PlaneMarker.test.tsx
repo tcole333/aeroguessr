@@ -21,6 +21,7 @@ const basePlane: PlaneState = {
   alt_v: 0,
   last_update_ts: 1,
   trail: [[0, 0, 0]],
+  track: null,
 };
 
 describe('PlaneMarker', () => {
@@ -48,5 +49,33 @@ describe('PlaneMarker', () => {
     const plane: PlaneState = { ...basePlane, trail: [] };
     const { container } = renderWithMap(<PlaneMarker plane={plane} />);
     expect(container.querySelectorAll('path.leaflet-interactive').length).toBe(0);
+  });
+
+  it('uses ADS-B track for heading when available', () => {
+    const plane: PlaneState = {
+      ...basePlane,
+      track: 90, // Heading east
+      lat_v: 0.01, // Would give different heading if used
+      lon_v: 0,
+    };
+    const { container } = renderWithMap(<PlaneMarker plane={plane} />);
+    const icon = container.querySelector('.plane-icon');
+    expect(icon).toBeInTheDocument();
+    // The icon should be rotated 90 degrees (east) based on track, not velocity
+    expect(icon).toHaveStyle('transform: rotate(90deg)');
+  });
+
+  it('falls back to velocity-based heading when track is null', () => {
+    const plane: PlaneState = {
+      ...basePlane,
+      track: null,
+      lat_v: 0.01, // Heading north
+      lon_v: 0,
+    };
+    const { container } = renderWithMap(<PlaneMarker plane={plane} />);
+    const icon = container.querySelector('.plane-icon');
+    expect(icon).toBeInTheDocument();
+    // The icon should be rotated based on velocity (heading north = 0 degrees)
+    expect(icon).toHaveStyle('transform: rotate(0deg)');
   });
 });

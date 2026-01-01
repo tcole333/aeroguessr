@@ -18,6 +18,7 @@ export interface PlaneState {
   callsign?: string | null;
   origin_country?: string | null;
   category?: number | null;
+  track?: number | null;
   origin?: string | null;
   destination?: string | null;
 }

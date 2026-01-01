@@ -70,6 +70,10 @@ class PlaneState(BaseModel):
         None, description="Origin country based on ICAO24 (cached)."
     )
     category: Optional[int] = Field(None, description="Aircraft category code (cached).")
+    # Raw ADS-B track (heading from aircraft broadcast)
+    track: Optional[float] = Field(
+        None, description="Aircraft track/heading in degrees from ADS-B."
+    )
     # AeroAPI Enrichment fields (cached)
     origin: Optional[str] = Field(None, description="Origin airport ICAO (cached).")
     destination: Optional[str] = Field(None, description="Destination airport ICAO (cached).")
@@ -115,6 +119,7 @@ def should_retry_enrichment(state: PlaneState, current_time: float) -> bool:
 active_smoothers: Dict[str, PositionSmootherENU] = {}
 last_timestamps: Dict[str, float] = {}
 callsign_cache: Dict[str, str] = {}  # hex_ident -> callsign
+track_cache: Dict[str, float] = {}  # hex_ident -> track (degrees)
 
 
 # --- Main Ingest Logic ---
@@ -126,35 +131,33 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         callsign_cache[msg.hex_ident] = callsign
         logger.debug(f"Cached callsign for {msg.hex_ident}: {callsign}")
 
-        # Trigger enrichment immediately when callsign arrives for planes missing route data
-        if ENRICHMENT_V2_ENABLED:
-            redis_key = f"plane:{msg.hex_ident}"
-            existing_state = await redis_client.get_model(redis_key, PlaneState)
-            if (
-                existing_state
-                and existing_state.origin is None
-                and existing_state.destination is None
-            ):
+    # Cache track from MSG,2 and MSG,4 messages (raw ADS-B heading)
+    if msg.track is not None:
+        track_cache[msg.hex_ident] = msg.track
+        logger.debug(f"Cached track for {msg.hex_ident}: {msg.track}°")
+
+    # Trigger enrichment immediately when callsign arrives for planes missing route data
+    if msg.callsign and msg.callsign.strip() and ENRICHMENT_V2_ENABLED:
+        callsign = msg.callsign.strip()
+        redis_key = f"plane:{msg.hex_ident}"
+        existing_state = await redis_client.get_model(redis_key, PlaneState)
+        if existing_state and existing_state.origin is None and existing_state.destination is None:
+            logger.info(f"Callsign {callsign} arrived for {msg.hex_ident} - triggering enrichment")
+            route_data = await fetch_route_data_v2(msg.hex_ident, redis_client, callsign=callsign)
+            if route_data and (route_data.origin_icao or route_data.destination_icao):
+                # Update the plane state with new route data
+                existing_state.origin = route_data.origin_icao
+                existing_state.destination = route_data.destination_icao
+                existing_state.callsign = callsign
+                existing_state.enrichment_attempts = existing_state.enrichment_attempts + 1
+                existing_state.last_enrichment_ts = time.time()
+                await redis_client.set_json(
+                    redis_key, existing_state, expire_seconds=PLANE_TTL_SECONDS
+                )
                 logger.info(
-                    f"Callsign {callsign} arrived for {msg.hex_ident} - triggering enrichment"
+                    f"Enrichment SUCCESS on callsign arrival: {msg.hex_ident}/{callsign} "
+                    f"→ {route_data.origin_icao} → {route_data.destination_icao}"
                 )
-                route_data = await fetch_route_data_v2(
-                    msg.hex_ident, redis_client, callsign=callsign
-                )
-                if route_data and (route_data.origin_icao or route_data.destination_icao):
-                    # Update the plane state with new route data
-                    existing_state.origin = route_data.origin_icao
-                    existing_state.destination = route_data.destination_icao
-                    existing_state.callsign = callsign
-                    existing_state.enrichment_attempts = existing_state.enrichment_attempts + 1
-                    existing_state.last_enrichment_ts = time.time()
-                    await redis_client.set_json(
-                        redis_key, existing_state, expire_seconds=PLANE_TTL_SECONDS
-                    )
-                    logger.info(
-                        f"Enrichment SUCCESS on callsign arrival: {msg.hex_ident}/{callsign} "
-                        f"→ {route_data.origin_icao} → {route_data.destination_icao}"
-                    )
 
     if not msg.latitude or not msg.longitude or not msg.altitude:
         return  # Skip messages without position (but callsign was cached above)
@@ -436,6 +439,13 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         or (existing_state.callsign if existing_state else None)
     )
 
+    # Determine track from: current message > cache > existing state
+    resolved_track = (
+        msg.track
+        or track_cache.get(hex_ident)
+        or (existing_state.track if existing_state else None)
+    )
+
     plane_data = PlaneState(
         hex_ident=hex_ident,
         lat=smoothed_state_vector[0],
@@ -449,6 +459,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         callsign=resolved_callsign,
         origin_country=enriched_data.origin_country if enriched_data else None,
         category=enriched_data.category if enriched_data else None,
+        track=resolved_track,
         origin=route_data.origin_icao if route_data else None,
         destination=route_data.destination_icao if route_data else None,
         first_seen_ts=first_seen_ts,

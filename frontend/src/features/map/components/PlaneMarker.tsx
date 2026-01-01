@@ -29,13 +29,20 @@ function createIcon(rotation: number, isSelected: boolean = false): L.DivIcon {
 }
 
 const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, onClick }) => {
-  const { lat, lon, trail, lat_v, lon_v } = plane;
+  const { lat, lon, trail, lat_v, lon_v, track } = plane;
 
   // Keep track of previous heading for stability using useRef to avoid stale closures
   const previousHeadingRef = React.useRef(0);
 
-  // Calculate heading from velocity vectors with stability improvements
+  // Use raw ADS-B track if available, otherwise calculate from velocity
   const hdg = React.useMemo(() => {
+    // Prefer raw ADS-B track when available (most accurate)
+    if (track != null && !isNaN(track)) {
+      previousHeadingRef.current = track;
+      return track;
+    }
+
+    // Fallback: Calculate heading from velocity vectors
     // Calculate speed magnitude
     const speed = Math.sqrt(lat_v * lat_v + lon_v * lon_v);
 
@@ -79,7 +86,7 @@ const PlaneMarkerComponent: React.FC<PlaneMarkerProps> = ({ plane, isSelected, o
 
     previousHeadingRef.current = newHeading;
     return newHeading;
-  }, [lat_v, lon_v, trail]);
+  }, [track, lat_v, lon_v, trail]);
 
   const icon = React.useMemo(() => createIcon(hdg, isSelected), [hdg, isSelected]);
 

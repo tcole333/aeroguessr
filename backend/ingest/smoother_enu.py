@@ -145,10 +145,21 @@ class PositionSmootherENU:
 
         Note: velocities are returned in the same mixed units expected by the
         existing ingest pipeline so downstream code does not change yet.
+
+        Internal ENU frame:
+        - vx = East velocity (m/s)
+        - vy = North velocity (m/s)
+        - vz = Up velocity (m/s)
+
+        Output:
+        - lat_v = North velocity in degrees/s (from vy)
+        - lon_v = East velocity in degrees/s (from vx)
+        - alt_v = Up velocity in feet/s (from vz)
         """
         vx, vy, vz = self._kf.x[3:]
-        lat_v = vx / self._m_per_deg_lat
-        lon_v = vy / self._m_per_deg_lon
+        # vx is East (longitude direction), vy is North (latitude direction)
+        lat_v = vy / self._m_per_deg_lat  # North velocity -> lat degrees/s
+        lon_v = vx / self._m_per_deg_lon  # East velocity -> lon degrees/s
         alt_v = vz * _M_TO_FT  # m/s → ft/s
         return lat_v, lon_v, alt_v
 
