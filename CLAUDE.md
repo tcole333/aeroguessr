@@ -153,12 +153,32 @@ Target: Raspberry Pi 4 at 192.168.1.181 (`ssh pi-plane`)
 
 See [infra/CLAUDE.md](infra/CLAUDE.md) for deployment details.
 
+### Pull-Based Auto-Deployment
+
+The Pi polls GitHub every 1 minute and auto-deploys changes. No GitHub Actions or GHCR images needed - builds happen natively on the Pi for faster ARM64 compilation (~3-5 min vs 30+ min with QEMU).
+
 ```bash
-# Quick deploy
-rsync -avz --exclude node_modules . pi@192.168.1.181:/home/pi/plane-game-v4/
+# Just push to main - Pi will auto-deploy within 1 minute
+git push origin main
+
+# Monitor deployment on Pi
+ssh pi-plane "tail -f /home/pi/plane-game-v4/logs/auto-update.log"
+
+# Trigger immediate deployment
+ssh pi-plane "/home/pi/plane-game-v4/scripts/auto-update.sh"
+
+# Check timer status
+ssh pi-plane "systemctl status plane-game-update.timer"
+```
+
+### Manual Deployment (Fallback)
+
+```bash
 ssh pi-plane
-cd /home/pi/plane-game-v4/infra
-docker compose build --no-cache && docker compose up -d
+cd /home/pi/plane-game-v4
+git pull origin main
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml build
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d
 ```
 
 ---

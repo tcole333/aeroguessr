@@ -56,29 +56,56 @@ services:
 
 ## Deployment Process
 
-### From Development Machine
+### Pull-Based Auto-Deployment
 
+The Pi automatically polls GitHub every 1 minute and deploys new changes. No GitHub Actions or container registry needed - builds happen natively on the Pi for faster ARM64 compilation (~3-5 min vs 30+ min with QEMU emulation).
+
+**How it works:**
+1. Push changes to `main` branch
+2. Within 1 minute, Pi detects new commits via `git fetch`
+3. Pi pulls changes, rebuilds Docker images natively, and restarts services
+4. Health check validates deployment
+
+**Monitoring auto-updates:**
 ```bash
-# 1. Sync code to Pi (code is baked into image, not mounted)
-rsync -avz --exclude node_modules --exclude .git \
-  . pi@192.168.1.181:/home/pi/plane-game-v4/
-
-# 2. SSH to Pi
 ssh pi-plane
+
+# Check timer status
+systemctl status plane-game-update.timer
+systemctl list-timers | grep plane
+
+# View update logs
+tail -f /home/pi/plane-game-v4/logs/auto-update.log
+
+# Trigger manual update
+/home/pi/plane-game-v4/scripts/auto-update.sh
 ```
 
-### On Raspberry Pi
+**Auto-update components:**
+| File | Location | Purpose |
+|------|----------|---------|
+| `auto-update.sh` | `scripts/` | Polls GitHub, rebuilds on changes |
+| `plane-game-update.service` | `/etc/systemd/system/` | Systemd service unit |
+| `plane-game-update.timer` | `/etc/systemd/system/` | 1-minute timer |
+| `auto-update.log` | `logs/` | Deployment history |
+
+### Manual Deployment (Fallback)
 
 ```bash
-cd /home/pi/plane-game-v4/infra
+# SSH to Pi
+ssh pi-plane
+cd /home/pi/plane-game-v4
 
-# 3. Rebuild containers
-docker compose -f docker-compose.yml build --no-cache
+# Pull latest changes
+git pull origin main
 
-# 4. Restart services
-docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
+# Rebuild containers
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml build
 
-# 5. Verify
+# Restart services
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d
+
+# Verify
 docker compose ps
 docker compose logs backend --tail 50
 ```
@@ -189,137 +216,116 @@ docker compose logs backend --tail 100 | grep -i error
 | Check ADS-B | `sudo systemctl status dump1090-mutability` |
 | Test API | `curl http://localhost:8000/healthz` |
 
-## CI/CD Pipeline
+## Deployment Architecture
 
-Automated deployment pipeline via GitHub Actions with Cloudflare Tunnel for secure SSH access.
+### Pull-Based Auto-Deployment
 
-### Architecture
+The Pi uses a simple pull-based deployment model - it polls GitHub every 1 minute and auto-deploys on changes. This approach was chosen over GitHub Actions + GHCR because:
+
+1. **Faster builds**: Native ARM64 builds take ~3-5 min vs 30+ min with QEMU emulation
+2. **Simpler infrastructure**: No container registry, no GitHub secrets management
+3. **Lower latency**: 1-minute polling vs waiting for CI/CD pipeline completion
+4. **Offline resilience**: Pi can continue running even if GitHub Actions is down
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         GitHub Actions                                │
+│                       Developer Workstation                           │
 ├──────────────────────────────────────────────────────────────────────┤
-│  1. Test (pytest)                                                     │
-│  2. Build ARM64 images (QEMU/Buildx)                                 │
-│  3. Push to GHCR (ghcr.io/tcole333/plane-game-v4)                   │
-│  4. SSH via Cloudflare Tunnel → Pi                                   │
-│  5. Run deployment script                                            │
-│  6. Health check + auto-rollback on failure                          │
+│  1. Make changes locally                                              │
+│  2. Push to main branch                                               │
 └──────────────────────────────────────────────────────────────────────┘
           │
-          │ cloudflared access ssh
+          │ git push
           ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     Cloudflare Tunnel                                 │
-│                     ssh.aeroguessr.com                               │
+│                          GitHub                                       │
+│                    (main branch)                                      │
 └──────────────────────────────────────────────────────────────────────┘
           │
+          │ git fetch (every 1 min)
           ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                       Raspberry Pi                                    │
-│  - Pull images from GHCR                                             │
-│  - docker compose up with new images                                 │
-│  - Health check validation                                           │
+│  - systemd timer runs auto-update.sh every 1 min                     │
+│  - Detects new commits, pulls changes                                │
+│  - Rebuilds Docker images natively (fast ARM64)                      │
+│  - Restarts containers                                               │
+│  - Health check validates deployment                                 │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Workflows
+### Pi Auto-Update Components
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `deploy.yml` | Push to main | Build, push, and deploy to Pi |
-| `rollback.yml` | Manual dispatch | Rollback to a specific version |
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Timer | `/etc/systemd/system/plane-game-update.timer` | Triggers every 1 minute |
+| Service | `/etc/systemd/system/plane-game-update.service` | Runs the update script |
+| Script | `/home/pi/plane-game-v4/scripts/auto-update.sh` | Git pull + Docker rebuild |
+| Logs | `/home/pi/plane-game-v4/logs/auto-update.log` | Deployment history |
 
-### Files
+### Monitoring Deployments
 
-| File | Location | Purpose |
-|------|----------|---------|
-| `docker-compose.deploy.yml` | `infra/` | Production compose using GHCR images |
-| `ci-deploy.sh` | `scripts/` | Pi-side deployment script |
+```bash
+ssh pi-plane
 
-### GitHub Secrets Required
+# Check timer status
+systemctl status plane-game-update.timer
+systemctl list-timers | grep plane
 
-| Secret | Description |
-|--------|-------------|
-| `PI_SSH_PRIVATE_KEY` | Ed25519 SSH key for Pi access |
-| `FLIGHTAWARE_API_KEY` | FlightAware API key for enrichment |
-| `OPENSKY_USERNAME` | OpenSky API username |
-| `OPENSKY_PASSWORD` | OpenSky API password |
+# View recent deployments
+tail -50 /home/pi/plane-game-v4/logs/auto-update.log
 
-### Deployment Process
+# Watch live updates
+tail -f /home/pi/plane-game-v4/logs/auto-update.log
 
-1. **Automatic (on push to main)**:
-   ```
-   Tests pass → Build ARM64 images → Push to GHCR → Deploy to Pi → Health check
-   ```
-
-2. **Manual Rollback**:
-   - Go to Actions → Rollback Deployment
-   - Enter the commit SHA or tag to rollback to
-   - Workflow validates image exists, then deploys
+# Trigger immediate update
+/home/pi/plane-game-v4/scripts/auto-update.sh
+```
 
 ### Version Tracking
 
-On the Pi, version tracking files are maintained in `/home/pi/plane-game-v4/infra/`:
-
-| File | Purpose |
-|------|---------|
-| `.current_tag` | Currently deployed version |
-| `.previous_tag` | Previous version (for rollback) |
-
-### Manual Deployment Commands
-
 ```bash
-# SSH to Pi via Cloudflare Tunnel (from dev machine)
-cloudflared access ssh --hostname ssh.aeroguessr.com
+# Check current commit on Pi
+ssh pi-plane "cd /home/pi/plane-game-v4 && git log -1 --oneline"
 
-# Or if SSH config is set up:
-ssh pi-deploy
-
-# Check current version
-cat /home/pi/plane-game-v4/infra/.current_tag
-
-# Manual deployment with specific tag
-cd /home/pi/plane-game-v4/infra
-IMAGE_TAG=abc123def docker compose -f docker-compose.deploy.yml -f docker-compose.pi.yml up -d
-
-# View deployment logs
-docker compose logs -f
+# Compare with remote
+ssh pi-plane "cd /home/pi/plane-game-v4 && git fetch && git log HEAD..origin/main --oneline"
 ```
 
 ### Rollback Procedure
 
-**Automatic rollback** happens when health check fails after deployment.
-
-**Manual rollback** via GitHub Actions:
-1. Go to Actions → "Rollback Deployment"
-2. Click "Run workflow"
-3. Enter the version/SHA to rollback to
-4. Add reason (optional)
-5. Run
-
-**Emergency manual rollback** on Pi:
 ```bash
-cd /home/pi/plane-game-v4/infra
-PREVIOUS_TAG=$(cat .previous_tag)
-IMAGE_TAG=$PREVIOUS_TAG docker compose -f docker-compose.deploy.yml -f docker-compose.pi.yml up -d
+ssh pi-plane
+cd /home/pi/plane-game-v4
+
+# View recent commits
+git log --oneline -10
+
+# Rollback to specific commit
+git reset --hard <commit-sha>
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml build
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d
 ```
 
-### Troubleshooting CI/CD
+### Troubleshooting
 
 ```bash
-# Check GitHub Actions logs
-# Go to: https://github.com/tcole333/plane-game-v4/actions
+# Check timer is active
+systemctl status plane-game-update.timer
 
-# On Pi: Check if images were pulled
-docker images | grep ghcr.io
+# Check last update run
+journalctl -u plane-game-update.service -n 50
 
-# Check container status
-docker compose ps
+# Manual test of update script
+/home/pi/plane-game-v4/scripts/auto-update.sh
 
-# Check deployment script logs
-journalctl -f  # System logs
-
-# Verify Cloudflare Tunnel is running
-sudo systemctl status cloudflared
+# Check for git issues
+cd /home/pi/plane-game-v4 && git status
 ```
+
+### GitHub Deploy Key
+
+The Pi uses a deploy key for read-only GitHub access:
+- Key location: `/home/pi/.ssh/id_ed25519`
+- Added via `gh repo deploy-key add` with title "pi-plane-deploy"
+- Read-only access to pull changes
