@@ -77,6 +77,7 @@ class PlaneState(BaseModel):
     # AeroAPI Enrichment fields (cached)
     origin: Optional[str] = Field(None, description="Origin airport ICAO (cached).")
     destination: Optional[str] = Field(None, description="Destination airport ICAO (cached).")
+    operator: Optional[str] = Field(None, description="Airline/operator name (cached).")
     # Signal quality tracking
     first_seen_ts: float = Field(
         default_factory=lambda: time.time(), description="Timestamp when plane was first detected."
@@ -148,6 +149,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 # Update the plane state with new route data
                 existing_state.origin = route_data.origin_icao
                 existing_state.destination = route_data.destination_icao
+                existing_state.operator = route_data.operator
                 existing_state.callsign = callsign
                 existing_state.enrichment_attempts = existing_state.enrichment_attempts + 1
                 existing_state.last_enrichment_ts = time.time()
@@ -462,6 +464,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         track=resolved_track,
         origin=route_data.origin_icao if route_data else None,
         destination=route_data.destination_icao if route_data else None,
+        operator=route_data.operator if route_data else None,
         first_seen_ts=first_seen_ts,
         update_count=update_count,
         enrichment_attempts=enrichment_attempts,

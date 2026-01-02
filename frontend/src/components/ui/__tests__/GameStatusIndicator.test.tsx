@@ -8,6 +8,34 @@ vi.mock('../../../hooks/useStore', () => ({
   useStore: vi.fn(),
 }));
 
+// Helper to create mock state with retroMode set to false by default
+const createMockState = (overrides: {
+  game?: Partial<{
+    round: { state: string; round_number: number } | null;
+    roundTimeout: number | null;
+    hostNickname: string;
+    isSolo: boolean;
+  }>;
+  connection?: Partial<{ nickname: string }>;
+  ui?: Partial<{ retroMode: boolean }>;
+} = {}) => ({
+  game: {
+    round: null,
+    roundTimeout: null,
+    hostNickname: 'host',
+    isSolo: false,
+    ...overrides.game,
+  },
+  connection: {
+    nickname: 'player',
+    ...overrides.connection,
+  },
+  ui: {
+    retroMode: false,
+    ...overrides.ui,
+  },
+});
+
 describe('GameStatusIndicator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -21,17 +49,9 @@ describe('GameStatusIndicator', () => {
   describe('Phase descriptions', () => {
     it('shows solo mode message when in solo mode', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: null,
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: true,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { isSolo: true },
+        });
         return selector(state);
       });
 
@@ -41,17 +61,9 @@ describe('GameStatusIndicator', () => {
 
     it('shows host waiting message when host and no round', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: null,
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'host',
-          },
-        };
+        const state = createMockState({
+          connection: { nickname: 'host' },
+        });
         return selector(state);
       });
 
@@ -61,17 +73,7 @@ describe('GameStatusIndicator', () => {
 
     it('shows player waiting message when not host and no round', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: null,
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState();
         return selector(state);
       });
 
@@ -81,17 +83,9 @@ describe('GameStatusIndicator', () => {
 
     it('shows waiting for selection message', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'waiting_for_selection', round_number: 1 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'waiting_for_selection', round_number: 1 } },
+        });
         return selector(state);
       });
 
@@ -101,17 +95,10 @@ describe('GameStatusIndicator', () => {
 
     it('shows select plane message for host during waiting phase', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'waiting_for_selection', round_number: 1 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'host',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'waiting_for_selection', round_number: 1 } },
+          connection: { nickname: 'host' },
+        });
         return selector(state);
       });
 
@@ -121,17 +108,9 @@ describe('GameStatusIndicator', () => {
 
     it('shows submit guess message during guessing phase', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 2 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 2 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -141,17 +120,9 @@ describe('GameStatusIndicator', () => {
 
     it('shows round complete message during results phase', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'showing_results', round_number: 3 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'showing_results', round_number: 3 } },
+        });
         return selector(state);
       });
 
@@ -163,17 +134,9 @@ describe('GameStatusIndicator', () => {
   describe('Round number display', () => {
     it('shows round number when available', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 5 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 5 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -184,17 +147,9 @@ describe('GameStatusIndicator', () => {
 
     it('does not show round number when round number is 0', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'waiting_for_selection', round_number: 0 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'waiting_for_selection', round_number: 0 } },
+        });
         return selector(state);
       });
 
@@ -206,17 +161,9 @@ describe('GameStatusIndicator', () => {
   describe('Timer functionality', () => {
     it('shows timer during guessing phase', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 2 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 2 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -227,17 +174,9 @@ describe('GameStatusIndicator', () => {
 
     it('shows timer during accepting_guesses phase', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'accepting_guesses', round_number: 2 },
-            roundTimeout: 45,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'accepting_guesses', round_number: 2 }, roundTimeout: 45 },
+        });
         return selector(state);
       });
 
@@ -248,17 +187,9 @@ describe('GameStatusIndicator', () => {
 
     it('counts down timer correctly', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 2 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 2 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -282,17 +213,9 @@ describe('GameStatusIndicator', () => {
 
     it('formats time correctly for minutes', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 2 },
-            roundTimeout: 125, // 2:05
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 2 }, roundTimeout: 125 },
+        });
         return selector(state);
       });
 
@@ -302,17 +225,9 @@ describe('GameStatusIndicator', () => {
 
     it('does not show timer when not guessing', () => {
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'showing_results', round_number: 2 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'showing_results', round_number: 2 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -325,17 +240,9 @@ describe('GameStatusIndicator', () => {
     it('applies correct colors for different phases', () => {
       // Test waiting phase
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'waiting_for_selection', round_number: 1 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'waiting_for_selection', round_number: 1 } },
+        });
         return selector(state);
       });
 
@@ -345,17 +252,9 @@ describe('GameStatusIndicator', () => {
 
       // Test guessing phase
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'guessing', round_number: 1 },
-            roundTimeout: 30,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'guessing', round_number: 1 }, roundTimeout: 30 },
+        });
         return selector(state);
       });
 
@@ -365,17 +264,9 @@ describe('GameStatusIndicator', () => {
 
       // Test results phase
       vi.mocked(useStore).mockImplementation((selector) => {
-        const state = {
-          game: {
-            round: { state: 'showing_results', round_number: 1 },
-            roundTimeout: null,
-            hostNickname: 'host',
-            isSolo: false,
-          },
-          connection: {
-            nickname: 'player',
-          },
-        };
+        const state = createMockState({
+          game: { round: { state: 'showing_results', round_number: 1 } },
+        });
         return selector(state);
       });
 

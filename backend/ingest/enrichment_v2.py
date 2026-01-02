@@ -39,6 +39,7 @@ class RouteLookupMeta(BaseModel):
 
 # --- Configuration ---
 ROUTE_CACHE_TTL_SECONDS = 3600 * 6  # 6 hours for positive results
+OPERATOR_CACHE_TTL_SECONDS = 3600 * 24 * 7  # 7 days for operator names (rarely change)
 IS_FAKE_ADSB = os.getenv("FAKE_ADSB") == "1"
 
 FLIGHTAWARE_API_KEY = os.getenv("FLIGHTAWARE_API_KEY")
@@ -46,6 +47,9 @@ AEROAPI_BASE_URL = "https://aeroapi.flightaware.com/aeroapi"
 
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)
+
+# --- In-memory operator cache (supplement to Redis) ---
+_operator_cache: dict[str, str] = {}
 
 # --- Monitoring Metrics ---
 # These counters help track match rates for monitoring
@@ -57,6 +61,61 @@ match_stats = {
     "no_matches": 0,
     "cache_hits": 0,
 }
+
+
+async def _lookup_operator_name(operator_icao: str) -> Optional[str]:
+    """Look up operator short name from ICAO code, with caching.
+
+    Uses FlightAware's /operators/{icao} endpoint to get the airline name.
+    Results are cached in memory since airline names rarely change.
+
+    Args:
+        operator_icao: ICAO airline code (e.g., "UAL" for United)
+
+    Returns:
+        Operator short name (e.g., "United") or None if not found
+    """
+    if not operator_icao:
+        return None
+
+    # Check in-memory cache first
+    if operator_icao in _operator_cache:
+        return _operator_cache[operator_icao]
+
+    if not FLIGHTAWARE_API_KEY:
+        return None
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{AEROAPI_BASE_URL}/operators/{operator_icao}",
+                headers={"x-apikey": FLIGHTAWARE_API_KEY},
+                timeout=10.0,
+            )
+
+            if response.status_code == 404:
+                logger.debug(f"Operator not found: {operator_icao}")
+                return None
+
+            response.raise_for_status()
+            data = response.json()
+
+            # Prefer shortname, fall back to callsign or name
+            short_name = data.get("shortname") or data.get("callsign") or data.get("name")
+
+            if short_name:
+                _operator_cache[operator_icao] = short_name
+                logger.debug(f"Cached operator: {operator_icao} -> {short_name}")
+                return short_name
+
+            return None
+
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"Operator lookup error for {operator_icao}: {e.response.status_code}")
+        return None
+    except Exception as e:
+        logger.warning(f"Operator lookup failed for {operator_icao}: {e}")
+        return None
 
 
 async def fetch_route_data_v2(
@@ -270,7 +329,15 @@ async def _query_aeroapi_direct(ident: str) -> Optional[RouteData]:
                 logger.debug(f"AeroAPI flight {ident} missing origin/destination")
                 return None
 
-            return RouteData(origin_icao=origin_icao, destination_icao=destination_icao)
+            # Extract and look up operator name
+            operator_icao = best_flight.get("operator_icao") or best_flight.get("operator")
+            operator_name = await _lookup_operator_name(operator_icao) if operator_icao else None
+
+            return RouteData(
+                origin_icao=origin_icao,
+                destination_icao=destination_icao,
+                operator=operator_name,
+            )
 
     except httpx.HTTPStatusError as e:
         logger.error(f"AeroAPI error for {ident}: {e.response.status_code}")
@@ -327,9 +394,11 @@ def _generate_mock_route_data(hex_ident: str) -> RouteData:
         Mock RouteData with Boston as origin or destination
     """
     mock_airports = ["KLAX", "KJFK", "KORD", "KSFO", "KMIA", None]
+    mock_operators = ["United", "Delta", "American", "JetBlue", "Southwest", None]
 
     # Always make Boston the destination so synthetic planes can land and respawn
     other_airport = random.choice(mock_airports)
+    mock_operator = random.choice(mock_operators)
     origin_icao = other_airport
     destination_icao = "KBOS"
 
@@ -356,10 +425,13 @@ def _generate_mock_route_data(hex_ident: str) -> RouteData:
         else:
             destination_icao = "KBOS"
 
-    mock_route = RouteData(origin_icao=origin_icao, destination_icao=destination_icao)
+    mock_route = RouteData(
+        origin_icao=origin_icao, destination_icao=destination_icao, operator=mock_operator
+    )
     logger.info(
         f"FAKE_ADSB: Generated mock route for {hex_ident}: "
-        f"Origin: {mock_route.origin_icao}, Dest: {mock_route.destination_icao}"
+        f"Origin: {mock_route.origin_icao}, Dest: {mock_route.destination_icao}, "
+        f"Operator: {mock_route.operator}"
     )
     return mock_route
 

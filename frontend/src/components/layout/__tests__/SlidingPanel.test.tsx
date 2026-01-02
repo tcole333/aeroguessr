@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import SlidingPanel from '../SlidingPanel';
-import { StoreProvider } from '../../../store/createRootStore';
+import { StoreContext, createRootStore } from '../../../store/createRootStore';
 
 // Mock the RoomCodeDisplay component
 vi.mock('../../ui/RoomCodeDisplay', () => ({
@@ -12,10 +12,13 @@ vi.mock('../../ui/RoomCodeDisplay', () => ({
 }));
 
 function renderPanel() {
+  const store = createRootStore();
+  // Toggle retroMode off (default is true) to test standard mode UI
+  store.getState().ui.toggleRetroMode();
   return render(
-    <StoreProvider>
+    <StoreContext.Provider value={store}>
       <SlidingPanel />
-    </StoreProvider>,
+    </StoreContext.Provider>,
   );
 }
 

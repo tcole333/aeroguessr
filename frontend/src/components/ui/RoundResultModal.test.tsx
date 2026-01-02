@@ -10,6 +10,8 @@ describe('RoundResultModal', () => {
 
   beforeEach(() => {
     store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
   });
 
   const renderWithStore = (component: React.ReactElement) => {
@@ -27,25 +29,27 @@ describe('RoundResultModal', () => {
 
   it('should render when round result is set', () => {
     // Set up round result
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-        },
-        {
-          nickname: 'Player2',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 250,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+          },
+          {
+            nickname: 'Player2',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 250,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -56,32 +60,34 @@ describe('RoundResultModal', () => {
   });
 
   it('should sort results by score awarded', () => {
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'LowScorer',
-          guess: 'LAX',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 50,
-        },
-        {
-          nickname: 'HighScorer',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 300,
-        },
-        {
-          nickname: 'MidScorer',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 50,
-          current_total_score: 150,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'LowScorer',
+            guess: 'LAX',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 50,
+          },
+          {
+            nickname: 'HighScorer',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 300,
+          },
+          {
+            nickname: 'MidScorer',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 50,
+            current_total_score: 150,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -92,26 +98,28 @@ describe('RoundResultModal', () => {
   });
 
   it('should highlight current player result', () => {
-    store.getState().connection.nickname = 'MyNickname';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'OtherPlayer',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-        },
-        {
-          nickname: 'MyNickname',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 250,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.connection.nickname = 'MyNickname';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'OtherPlayer',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+          },
+          {
+            nickname: 'MyNickname',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 250,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -120,18 +128,20 @@ describe('RoundResultModal', () => {
 
   it('should close modal on button click', async () => {
     const user = userEvent.setup();
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 100,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 100,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
     const continueButton = screen.getByRole('button', { name: /Close round results/i });
@@ -147,18 +157,20 @@ describe('RoundResultModal', () => {
   it.skip('should auto-close after delay', async () => {
     vi.useFakeTimers();
 
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 100,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 100,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     const { container } = renderWithStore(<RoundResultModal autoCloseDelay={1000} />);
 
@@ -178,20 +190,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should show distance mode hint for non-perfect scores', () => {
-    store.getState().connection.nickname = 'MyNickname';
-    store.getState().game.scoringMode = 'Distance';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'MyNickname',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 75,
-          current_total_score: 175,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.connection.nickname = 'MyNickname';
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'MyNickname',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 75,
+            current_total_score: 175,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -199,20 +213,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should not show distance mode hint for exact mode', () => {
-    store.getState().connection.nickname = 'MyNickname';
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'MyNickname',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.connection.nickname = 'MyNickname';
+      s.game.scoringMode = 'Exact';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'MyNickname',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -220,28 +236,30 @@ describe('RoundResultModal', () => {
   });
 
   it('should display distance in km for Distance mode', () => {
-    store.getState().game.scoringMode = 'Distance';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 70,
-          current_total_score: 170,
-          distance_km: 305.5,
-        },
-        {
-          nickname: 'Player2',
-          guess: 'PVD',
-          correct_code: 'BOS',
-          score_awarded: 93,
-          current_total_score: 193,
-          distance_km: 70.2,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 70,
+            current_total_score: 170,
+            distance_km: 305.5,
+          },
+          {
+            nickname: 'Player2',
+            guess: 'PVD',
+            correct_code: 'BOS',
+            score_awarded: 93,
+            current_total_score: 193,
+            distance_km: 70.2,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -250,20 +268,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should display "Exact match!" for 0 km distance', () => {
-    store.getState().game.scoringMode = 'Distance';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'BOS',
-          correct_code: 'BOS',
-          score_awarded: 100,
-          current_total_score: 200,
-          distance_km: 0,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 200,
+            distance_km: 0,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -271,20 +291,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should not display distance for players who did not guess', () => {
-    store.getState().game.scoringMode = 'Distance';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: null,
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-          distance_km: undefined,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: null,
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+            distance_km: undefined,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -293,20 +315,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should not display distance in Exact mode even if distance_km is provided', () => {
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'JFK',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-          distance_km: 305.5, // Backend shouldn't send this, but testing UI behavior
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.scoringMode = 'Exact';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'JFK',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+            distance_km: 305.5, // Backend shouldn't send this, but testing UI behavior
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 
@@ -314,20 +338,22 @@ describe('RoundResultModal', () => {
   });
 
   it('should format large distances with comma separator', () => {
-    store.getState().game.scoringMode = 'Distance';
-    store.getState().game.lastRoundResult = {
-      results: [
-        {
-          nickname: 'Player1',
-          guess: 'LAX',
-          correct_code: 'BOS',
-          score_awarded: 0,
-          current_total_score: 100,
-          distance_km: 4178.5,
-        },
-      ],
-      next_host_nickname: null,
-    };
+    store.setState((s) => {
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'LAX',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+            distance_km: 4178.5,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
 
     renderWithStore(<RoundResultModal />);
 

@@ -4,11 +4,13 @@ import { createRoomAPI } from '../../../services/apiService';
 import {
   selectFormError,
   selectIsLoading,
+  selectRetroMode,
 } from '../../ui/selectors';
 
 export default function CreateRoomForm(): JSX.Element {
   const formError = useStore(selectFormError);
   const isLoading = useStore(selectIsLoading);
+  const retroMode = useStore(selectRetroMode);
   const { setLoading, clearFormError, setFormError, setCurrentView } = useStore(
     (s) => s.ui,
   );
@@ -39,6 +41,62 @@ export default function CreateRoomForm(): JSX.Element {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (retroMode) {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="create-nick" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Nickname
+          </label>
+          <input
+            id="create-nick"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-splitflap text-retro-led uppercase tracking-wider focus:border-retro-primary focus:outline-none"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            required
+            placeholder="Enter name"
+          />
+        </div>
+        <div>
+          <label htmlFor="create-mode" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Scoring Mode
+          </label>
+          <select
+            id="create-mode"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-display text-retro-text uppercase tracking-wider focus:border-retro-primary focus:outline-none"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as 'Exact' | 'Distance')}
+          >
+            <option value="Exact">Exact Match</option>
+            <option value="Distance">Distance Based</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="create-timeout" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Round Time (seconds)
+          </label>
+          <input
+            id="create-timeout"
+            type="number"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-splitflap text-retro-led tracking-wider focus:border-retro-primary focus:outline-none"
+            value={timeout}
+            min={10}
+            max={120}
+            onChange={(e) => setTimeout(Number(e.target.value))}
+          />
+        </div>
+        {formError && <p className="font-display text-sm text-retro-accent">{formError}</p>}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2 px-4 font-display text-sm uppercase tracking-widest bg-retro-primary text-retro-panel border-0 hover:bg-retro-primary-bright transition-colors disabled:opacity-50"
+        >
+          {isLoading ? 'Creating...' : 'Create'}
+        </button>
+      </form>
+    );
   }
 
   return (

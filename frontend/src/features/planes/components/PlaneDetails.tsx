@@ -6,7 +6,6 @@ import {
   selectHost,
   selectIsSolo,
   selectSelectedPlane,
-  selectGuessDirection,
   selectRound,
   selectRoundTimeout,
   selectUsedPlanes
@@ -15,6 +14,7 @@ import {
   selectPlayerNickname,
   selectConnectionStatus,
 } from '../../connection/selectors';
+import { selectRetroMode } from '../../ui/selectors';
 import type { PlaneState } from '../../common/types';
 
 interface PlaneDetailsProps {
@@ -29,10 +29,10 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const myNick = useStore(selectPlayerNickname);
   const status = useStore(selectConnectionStatus);
   const selectedPlane = useStore(selectSelectedPlane);
-  const guessDirection = useStore(selectGuessDirection);
   const round = useStore(selectRound);
   const roundTimeout = useStore(selectRoundTimeout);
   const usedPlanes = useStore(selectUsedPlanes);
+  const retroMode = useStore(selectRetroMode);
 
   const [guessCode, setGuessCode] = useState('');
   const [hasGuessed, setHasGuessed] = useState(false);
@@ -95,18 +95,22 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
   if (!plane) {
     return (
-      <div className="p-4 border-t border-gray-700">
+      <div className={retroMode ? 'p-4 border-t border-retro-border bg-retro-panel' : 'p-4 border-t border-gray-700'}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Plane Details</h3>
+          <h3 className={retroMode ? 'text-lg font-display font-semibold text-retro-ink uppercase tracking-wider' : 'text-lg font-semibold'}>
+            {retroMode ? 'FLIGHT DATA' : 'Plane Details'}
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className={retroMode ? 'text-retro-primary hover:text-retro-primary-dark text-xl' : 'text-gray-400 hover:text-white'}
             aria-label="Close details"
           >
             ×
           </button>
         </div>
-        <p className="text-gray-400">Plane not found</p>
+        <p className={retroMode ? 'text-retro-text font-display' : 'text-gray-400'}>
+          {retroMode ? 'FLIGHT NOT FOUND' : 'Plane not found'}
+        </p>
       </div>
     );
   }
@@ -150,11 +154,11 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
     }
   };
 
-  const formatAltitude = (alt: number) => {
-    return `${alt.toLocaleString()} ft`;
+  const formatAltitudeValue = (alt: number) => {
+    return alt.toLocaleString();
   };
 
-  const formatSpeed = (latV: number, lonV: number) => {
+  const formatSpeedValue = (latV: number, lonV: number) => {
     // Speed calculation from velocity components
     // Velocities are in degrees/second
     // At equator: 1 degree ≈ 60 nautical miles
@@ -165,22 +169,61 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
     // Sanity check - aircraft don't fly faster than ~700 knots
     if (speedKts > 1000) {
-      return 'Invalid';
+      return null;
     }
 
-    return `${Math.round(speedKts)} kts`;
+    return `${Math.round(speedKts)}`;
   };
 
+  const altitudeTrend = (altV?: number) => {
+    if (altV == null) return { symbol: '•', className: 'text-retro-text-light' };
+    if (altV > 50) return { symbol: '▲', className: 'text-retro-success' };
+    if (altV < -50) return { symbol: '▼', className: 'text-retro-primary' };
+    return { symbol: '•', className: 'text-retro-text-light' };
+  };
+
+  // Retro style classes
+  const containerClass = retroMode
+    ? 'border-t border-retro-border bg-retro-panel text-retro-text font-display'
+    : 'border-t border-gray-700 bg-gray-800';
+
+  const headerClass = retroMode
+    ? 'font-splitflap text-xl text-retro-led tracking-widest'
+    : 'text-lg font-semibold text-white';
+
+  const closeButtonClass = retroMode
+    ? 'text-retro-primary hover:text-retro-primary-dark text-xl font-bold'
+    : 'text-gray-400 hover:text-white text-xl';
+
+  const labelClass = retroMode
+    ? 'text-xs uppercase tracking-widest text-retro-sage'
+    : 'text-gray-400';
+
+  // Monospace font style for retro labels
+  const labelStyle = retroMode
+    ? { fontFamily: "'IBM Plex Sans', 'DM Sans', system-ui, sans-serif" }
+    : undefined;
+
+  const valueClass = retroMode
+    ? 'font-splitflap text-retro-led tracking-wider'
+    : 'text-white';
+
+  const textValueClass = retroMode
+    ? 'font-display text-retro-text'
+    : 'text-white';
+
+  const altTrend = altitudeTrend(plane.alt_v);
+
   return (
-    <div className="border-t border-gray-700 bg-gray-800">
+    <div className={containerClass}>
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-white">
-            {plane.callsign || plane.hex_ident}
-          </h3>
+          <div className={headerClass} role="heading" aria-level={3}>
+            {(plane.callsign || plane.hex_ident).toUpperCase()}
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-xl"
+            className={closeButtonClass}
             aria-label="Close details"
           >
             ×
@@ -190,23 +233,49 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-gray-400">Hex ID:</span>
-              <p className="text-white font-mono">{plane.hex_ident}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'HEX' : 'Hex ID:'}</span>
+              <p className={valueClass}>{plane.hex_ident}</p>
             </div>
             <div>
-              <span className="text-gray-400">Callsign:</span>
-              <p className="text-white">{plane.callsign || 'Unknown'}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'CALLSIGN' : 'Callsign:'}</span>
+              <p className={valueClass}>{(plane.callsign || 'UNKNOWN').toUpperCase()}</p>
             </div>
           </div>
 
+          {plane.operator && (
+            <div>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'AIRLINE' : 'Airline:'}</span>
+              <p className={textValueClass}>{plane.operator}</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-gray-400">Altitude:</span>
-              <p className="text-white">{formatAltitude(plane.alt)}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'ALT' : 'Altitude:'}</span>
+              {retroMode ? (
+                <p className="flex items-baseline gap-2">
+                  <span className={`text-xs ${altTrend.className}`} aria-hidden="true">
+                    {altTrend.symbol}
+                  </span>
+                  <span className={valueClass}>{formatAltitudeValue(plane.alt)}</span>
+                  <span className="text-xs font-display text-retro-text-muted">FT</span>
+                </p>
+              ) : (
+                <p className={valueClass}>{`${formatAltitudeValue(plane.alt)} ft`}</p>
+              )}
             </div>
             <div>
-              <span className="text-gray-400">Speed:</span>
-              <p className="text-white">{formatSpeed(plane.lat_v, plane.lon_v)}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'SPD' : 'Speed:'}</span>
+              {retroMode ? (
+                <p className="flex items-baseline gap-2">
+                  <span className="font-splitflap text-retro-success tracking-wider">
+                    {formatSpeedValue(plane.lat_v, plane.lon_v) ?? '---'}
+                  </span>
+                  <span className="text-xs font-display text-retro-text-muted">KTS</span>
+                </p>
+              ) : (
+                <p className={valueClass}>{`${formatSpeedValue(plane.lat_v, plane.lon_v) ?? 'Invalid'} kts`}</p>
+              )}
             </div>
           </div>
 
@@ -215,35 +284,35 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             {/* Show origin - hide if this is the airport we would be guessing */}
             {shouldHideAirport !== 'origin' && (
               <div>
-                <span className="text-gray-400">Origin:</span>
-                <p className="text-white">{plane.origin || 'Unknown'}</p>
+                <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
+                <p className={valueClass}>{(plane.origin || 'UNKNOWN').toUpperCase()}</p>
               </div>
             )}
 
             {/* Show destination - hide if this is the airport we would be guessing */}
             {shouldHideAirport !== 'destination' && (
               <div>
-                <span className="text-gray-400">Destination:</span>
-                <p className="text-white">{plane.destination || 'Unknown'}</p>
+                <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Destination:'}</span>
+                <p className={valueClass}>{(plane.destination || 'UNKNOWN').toUpperCase()}</p>
               </div>
             )}
           </div>
 
           {plane.origin_country && (
             <div>
-              <span className="text-gray-400">Country:</span>
-              <p className="text-white">{plane.origin_country}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'COUNTRY' : 'Country:'}</span>
+              <p className={textValueClass}>{plane.origin_country}</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-gray-400">Latitude:</span>
-              <p className="text-white font-mono">{plane.lat.toFixed(4)}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'LAT' : 'Latitude:'}</span>
+              <p className={valueClass}>{plane.lat.toFixed(4)}</p>
             </div>
             <div>
-              <span className="text-gray-400">Longitude:</span>
-              <p className="text-white font-mono">{plane.lon.toFixed(4)}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'LON' : 'Longitude:'}</span>
+              <p className={valueClass}>{plane.lon.toFixed(4)}</p>
             </div>
           </div>
         </div>
@@ -251,18 +320,24 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
         {/* Host Controls */}
         {isHost && (
           <div className="mt-6 space-y-3">
-            <div className="border-t border-gray-600 pt-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-3">Host Controls</h4>
+            <div className={retroMode ? 'border-t border-retro-border pt-4' : 'border-t border-gray-600 pt-4'}>
+              <h4 className={retroMode ? 'text-xs font-display uppercase tracking-widest text-retro-text-muted mb-3' : 'text-sm font-medium text-gray-300 mb-3'}>
+                {retroMode ? 'GATE CONTROL' : 'Host Controls'}
+              </h4>
 
               {isSelected && !isUsed && (
-                <div className="mb-3 p-2 bg-blue-900 rounded border border-blue-600">
-                  <p className="text-sm text-blue-200">✓ Selected for round</p>
+                <div className={retroMode ? 'mb-3 p-2 border border-retro-primary bg-retro-panel-dark' : 'mb-3 p-2 bg-blue-900 rounded border border-blue-600'}>
+                  <p className={retroMode ? 'text-sm font-display text-retro-primary uppercase tracking-wider' : 'text-sm text-blue-200'}>
+                    {retroMode ? '✓ FLIGHT SELECTED' : '✓ Selected for round'}
+                  </p>
                 </div>
               )}
 
               {isUsed && !isRoundActive && (
-                <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
-                  <p className="text-sm text-gray-300">✓ This plane has already been used in a previous round</p>
+                <div className={retroMode ? 'mb-3 p-2 border border-retro-border bg-retro-panel opacity-70' : 'mb-3 p-2 bg-gray-800 rounded border border-gray-600'}>
+                  <p className={retroMode ? 'text-sm font-display text-retro-text-muted uppercase tracking-wider' : 'text-sm text-gray-300'}>
+                    {retroMode ? '✓ FLIGHT DEPARTED' : '✓ This plane has already been used in a previous round'}
+                  </p>
                 </div>
               )}
 
@@ -271,24 +346,36 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
                   type="button"
                   onClick={handleSelectPlane}
                   disabled={!canSelectPlane}
-                  className={`w-full rounded py-2 px-3 text-white transition-colors ${
-                    isSelected && !isUsed
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : isUsed
-                      ? 'bg-gray-500 cursor-not-allowed'
-                      : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400'
-                  }`}
+                  className={retroMode
+                    ? `w-full py-3 px-3 font-display uppercase tracking-widest text-sm transition-all border-2 ${
+                        isSelected && !isUsed
+                          ? 'border-retro-primary bg-retro-panel-dark text-retro-primary'
+                          : isUsed
+                          ? 'border-retro-border bg-retro-panel text-retro-text-muted cursor-not-allowed'
+                          : 'border-retro-primary bg-transparent text-retro-primary hover:bg-retro-panel-dark disabled:opacity-50'
+                      }`
+                    : `w-full rounded py-2 px-3 text-white transition-colors ${
+                        isSelected && !isUsed
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : isUsed
+                          ? 'bg-gray-500 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400'
+                      }`
+                  }
                 >
-                  {isUsed ? 'Already Used' : isSelected ? 'Selected' : 'Select for Round'}
+                  {isUsed ? (retroMode ? 'DEPARTED' : 'Already Used') : isSelected ? (retroMode ? 'SELECTED' : 'Selected') : (retroMode ? 'SELECT FLIGHT' : 'Select for Round')}
                 </button>
 
                 <button
                   type="button"
                   onClick={handleStartRound}
                   disabled={!canStartRound}
-                  className="w-full rounded bg-green-500 py-2 px-3 text-white disabled:bg-gray-400 hover:bg-green-600"
+                  className={retroMode
+                    ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-0 bg-retro-primary text-retro-panel hover:bg-retro-primary-bright disabled:opacity-50 transition-all'
+                    : 'w-full rounded bg-green-500 py-2 px-3 text-white disabled:bg-gray-400 hover:bg-green-600'
+                  }
                 >
-                  Start Round
+                  {retroMode ? 'BEGIN ROUND' : 'Start Round'}
                 </button>
               </div>
             </div>
@@ -299,23 +386,37 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
         {/* Guess Form */}
         {isRoundActive ? (
           <div className="mt-6 space-y-3">
-            <div className="border-t border-gray-600 pt-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-3">
-                Guess the {round.direction === 'destination' ? 'destination' : 'origin'} airport
+            <div className={retroMode ? 'border-t border-retro-border pt-4' : 'border-t border-gray-600 pt-4'}>
+              <h4 className={retroMode ? 'text-xs font-display uppercase tracking-widest text-retro-text-muted mb-3' : 'text-sm font-medium text-gray-300 mb-3'}>
+                {retroMode
+                  ? `ENTER ${round.direction === 'destination' ? 'DESTINATION' : 'ORIGIN'} CODE`
+                  : `Guess the ${round.direction === 'destination' ? 'destination' : 'origin'} airport`}
               </h4>
 
               {remainingTime !== null && (
-                <div className="mb-3 p-2 bg-yellow-900 rounded border border-yellow-600">
-                  <p className="text-sm text-yellow-200">
-                    Time remaining: {remainingTime}s
+                <div className={retroMode
+                  ? 'mb-3 p-3 border border-retro-accent bg-retro-panel-dark'
+                  : 'mb-3 p-2 bg-yellow-900 rounded border border-yellow-600'
+                }>
+                  <p className={retroMode
+                    ? 'font-splitflap text-lg text-retro-accent tracking-widest text-center animate-glow-pulse'
+                    : 'text-sm text-yellow-200'
+                  }>
+                    {retroMode ? `00:${remainingTime.toString().padStart(2, '0')}` : `Time remaining: ${remainingTime}s`}
                   </p>
                 </div>
               )}
 
               <form onSubmit={handleGuessSubmit} className="space-y-3">
                 <div>
-                  <label htmlFor="guess-input" className="block text-sm text-gray-300 mb-1">
-                    Airport Code (e.g., LAX, JFK)
+                  <label
+                    htmlFor="guess-input"
+                    className={retroMode
+                      ? 'block text-xs font-display uppercase tracking-widest text-retro-text-muted mb-2'
+                      : 'block text-sm text-gray-300 mb-1'
+                    }
+                  >
+                    {retroMode ? 'AIRPORT CODE' : 'Airport Code (e.g., LAX, JFK)'}
                   </label>
                   <input
                     id="guess-input"
@@ -324,21 +425,29 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
                     value={guessCode}
                     onChange={(e) => setGuessCode(e.target.value.toUpperCase())}
                     disabled={!canGuess}
-                    className="w-full border border-gray-600 bg-gray-700 text-white p-2 rounded focus:border-blue-500 focus:outline-none"
-                    placeholder="Enter code"
+                    className={retroMode
+                      ? 'w-full border border-retro-border bg-retro-panel text-retro-ink font-display text-xl text-center tracking-[0.2em] p-3 focus:border-retro-primary focus:outline-none uppercase placeholder:text-retro-text-muted'
+                      : 'w-full border border-gray-600 bg-gray-700 text-white p-2 rounded focus:border-blue-500 focus:outline-none'
+                    }
+                    placeholder={retroMode ? '----' : 'Enter code'}
                   />
                 </div>
 
                 {guessError && (
-                  <p className="text-sm text-red-400">{guessError}</p>
+                  <p className={retroMode ? 'text-sm font-display text-retro-accent uppercase tracking-wider' : 'text-sm text-red-400'}>
+                    {guessError}
+                  </p>
                 )}
 
                 <button
                   type="submit"
                   disabled={!canGuess}
-                  className="w-full rounded bg-blue-500 py-2 px-3 text-white disabled:bg-gray-400 hover:bg-blue-600"
+                  className={retroMode
+                    ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-0 bg-retro-primary text-retro-panel hover:bg-retro-primary-bright disabled:opacity-50 transition-all'
+                    : 'w-full rounded bg-blue-500 py-2 px-3 text-white disabled:bg-gray-400 hover:bg-blue-600'
+                  }
                 >
-                  {hasGuessed ? 'Guess Submitted' : 'Submit Guess'}
+                  {hasGuessed ? (retroMode ? 'TRANSMITTED' : 'Guess Submitted') : (retroMode ? 'TRANSMIT' : 'Submit Guess')}
                 </button>
               </form>
             </div>

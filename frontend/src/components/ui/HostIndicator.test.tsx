@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { HostIndicator } from './HostIndicator';
+
+// Mock the useStore to return retroMode: false
+vi.mock('../../hooks/useStore', () => ({
+  useStore: vi.fn((selector) => {
+    const state = { ui: { retroMode: false } };
+    return selector(state);
+  }),
+}));
 
 describe('HostIndicator', () => {
   describe('badge variant', () => {

@@ -10,6 +10,8 @@ function setup(
   { host = 'Me', connected = true } = {},
 ) {
   const store = createRootStore();
+  // Toggle retroMode off (default is true) to test standard mode UI
+  store.getState().ui.toggleRetroMode();
   if (planes.length > 0) {
     store.getState().planes.upsertPlanes(planes);
   }

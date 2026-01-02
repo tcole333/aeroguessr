@@ -45,6 +45,9 @@ class RouteData(BaseModel):
 
     origin_icao: Optional[str] = Field(None, description="Origin airport ICAO code.")
     destination_icao: Optional[str] = Field(None, description="Destination airport ICAO code.")
+    operator: Optional[str] = Field(
+        None, description="Airline/operator short name (e.g., 'United')."
+    )
 
 
 # --- Enrichment Logic: OpenSky (Callsign, etc.) ---

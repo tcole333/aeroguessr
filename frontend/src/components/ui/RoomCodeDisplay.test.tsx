@@ -5,11 +5,15 @@ import * as connectionSlice from '../../features/connection/connectionSlice';
 
 // Mock the store
 vi.mock('../../hooks/useStore', () => ({
-  useStore: vi.fn((selector) => selector({ connection: mockConnectionState })),
+  useStore: vi.fn((selector) => selector({ connection: mockConnectionState, ui: mockUiState })),
 }));
 
 let mockConnectionState = {
   roomCode: 'ABCD',
+};
+
+let mockUiState = {
+  retroMode: false,
 };
 
 // Mock clipboard API
@@ -24,6 +28,7 @@ describe('RoomCodeDisplay', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockConnectionState = { roomCode: 'ABCD' };
+    mockUiState = { retroMode: false };
   });
 
   it('should display the room code', () => {

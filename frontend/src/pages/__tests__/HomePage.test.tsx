@@ -5,6 +5,8 @@ import { StoreContext, createRootStore } from '../../store/createRootStore';
 
 it('reveals forms when buttons clicked', async () => {
   const store = createRootStore();
+  // Toggle retroMode off (default is true) to test standard mode UI
+  store.getState().ui.toggleRetroMode();
   render(
     <StoreContext.Provider value={store}>
       <HomePage />

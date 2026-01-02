@@ -1,7 +1,20 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useGuess } from '../hooks/useGuess';
 import { AirportAutocomplete } from '../../../components/AirportAutocomplete';
 import type { Airport } from '../../../components/AirportAutocomplete';
+import { useStore } from '../../../hooks/useStore';
+import { selectRetroMode } from '../../ui/selectors';
+import { selectRound } from '../selectors';
+import { selectPlaneById } from '../../planes/selectors';
+import type { PlaneState } from '../../common/types';
+
+function getFlightStatus(alt_v: number | undefined, alt: number | undefined): string {
+  if (!alt_v || !alt) return 'TRACKING';
+  if (alt < 3000) return alt_v > 50 ? 'DEPARTING' : 'ARRIVING';
+  if (alt_v > 100) return 'ASCENDING';
+  if (alt_v < -100) return 'DESCENDING';
+  return 'CRUISING';
+}
 
 export default function GuessForm(): JSX.Element | null {
   const {
@@ -16,6 +29,11 @@ export default function GuessForm(): JSX.Element | null {
     handleSubmit,
     dismiss,
   } = useGuess();
+
+  const retroMode = useStore(selectRetroMode);
+  const round = useStore(selectRound);
+  const planeHex = round?.hex;
+  const plane = useStore(selectPlaneById(planeHex ?? '')) as PlaneState | undefined;
 
   const handleAirportChange = useCallback((value: string) => {
     setInputValue(value);
@@ -33,6 +51,141 @@ export default function GuessForm(): JSX.Element | null {
 
   if (!visible) return null;
 
+  // Retro mode rendering
+  if (retroMode) {
+    const flightStatus = getFlightStatus(plane?.alt_v, plane?.alt);
+
+    return (
+      <div
+        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70"
+        onClick={dismiss}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-md relative"
+        >
+          {/* Brass corner decorations */}
+          <div className="absolute -top-1 -left-1 w-4 h-4 border-l-2 border-t-2 border-retro-brass" />
+          <div className="absolute -top-1 -right-1 w-4 h-4 border-r-2 border-t-2 border-retro-brass" />
+          <div className="absolute -bottom-1 -left-1 w-4 h-4 border-l-2 border-b-2 border-retro-brass" />
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 border-r-2 border-b-2 border-retro-brass" />
+
+          <form
+            onSubmit={handleSubmit}
+            className="bg-retro-panel border border-retro-border p-6 space-y-4"
+          >
+            {/* Header with time remaining */}
+            <div className="flex items-center justify-between border-b border-retro-border pb-4">
+              <h2 className="font-splitflap text-xl text-retro-led tracking-widest">
+                DESTINATION
+              </h2>
+              {remaining != null && (
+                <div className="font-splitflap text-lg text-retro-led-bright">
+                  {remaining}s
+                </div>
+              )}
+            </div>
+
+            {/* Plane info section */}
+            <div className="bg-retro-panel-dark border border-retro-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                  Flight
+                </span>
+                <span className="font-splitflap text-retro-led tracking-wider">
+                  {plane?.callsign || planeHex || 'UNKNOWN'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                  Status
+                </span>
+                <span className="font-splitflap text-retro-led tracking-wider">
+                  {flightStatus}
+                </span>
+              </div>
+              {plane?.alt != null && (
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                    Altitude
+                  </span>
+                  <span className="font-splitflap text-retro-led tracking-wider">
+                    {Math.round(plane.alt).toLocaleString()} FT
+                  </span>
+                </div>
+              )}
+              {plane?.origin && (
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                    Origin
+                  </span>
+                  <span className="font-splitflap text-retro-led tracking-wider">
+                    {plane.origin}
+                  </span>
+                </div>
+              )}
+              {plane?.operator && (
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                    Airline
+                  </span>
+                  <span className="font-display text-retro-text tracking-wider">
+                    {plane.operator}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Airport input */}
+            <div>
+              <label htmlFor="airport-guess" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-2">
+                Enter Destination
+              </label>
+              <AirportAutocomplete
+                id="airport-guess"
+                value={inputValue}
+                onChange={handleAirportChange}
+                onSelect={handleAirportSelect}
+                placeholder="Type city or airport code..."
+                disabled={disabled}
+                className="w-full"
+                inputClassName="!font-display !normal-case !tracking-[0.06em] !text-retro-ink"
+                aria-label="Airport guess"
+                aria-describedby={error ? "guess-error" : undefined}
+                autoFocus
+                retroMode
+              />
+              {selectedAirport && (
+                <p className="mt-2 font-display text-xs text-retro-text">
+                  Selected: {selectedAirport.name} ({selectedAirport.iata || selectedAirport.icao})
+                </p>
+              )}
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <p id="guess-error" className="font-display text-sm text-retro-accent" role="alert">
+                {error}
+              </p>
+            )}
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={disabled}
+              className="w-full py-3 px-4 font-display text-sm uppercase tracking-widest bg-retro-primary text-retro-panel border-0 hover:bg-retro-primary-bright transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {disabled ? 'Transmitted' : 'Transmit Guess'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard mode rendering
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"

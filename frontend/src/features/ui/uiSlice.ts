@@ -5,6 +5,7 @@ export type Panel = "planes" | "leaderboard" | "settings";
 
 export interface UiSlice {
   darkMode: boolean;
+  retroMode: boolean;
   activePanel: Panel;
   isPanelOpen: boolean;
   currentView: 'home' | 'game';
@@ -12,6 +13,7 @@ export interface UiSlice {
   formError: string | null;
   expandedPlaneHex: string | null;
   toggleDarkMode: () => void;
+  toggleRetroMode: () => void;
   setActivePanel: (panel: Panel) => void;
   togglePanelOpen: () => void;
   setCurrentView: (view: 'home' | 'game') => void;
@@ -21,10 +23,14 @@ export interface UiSlice {
   setExpandedPlane: (hex: string | null) => void;
 }
 
-export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
-  set,
-) => ({
+export const createUiSlice: StateCreator<
+  RootState,
+  [["zustand/immer", never]],
+  [],
+  UiSlice
+> = (set) => ({
   darkMode: false,
+  retroMode: true,
   activePanel: "planes",
   isPanelOpen: true,
   currentView: 'home',
@@ -34,6 +40,10 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
   toggleDarkMode: () =>
     set((state) => {
       state.ui.darkMode = !state.ui.darkMode;
+    }),
+  toggleRetroMode: () =>
+    set((state) => {
+      state.ui.retroMode = !state.ui.retroMode;
     }),
   setActivePanel: (panel) =>
     set((state) => {
@@ -46,6 +56,10 @@ export const createUiSlice: StateCreator<RootState, [], [], UiSlice> = (
   setCurrentView: (view) =>
     set((state) => {
       state.ui.currentView = view;
+      if (view === 'game') {
+        state.ui.activePanel = 'planes';
+        state.ui.isPanelOpen = true;
+      }
     }),
   setLoading: (loading) =>
     set((state) => {

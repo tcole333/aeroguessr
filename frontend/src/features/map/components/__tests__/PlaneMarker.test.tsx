@@ -2,12 +2,18 @@ import { render } from '@testing-library/react';
 import { MapContainer } from 'react-leaflet';
 import PlaneMarker from '../PlaneMarker';
 import type { PlaneState } from '../../../common/types';
+import { StoreContext, createRootStore } from '../../../../store/createRootStore';
 
 function renderWithMap(child: JSX.Element) {
+  const store = createRootStore();
+  // Toggle retroMode off (default is true) to test standard mode UI
+  store.getState().ui.toggleRetroMode();
   return render(
-    <MapContainer center={[0, 0]} zoom={5}>
-      {child}
-    </MapContainer>,
+    <StoreContext.Provider value={store}>
+      <MapContainer center={[0, 0]} zoom={5}>
+        {child}
+      </MapContainer>
+    </StoreContext.Provider>,
   );
 }
 

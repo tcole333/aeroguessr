@@ -64,9 +64,11 @@ function handleInbound(
       break;
     case 'roundStart':
       try {
-        actions.setRoundStart(msg.payload);
-        // Ensure the active round plane is expanded in the UI
-        actions.setExpandedPlane(msg.payload.hex);
+        if (msg.payload) {
+          actions.setRoundStart(msg.payload);
+          // Ensure the active round plane is expanded in the UI
+          actions.setExpandedPlane(msg.payload.hex);
+        }
       } catch (error) {
         console.error('[WS] Error handling roundStart:', error);
       }

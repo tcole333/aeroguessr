@@ -8,6 +8,8 @@ import * as api from '../../../../services/apiService';
 describe('JoinRoomForm', () => {
   it('joins room and sets state', async () => {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     vi.spyOn(api, 'joinRoomAPI').mockResolvedValue({ room_code: 'ABCD', ws_url: 'ws://j' });
     render(
       <StoreContext.Provider value={store}>

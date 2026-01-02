@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import Fuse from 'fuse.js';
+import { useState, useEffect, useCallback } from 'react';
+import Fuse, { type IFuseOptions } from 'fuse.js';
 import type { Airport, AirportSearchResult, UseAirportSearchResult } from '../types';
 import airportsData from '../../../assets/airports.json';
 
-const fuseOptions: Fuse.IFuseOptions<Airport> = {
+const fuseOptions: IFuseOptions<Airport> = {
   keys: [
     { name: 'name', weight: 0.3 },
     { name: 'municipality', weight: 0.3 },

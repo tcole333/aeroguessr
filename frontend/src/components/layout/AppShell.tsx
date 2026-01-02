@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import MapView from '../../features/map/components/MapView';
 import SlidingPanel from './SlidingPanel';
 import { useStore } from '../../hooks/useStore';
-import { selectDarkMode } from '../../features/ui/selectors';
+import { selectDarkMode, selectRetroMode } from '../../features/ui/selectors';
 import { useWebSocketManager } from '../../hooks/useWebSocketManager';
 import { selectRoomCode, selectPlayerNickname } from '../../features/connection/selectors';
 import { RoundResultModal } from '../ui/RoundResultModal';
@@ -10,6 +10,7 @@ import GuessForm from '../../features/game/components/GuessForm';
 
 export default function AppShell(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
+  const retroMode = useStore(selectRetroMode);
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
 
   // Wire up WebSocket connection whenever room/nickname are present
@@ -21,8 +22,14 @@ export default function AppShell(): JSX.Element {
     setExpandedPlane(hex);
   }, [setExpandedPlane]);
 
+  // Build theme classes
+  const themeClasses = [
+    darkMode ? 'dark' : '',
+    retroMode ? 'retro' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={`h-screen w-screen flex flex-col md:flex-row bg-gray-100 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
+    <div className={`h-screen w-screen flex flex-col md:flex-row ${retroMode ? 'bg-retro-bg' : 'bg-gray-100 dark:bg-gray-900'} ${themeClasses}`}>
       {/* Map container: flex-1 so it fills remaining space */}
       <div className="flex-1 h-1/2 w-full md:h-full">
         <MapView onPlaneClick={handlePlaneClick} />

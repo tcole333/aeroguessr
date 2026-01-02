@@ -4,11 +4,13 @@ import { startSoloGameAPI } from '../../../services/apiService';
 import {
   selectFormError,
   selectIsLoading,
+  selectRetroMode,
 } from '../../ui/selectors';
 
 export default function StartSoloForm(): JSX.Element {
   const formError = useStore(selectFormError);
   const isLoading = useStore(selectIsLoading);
+  const retroMode = useStore(selectRetroMode);
   const { setLoading, clearFormError, setFormError, setCurrentView } = useStore(
     (s) => s.ui,
   );
@@ -33,6 +35,34 @@ export default function StartSoloForm(): JSX.Element {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (retroMode) {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="solo-nick" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Nickname
+          </label>
+          <input
+            id="solo-nick"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-splitflap text-retro-led uppercase tracking-wider focus:border-retro-primary focus:outline-none"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            required
+            placeholder="Enter name"
+          />
+        </div>
+        {formError && <p className="font-display text-sm text-retro-accent">{formError}</p>}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2 px-4 font-display text-sm uppercase tracking-widest bg-retro-primary text-retro-panel border-0 hover:bg-retro-primary-bright transition-colors disabled:opacity-50"
+        >
+          {isLoading ? 'Starting...' : 'Start'}
+        </button>
+      </form>
+    );
   }
 
   return (

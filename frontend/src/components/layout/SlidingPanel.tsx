@@ -10,6 +10,7 @@ import { useStore } from '../../hooks/useStore';
 import {
   selectActivePanel,
   selectIsPanelOpen,
+  selectRetroMode,
 } from '../../features/ui/selectors';
 import chevronUpUrl from '../../assets/icons/chevron-up.svg';
 import chevronDownUrl from '../../assets/icons/chevron-down.svg';
@@ -17,6 +18,7 @@ import chevronDownUrl from '../../assets/icons/chevron-down.svg';
 export default function SlidingPanel(): JSX.Element {
   const activePanel = useStore(selectActivePanel);
   const isPanelOpen = useStore(selectIsPanelOpen);
+  const retroMode = useStore(selectRetroMode);
   const togglePanelOpen = useStore((s) => s.ui.togglePanelOpen);
 
   let content: JSX.Element;
@@ -31,25 +33,55 @@ export default function SlidingPanel(): JSX.Element {
       content = <PlaneListPanelContent />;
   }
 
+  // Retro panel styling
+  const panelClasses = retroMode
+    ? `flex min-h-0 flex-col w-full bg-retro-bg border-l border-retro-border text-retro-text transition-all duration-300 ease-in-out relative z-[700] shadow-[-6px_0_12px_rgba(45,42,36,0.08)] ${isPanelOpen ? 'h-1/2 overflow-y-auto md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`
+    : `flex min-h-0 flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out relative z-[700] ${isPanelOpen ? 'h-1/2 overflow-y-auto md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`;
+
+  const headerBorderClasses = retroMode
+    ? 'border-b border-retro-border'
+    : 'border-b border-gray-700';
+
+  const headerRowClasses = retroMode
+    ? 'flex items-center justify-between px-3 py-2 bg-retro-panel-dark'
+    : 'flex items-center justify-between p-2';
+
+  const toggleButtonClasses = retroMode
+    ? 'p-2 hover:bg-retro-panel text-retro-primary transition-colors'
+    : 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded';
+
+  const statusSectionClasses = retroMode
+    ? 'px-4 py-3 border-t border-retro-border space-y-2 bg-retro-panel'
+    : 'px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2';
+
+  const contentClasses = retroMode
+    ? `flex-1 min-h-0 p-4 bg-retro-bg ${isPanelOpen ? 'overflow-visible md:overflow-y-auto' : 'hidden'}`
+    : `flex-1 min-h-0 p-4 ${isPanelOpen ? 'overflow-visible md:overflow-y-auto' : 'hidden'}`;
+
   return (
-    <div
-      className={`flex flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out relative z-[700] ${isPanelOpen ? 'h-1/2 md:w-96' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`}
-    >
-      <div className="border-b border-gray-700">
-        <div className="flex items-center justify-between p-2">
+    <div className={panelClasses}>
+      {/* Brass corner decoration for retro mode */}
+      {retroMode && <div className="brass-corners absolute inset-0 pointer-events-none" />}
+
+      <div className={headerBorderClasses}>
+        <div className={headerRowClasses}>
           <RoomCodeDisplay className={isPanelOpen ? '' : 'hidden md:hidden'} />
           <button
             type="button"
             onClick={togglePanelOpen}
             aria-label={isPanelOpen ? 'Minimize panel' : 'Maximize panel'}
             aria-expanded={isPanelOpen}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className={toggleButtonClasses}
           >
-            <img src={isPanelOpen ? chevronDownUrl : chevronUpUrl} alt="" className="h-4 w-4" />
+            {retroMode ? (
+              <span className="font-splitflap text-lg">{isPanelOpen ? '▼' : '▲'}</span>
+            ) : (
+              <img src={isPanelOpen ? chevronDownUrl : chevronUpUrl} alt="" className="h-4 w-4" />
+            )}
           </button>
         </div>
         {isPanelOpen && (
-          <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <div className={statusSectionClasses}>
             <ScoreModeIndicator />
             <CurrentHostDisplay />
             <GameStatusIndicator />
@@ -57,7 +89,7 @@ export default function SlidingPanel(): JSX.Element {
         )}
       </div>
       <PanelTabs className={`${!isPanelOpen ? 'md:hidden' : ''}`} />
-      <div className={`flex-1 overflow-y-auto p-4 ${isPanelOpen ? '' : 'hidden'}`}>{content}</div>
+      <div className={contentClasses}>{content}</div>
     </div>
   );
 }

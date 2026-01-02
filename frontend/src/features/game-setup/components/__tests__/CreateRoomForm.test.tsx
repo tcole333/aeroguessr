@@ -8,6 +8,8 @@ import * as api from '../../../../services/apiService';
 describe('CreateRoomForm', () => {
   it('submits form and updates store', async () => {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     vi.spyOn(api, 'createRoomAPI').mockResolvedValue({ room_code: 'CODE', ws_url: 'ws://c' });
     render(
       <StoreContext.Provider value={store}>

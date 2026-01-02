@@ -13,8 +13,12 @@ vi.mock('../../../../hooks/useWebSocketManager', () => ({
   },
 }));
 
-function setup({ darkMode = false } = {}) {
+function setup({ darkMode = false, retroMode = false } = {}) {
   const store = createRootStore();
+  // Default retroMode is true in uiSlice, toggle off for standard mode tests
+  if (!retroMode) {
+    store.getState().ui.toggleRetroMode();
+  }
   if (darkMode) {
     store.getState().ui.toggleDarkMode();
   }
@@ -28,9 +32,10 @@ function setup({ darkMode = false } = {}) {
 describe('SettingsPanelContent', () => {
   it('toggles night mode', async () => {
     const { store } = setup();
-    const checkbox = screen.getByRole('checkbox');
-    expect(checkbox).not.toBeChecked();
-    await userEvent.click(checkbox);
+    // Get the Night Mode checkbox specifically (there are two checkboxes: Chart Mode and Night Mode)
+    const nightModeCheckbox = screen.getByRole('checkbox', { name: /night mode/i });
+    expect(nightModeCheckbox).not.toBeChecked();
+    await userEvent.click(nightModeCheckbox);
     expect(store.getState().ui.darkMode).toBe(true);
   });
 

@@ -4,11 +4,13 @@ import { joinRoomAPI } from '../../../services/apiService';
 import {
   selectFormError,
   selectIsLoading,
+  selectRetroMode,
 } from '../../ui/selectors';
 
 export default function JoinRoomForm(): JSX.Element {
   const formError = useStore(selectFormError);
   const isLoading = useStore(selectIsLoading);
+  const retroMode = useStore(selectRetroMode);
   const { setLoading, clearFormError, setFormError, setCurrentView } = useStore(
     (s) => s.ui,
   );
@@ -34,6 +36,49 @@ export default function JoinRoomForm(): JSX.Element {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (retroMode) {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="join-code" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Room Code
+          </label>
+          <input
+            id="join-code"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-display text-retro-ink text-center uppercase tracking-[0.18em] focus:border-retro-primary focus:outline-none placeholder:text-retro-text-muted"
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value)}
+            required
+            minLength={4}
+            maxLength={4}
+            placeholder="----"
+          />
+        </div>
+        <div>
+          <label htmlFor="join-nick" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-1">
+            Nickname
+          </label>
+          <input
+            id="join-nick"
+            className="w-full bg-retro-panel border border-retro-border p-2 font-splitflap text-retro-led uppercase tracking-wider focus:border-retro-primary focus:outline-none"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            required
+            placeholder="Enter name"
+          />
+        </div>
+        {formError && <p className="font-display text-sm text-retro-accent">{formError}</p>}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2 px-4 font-display text-sm uppercase tracking-widest bg-retro-primary text-retro-panel border-0 hover:bg-retro-primary-bright transition-colors disabled:opacity-50"
+        >
+          {isLoading ? 'Joining...' : 'Join'}
+        </button>
+      </form>
+    );
   }
 
   return (

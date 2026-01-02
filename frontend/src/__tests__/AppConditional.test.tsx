@@ -13,6 +13,8 @@ vi.mock('../components/ui/RoomCodeDisplay', () => ({
 describe('App view switching', () => {
   it('shows home when currentView=home', () => {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     const { container } = render(
       <StoreContext.Provider value={store}>
         <InnerApp />
@@ -23,6 +25,8 @@ describe('App view switching', () => {
 
   it('shows game when view is game', () => {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     store.getState().ui.setCurrentView('game');
     const { container } = render(
       <StoreContext.Provider value={store}>

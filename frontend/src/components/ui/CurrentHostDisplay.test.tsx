@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CurrentHostDisplay } from './CurrentHostDisplay';
 
@@ -10,9 +10,25 @@ vi.mock('../../hooks/useStore', () => ({
 // Import after mock
 import { useStore } from '../../hooks/useStore';
 
+// Create mock implementation that handles multiple selectors
+const createMockUseStore = (hostNickname: string | null) => {
+  return vi.fn((selector) => {
+    // Create a mock state
+    const state = {
+      game: { hostNickname },
+      ui: { retroMode: false },
+    };
+    return selector(state);
+  });
+};
+
 describe('CurrentHostDisplay', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders host information when hostNickname exists', () => {
-    vi.mocked(useStore).mockReturnValue('PlayerHost');
+    vi.mocked(useStore).mockImplementation(createMockUseStore('PlayerHost'));
 
     render(<CurrentHostDisplay />);
 
@@ -21,7 +37,7 @@ describe('CurrentHostDisplay', () => {
   });
 
   it('returns null when no hostNickname', () => {
-    vi.mocked(useStore).mockReturnValue(null);
+    vi.mocked(useStore).mockImplementation(createMockUseStore(null));
 
     const { container } = render(<CurrentHostDisplay />);
 
@@ -29,7 +45,7 @@ describe('CurrentHostDisplay', () => {
   });
 
   it('applies custom className', () => {
-    vi.mocked(useStore).mockReturnValue('TestHost');
+    vi.mocked(useStore).mockImplementation(createMockUseStore('TestHost'));
 
     render(<CurrentHostDisplay className="mt-4" />);
 
@@ -38,15 +54,12 @@ describe('CurrentHostDisplay', () => {
   });
 
   it('updates when host changes', () => {
+    vi.mocked(useStore).mockImplementation(createMockUseStore('HostA'));
     const { rerender } = render(<CurrentHostDisplay />);
-
-    // Initial host
-    vi.mocked(useStore).mockReturnValue('HostA');
-    rerender(<CurrentHostDisplay />);
     expect(screen.getByText('HostA')).toBeInTheDocument();
 
     // Host changes
-    vi.mocked(useStore).mockReturnValue('HostB');
+    vi.mocked(useStore).mockImplementation(createMockUseStore('HostB'));
     rerender(<CurrentHostDisplay />);
     expect(screen.getByText('HostB')).toBeInTheDocument();
   });

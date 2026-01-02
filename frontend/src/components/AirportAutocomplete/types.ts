@@ -15,12 +15,14 @@ export interface AirportAutocompleteProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  inputClassName?: string;
   id?: string;
   name?: string;
   required?: boolean;
   autoFocus?: boolean;
   'aria-label'?: string;
   'aria-describedby'?: string;
+  retroMode?: boolean;
 }
 
 export interface AirportSearchResult extends Airport {

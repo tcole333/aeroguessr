@@ -9,6 +9,8 @@ describe('ScoreModeIndicator', () => {
 
   beforeEach(() => {
     store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
   });
 
   const renderWithStore = (component: React.ReactElement) => {
@@ -25,23 +27,23 @@ describe('ScoreModeIndicator', () => {
   });
 
   it('should render Exact mode indicator', () => {
-    store.getState().game.scoringMode = 'Exact';
+    store.setState((s) => { s.game.scoringMode = 'Exact'; });
     renderWithStore(<ScoreModeIndicator />);
 
     expect(screen.getByText('Mode:')).toBeInTheDocument();
-    expect(screen.getByText('🎯 Exact')).toBeInTheDocument();
+    expect(screen.getByText(/Exact/)).toBeInTheDocument();
   });
 
   it('should render Distance mode indicator', () => {
-    store.getState().game.scoringMode = 'Distance';
+    store.setState((s) => { s.game.scoringMode = 'Distance'; });
     renderWithStore(<ScoreModeIndicator />);
 
     expect(screen.getByText('Mode:')).toBeInTheDocument();
-    expect(screen.getByText('📍 Distance')).toBeInTheDocument();
+    expect(screen.getByText(/Distance/)).toBeInTheDocument();
   });
 
   it('should show user score when nickname exists', () => {
-    store.getState().game.scoringMode = 'Exact';
+    store.setState((s) => { s.game.scoringMode = 'Exact'; });
     store.getState().connection.setNickname('TestPlayer');
     store.getState().game.applyDelta({ scores: { TestPlayer: 150 } });
 
@@ -52,7 +54,7 @@ describe('ScoreModeIndicator', () => {
   });
 
   it('should show zero score for new player', () => {
-    store.getState().game.scoringMode = 'Exact';
+    store.setState((s) => { s.game.scoringMode = 'Exact'; });
     store.getState().connection.setNickname('NewPlayer');
 
     renderWithStore(<ScoreModeIndicator />);
@@ -62,12 +64,11 @@ describe('ScoreModeIndicator', () => {
   });
 
   it('should show timer when round is active', () => {
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.round = {
-      state: 'guessing',
-      round_number: 1,
-    };
-    store.getState().game.roundTimeout = 30;
+    store.setState((s) => {
+      s.game.scoringMode = 'Exact';
+      s.game.round = { state: 'guessing', round_number: 1 };
+      s.game.roundTimeout = 30;
+    });
 
     renderWithStore(<ScoreModeIndicator />);
 
@@ -78,12 +79,11 @@ describe('ScoreModeIndicator', () => {
   it('should countdown timer', async () => {
     vi.useFakeTimers();
 
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.round = {
-      state: 'guessing',
-      round_number: 1,
-    };
-    store.getState().game.roundTimeout = 30;
+    store.setState((s) => {
+      s.game.scoringMode = 'Exact';
+      s.game.round = { state: 'guessing', round_number: 1 };
+      s.game.roundTimeout = 30;
+    });
 
     renderWithStore(<ScoreModeIndicator />);
 
@@ -109,12 +109,11 @@ describe('ScoreModeIndicator', () => {
   it('should show urgent styling when time is low', async () => {
     vi.useFakeTimers();
 
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.round = {
-      state: 'guessing',
-      round_number: 1,
-    };
-    store.getState().game.roundTimeout = 15;
+    store.setState((s) => {
+      s.game.scoringMode = 'Exact';
+      s.game.round = { state: 'guessing', round_number: 1 };
+      s.game.roundTimeout = 15;
+    });
 
     renderWithStore(<ScoreModeIndicator />);
 
@@ -133,12 +132,11 @@ describe('ScoreModeIndicator', () => {
   });
 
   it('should not show timer when round is not active', () => {
-    store.getState().game.scoringMode = 'Exact';
-    store.getState().game.round = {
-      state: 'waiting_for_selection',
-      round_number: 1,
-    };
-    store.getState().game.roundTimeout = 30;
+    store.setState((s) => {
+      s.game.scoringMode = 'Exact';
+      s.game.round = { state: 'waiting_for_selection', round_number: 1 };
+      s.game.roundTimeout = 30;
+    });
 
     renderWithStore(<ScoreModeIndicator />);
 
@@ -146,7 +144,7 @@ describe('ScoreModeIndicator', () => {
   });
 
   it('should accept custom className', () => {
-    store.getState().game.scoringMode = 'Exact';
+    store.setState((s) => { s.game.scoringMode = 'Exact'; });
 
     const { container } = renderWithStore(<ScoreModeIndicator className="custom-class" />);
 

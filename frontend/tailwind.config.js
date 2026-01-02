@@ -31,6 +31,40 @@ export default {
           900: "#0f172a",
           950: "#020617",
         },
+        // Retro airport terminal palette (theme tokens via CSS variables)
+        retro: {
+          bg: "rgb(var(--retro-bg) / <alpha-value>)",
+          panel: "rgb(var(--retro-panel) / <alpha-value>)",
+          "panel-dark": "rgb(var(--retro-panel-dark) / <alpha-value>)",
+          "panel-elevated": "rgb(var(--retro-panel-elevated) / <alpha-value>)",
+          border: "rgb(var(--retro-border) / <alpha-value>)",
+          "border-strong": "rgb(var(--retro-border-strong) / <alpha-value>)",
+          ink: "rgb(var(--retro-ink) / <alpha-value>)",
+          text: "rgb(var(--retro-text) / <alpha-value>)",
+          "text-muted": "rgb(var(--retro-text-muted) / <alpha-value>)",
+          "text-light": "rgb(var(--retro-text-light) / <alpha-value>)",
+          primary: "rgb(var(--retro-primary) / <alpha-value>)",
+          "primary-bright": "rgb(var(--retro-primary-bright) / <alpha-value>)",
+          "primary-dark": "rgb(var(--retro-primary-dark) / <alpha-value>)",
+          secondary: "rgb(var(--retro-secondary) / <alpha-value>)",
+          muted: "rgb(var(--retro-muted) / <alpha-value>)",
+          accent: "rgb(var(--retro-accent) / <alpha-value>)",
+          success: "rgb(var(--retro-success) / <alpha-value>)",
+          brass: "rgb(var(--retro-brass) / <alpha-value>)",
+          led: "rgb(var(--retro-led-primary) / <alpha-value>)",
+          "led-bright": "rgb(var(--retro-led-bright) / <alpha-value>)",
+          "led-muted": "rgb(var(--retro-led-muted) / <alpha-value>)",
+          ocean: "rgb(var(--retro-map-ocean) / <alpha-value>)",
+          land: "rgb(var(--retro-map-land) / <alpha-value>)",
+          coast: "rgb(var(--retro-map-coast) / <alpha-value>)",
+          forest: "rgb(var(--retro-forest) / <alpha-value>)",
+          sage: "rgb(var(--retro-sage) / <alpha-value>)",
+        },
+      },
+      fontFamily: {
+        splitflap: ["DSEG14Classic", "monospace"], // Numbers only
+        display: ["IBM Plex Sans", "DM Sans", "system-ui", "sans-serif"],
+        mono: ["'Share Tech Mono'", "'Courier New'", "monospace"],
       },
       screens: {
         xs: "375px",
@@ -38,11 +72,21 @@ export default {
       },
       animation: {
         "fade-in": "fadeIn 0.3s ease-in-out",
+        "flip-in": "flipIn 0.3s ease-out",
+        "glow-pulse": "glowPulse 2s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
           "0%": { opacity: "0", transform: "translateY(-10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        flipIn: {
+          "0%": { transform: "rotateX(-90deg)", opacity: "0" },
+          "100%": { transform: "rotateX(0)", opacity: "1" },
+        },
+        glowPulse: {
+          "0%, 100%": { textShadow: "0 0 4px currentColor" },
+          "50%": { textShadow: "0 0 12px currentColor, 0 0 20px currentColor" },
         },
       },
     },

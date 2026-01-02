@@ -6,6 +6,8 @@ import { StoreContext, createRootStore } from '../../../../store/createRootStore
 describe('LeaderboardPanelContent', () => {
   function setup(initialScores: Record<string, number>, hostNickname?: string) {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     store.getState().game.applyDelta({ scores: initialScores });
     store.getState().connection.setNickname('Bob');
     if (hostNickname) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../../hooks/useStore';
 import { selectHost } from '../../features/game/selectors';
-import { HostIndicator } from './HostIndicator';
+import { selectRetroMode } from '../../features/ui/selectors';
 
 interface CurrentHostDisplayProps {
   className?: string;
@@ -9,9 +9,21 @@ interface CurrentHostDisplayProps {
 
 export const CurrentHostDisplay: React.FC<CurrentHostDisplayProps> = ({ className = '' }) => {
   const hostNickname = useStore(selectHost);
+  const retroMode = useStore(selectRetroMode);
 
   if (!hostNickname) {
     return null;
+  }
+
+  if (retroMode) {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Host:</span>
+        <span className="px-2 py-1 border border-retro-border text-xs font-display uppercase tracking-wider text-retro-text bg-retro-panel-dark">
+          {hostNickname}
+        </span>
+      </div>
+    );
   }
 
   return (

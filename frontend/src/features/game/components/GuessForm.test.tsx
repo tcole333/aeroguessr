@@ -8,6 +8,23 @@ import type { Airport } from '../../../components/AirportAutocomplete';
 // Mock the useGuess hook
 vi.mock('../hooks/useGuess');
 
+// Mock the useStore hook with a mock state
+vi.mock('../../../hooks/useStore', () => ({
+  useStore: vi.fn((selector) => {
+    // Create a mock state that the selectors can use
+    const mockState = {
+      ui: { retroMode: false },
+      game: { round: null },
+      planes: { values: {} },  // Use 'values' not 'byId' to match selector
+    };
+    // If selector is a function, call it with the mock state
+    if (typeof selector === 'function') {
+      return selector(mockState);
+    }
+    return undefined;
+  }),
+}));
+
 // Mock the AirportAutocomplete component
 vi.mock('../../../components/AirportAutocomplete', () => ({
   AirportAutocomplete: ({

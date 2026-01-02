@@ -2,6 +2,7 @@ import React from 'react';
 import { useStore } from '../../hooks/useStore';
 import { selectScores } from '../../features/game/selectors';
 import { selectPlayerNickname } from '../../features/connection/selectors';
+import { selectRetroMode } from '../../features/ui/selectors';
 
 interface ScoreModeIndicatorProps {
   className?: string;
@@ -13,12 +14,46 @@ export const ScoreModeIndicator: React.FC<ScoreModeIndicatorProps> = ({ classNam
   const roundTimeout = useStore((s) => s.game.roundTimeout);
   const scores = useStore(selectScores);
   const myNickname = useStore(selectPlayerNickname);
+  const retroMode = useStore(selectRetroMode);
 
   if (!scoringMode) {
     return null;
   }
 
   const isRoundActive = round?.state === 'guessing';
+
+  if (retroMode) {
+    return (
+      <div className={`flex items-center gap-4 ${className}`}>
+        {/* Scoring Mode */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Mode:</span>
+          <span className={`px-2 py-1 border text-xs font-display uppercase tracking-wider ${
+            scoringMode === 'Exact'
+              ? 'border-retro-border text-retro-text bg-retro-panel-dark'
+              : 'border-retro-border text-retro-text bg-retro-panel-dark'
+          }`}>
+            {scoringMode === 'Exact' ? 'Exact' : 'Distance'}
+          </span>
+        </div>
+
+        {/* User Score */}
+        {myNickname && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Score:</span>
+            <span className="font-splitflap text-sm font-bold text-retro-led-bright">
+              {scores[myNickname] || 0}
+            </span>
+          </div>
+        )}
+
+        {/* Round Timer (when active) */}
+        {isRoundActive && roundTimeout && (
+          <RoundTimer timeout={roundTimeout} retroMode />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-4 ${className}`}>
@@ -53,7 +88,7 @@ export const ScoreModeIndicator: React.FC<ScoreModeIndicatorProps> = ({ classNam
 };
 
 // Separate timer component to handle countdown
-const RoundTimer: React.FC<{ timeout: number }> = ({ timeout }) => {
+const RoundTimer: React.FC<{ timeout: number; retroMode?: boolean }> = ({ timeout, retroMode }) => {
   const [timeLeft, setTimeLeft] = React.useState(timeout);
 
   React.useEffect(() => {
@@ -73,6 +108,19 @@ const RoundTimer: React.FC<{ timeout: number }> = ({ timeout }) => {
   }, [timeout]);
 
   const isUrgent = timeLeft <= 10;
+
+  if (retroMode) {
+    return (
+      <div className={`flex items-center gap-2 ${isUrgent ? 'animate-pulse' : ''}`}>
+        <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Time:</span>
+        <span className={`font-splitflap text-sm font-bold ${
+          isUrgent ? 'text-retro-accent' : 'text-retro-led'
+        }`}>
+          {timeLeft}s
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-2 ${

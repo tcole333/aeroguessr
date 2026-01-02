@@ -364,6 +364,7 @@ class DeltaPayload(BaseModel):
                             "category": 2,
                             "origin": "KBOS",
                             "destination": "KJFK",
+                            "operator": "United",
                         }  # Example PlaneState
                     ],
                     "removed": ["d4e5f6"],

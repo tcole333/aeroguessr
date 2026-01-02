@@ -1,13 +1,12 @@
 import { useStore } from '../../../hooks/useStore';
-import { selectDarkMode } from '../../ui/selectors';
-import { selectIsSolo } from '../../game/selectors';
-import { selectPlayerNickname } from '../../connection/selectors';
+import { selectDarkMode, selectRetroMode } from '../../ui/selectors';
 import { webSocketClient } from '../../../hooks/useWebSocketManager';
 
 export default function SettingsPanelContent(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
+  const retroMode = useStore(selectRetroMode);
   const toggleDarkMode = useStore((s) => s.ui.toggleDarkMode);
-  const isSolo = useStore(selectIsSolo);
+  const toggleRetroMode = useStore((s) => s.ui.toggleRetroMode);
   const leaveRoom = useStore((s) => s.game.leaveRoom);
   const clearConnectionDetails = useStore((s) => s.connection.clearConnectionDetails);
   const setCurrentView = useStore((s) => s.ui.setCurrentView);
@@ -31,8 +30,97 @@ export default function SettingsPanelContent(): JSX.Element {
     localStorage.removeItem('plane-session');
   };
 
+  // Retro-themed settings panel
+  if (retroMode) {
+    return (
+      <div className="space-y-6">
+        {/* Chart Theme Toggle */}
+        <label
+          htmlFor="retroModeToggle"
+          className="flex items-center justify-between cursor-pointer"
+        >
+          <div>
+            <span className="font-display text-sm uppercase tracking-widest text-retro-text">
+              Chart Mode
+            </span>
+            <p className="text-xs font-display text-retro-text-muted mt-1">
+              Vintage aviation chart aesthetic
+            </p>
+          </div>
+          <div className="relative">
+            <input
+              id="retroModeToggle"
+              type="checkbox"
+              className="sr-only peer"
+              checked={retroMode}
+              onChange={toggleRetroMode}
+            />
+            <div className="w-12 h-6 bg-retro-panel border border-retro-border peer-checked:border-retro-primary transition-colors"></div>
+            <div className="absolute left-1 top-1 w-4 h-4 bg-retro-border peer-checked:bg-retro-primary peer-checked:translate-x-6 transition-all"></div>
+          </div>
+        </label>
+
+        {/* Night Mode Toggle */}
+        <label
+          htmlFor="nightModeToggle"
+          className="flex items-center justify-between cursor-pointer"
+        >
+          <span className="font-display text-sm uppercase tracking-widest text-retro-text">
+            Night Mode
+          </span>
+          <div className="relative">
+            <input
+              id="nightModeToggle"
+              type="checkbox"
+              className="sr-only peer"
+              checked={darkMode}
+              onChange={toggleDarkMode}
+            />
+            <div className="w-12 h-6 bg-retro-panel border border-retro-border peer-checked:border-retro-primary transition-colors"></div>
+            <div className="absolute left-1 top-1 w-4 h-4 bg-retro-border peer-checked:bg-retro-primary peer-checked:translate-x-6 transition-all"></div>
+          </div>
+        </label>
+
+        {/* Leave Room Button */}
+        <button
+          type="button"
+          onClick={handleLeave}
+          className="w-full py-3 px-3 font-display uppercase tracking-widest text-sm border border-retro-accent bg-transparent text-retro-accent hover:bg-retro-accent hover:text-retro-panel transition-all"
+        >
+          Leave Gate
+        </button>
+      </div>
+    );
+  }
+
+  // Original settings panel
   return (
-    <div className="space-y-6 p-1"> {/* Added p-1 for slight spacing if toggle is near edge, adjust as needed */}
+    <div className="space-y-6 p-1">
+      {/* Chart Theme Toggle - always visible */}
+      <label
+        htmlFor="retroModeToggle"
+        className="flex items-center justify-between cursor-pointer"
+      >
+        <div>
+          <span className="text-gray-700 dark:text-gray-300">Chart Mode</span>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Vintage aviation chart aesthetic
+          </p>
+        </div>
+        <div className="relative">
+          <input
+            id="retroModeToggle"
+            type="checkbox"
+            className="sr-only peer"
+            checked={retroMode}
+            onChange={toggleRetroMode}
+          />
+          <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-amber-500 dark:bg-gray-600 peer-checked:dark:bg-amber-600 transition-colors"></div>
+          <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-full transition-transform"></div>
+        </div>
+      </label>
+
+      {/* Night Mode Toggle */}
       <label
         htmlFor="nightModeToggle"
         className="flex items-center justify-between cursor-pointer"
@@ -42,13 +130,11 @@ export default function SettingsPanelContent(): JSX.Element {
           <input
             id="nightModeToggle"
             type="checkbox"
-            className="sr-only peer" // Hide default checkbox, make it a peer
+            className="sr-only peer"
             checked={darkMode}
             onChange={toggleDarkMode}
           />
-          {/* Toggle background */}
           <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary-600 dark:bg-gray-600 peer-checked:dark:bg-primary-500 transition-colors"></div>
-          {/* Toggle knob */}
           <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-full transition-transform"></div>
         </div>
       </label>

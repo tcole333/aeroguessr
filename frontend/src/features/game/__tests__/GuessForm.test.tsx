@@ -7,6 +7,8 @@ import { webSocketClient } from '../../../hooks/useWebSocketManager';
 
 function setup() {
   const store = createRootStore();
+  // Toggle retroMode off (default is true) to test standard mode UI
+  store.getState().ui.toggleRetroMode();
   store.getState().game.setRoundStart({
     hex: 'a',
     timeout_s: 30,

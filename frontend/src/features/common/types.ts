@@ -21,6 +21,7 @@ export interface PlaneState {
   track?: number | null;
   origin?: string | null;
   destination?: string | null;
+  operator?: string | null;
 }
 
 export interface RoundDelta {
@@ -68,6 +69,7 @@ export interface RoundResultDetail {
   correct_code: string;
   score_awarded: number;
   current_total_score: number;
+  distance_km?: number;
 }
 
 export interface RoundResultPayload {

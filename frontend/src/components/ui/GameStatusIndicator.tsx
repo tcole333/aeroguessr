@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../../hooks/useStore';
+import { selectRetroMode } from '../../features/ui/selectors';
 
 interface GameStatusIndicatorProps {
   className?: string;
@@ -10,31 +11,51 @@ export const GameStatusIndicator: React.FC<GameStatusIndicatorProps> = ({ classN
   const roundTimeout = useStore((s) => s.game.roundTimeout);
   const isHost = useStore((s) => s.game.hostNickname === s.connection.nickname);
   const isSolo = useStore((s) => s.game.isSolo);
+  const retroMode = useStore(selectRetroMode);
 
   // Get phase description based on round state
   const getPhaseDescription = () => {
     if (!round) {
       if (isSolo) {
-        return 'Solo Mode - Click any plane to guess';
+        return retroMode ? 'SOLO - SELECT ANY FLIGHT' : 'Solo Mode - Click any plane to guess';
       }
-      return isHost ? 'Select a plane to start round' : 'Waiting for game to start';
+      return isHost
+        ? (retroMode ? 'SELECT FLIGHT TO BEGIN' : 'Select a plane to start round')
+        : (retroMode ? 'AWAITING DEPARTURE' : 'Waiting for game to start');
     }
 
     switch (round.state) {
       case 'waiting_for_selection':
-        return isHost ? 'Select a plane' : 'Waiting for plane selection';
+        return isHost
+          ? (retroMode ? 'SELECT FLIGHT' : 'Select a plane')
+          : (retroMode ? 'AWAITING SELECTION' : 'Waiting for plane selection');
       case 'guessing':
       case 'accepting_guesses':
-        return 'Submit your guess';
+        return retroMode ? 'TRANSMIT YOUR GUESS' : 'Submit your guess';
       case 'showing_results':
-        return 'Round complete';
+        return retroMode ? 'ROUND COMPLETE' : 'Round complete';
       default:
-        return 'Game in progress';
+        return retroMode ? 'IN PROGRESS' : 'Game in progress';
     }
   };
 
   // Get phase color based on state
   const getPhaseColor = () => {
+    if (retroMode) {
+      if (!round) return 'text-retro-primary';
+      switch (round.state) {
+        case 'waiting_for_selection':
+          return 'text-retro-text';
+        case 'guessing':
+        case 'accepting_guesses':
+          return 'text-retro-primary';
+        case 'showing_results':
+          return 'text-retro-text';
+        default:
+          return 'text-retro-text-muted';
+      }
+    }
+
     if (!round) return 'text-gray-600 dark:text-gray-400';
 
     switch (round.state) {
@@ -51,6 +72,37 @@ export const GameStatusIndicator: React.FC<GameStatusIndicatorProps> = ({ classN
   };
 
   const isGuessing = round?.state === 'guessing' || round?.state === 'accepting_guesses';
+
+  if (retroMode) {
+    return (
+      <div className={`flex flex-col gap-2 ${className}`}>
+        {/* Round Number and Phase */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Round Number */}
+          {round && round.round_number > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Round:</span>
+              <span className="font-splitflap text-sm font-bold text-retro-led">
+                {round.round_number}
+              </span>
+            </div>
+          )}
+
+          {/* Phase Description */}
+          <div className={`text-sm font-display uppercase tracking-wider ${getPhaseColor()}`}>
+            {getPhaseDescription()}
+          </div>
+        </div>
+
+        {/* Round Timer (when guessing) */}
+        {isGuessing && roundTimeout && (
+          <div className="flex items-center justify-center">
+            <GameTimer timeout={roundTimeout} retroMode />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
@@ -83,7 +135,7 @@ export const GameStatusIndicator: React.FC<GameStatusIndicatorProps> = ({ classN
 };
 
 // Separate timer component to handle countdown
-const GameTimer: React.FC<{ timeout: number }> = ({ timeout }) => {
+const GameTimer: React.FC<{ timeout: number; retroMode?: boolean }> = ({ timeout, retroMode }) => {
   const [timeLeft, setTimeLeft] = React.useState(timeout);
 
   React.useEffect(() => {
@@ -104,6 +156,32 @@ const GameTimer: React.FC<{ timeout: number }> = ({ timeout }) => {
 
   const percentage = (timeLeft / timeout) * 100;
   const isUrgent = timeLeft <= 10;
+
+  if (retroMode) {
+    return (
+      <div className="w-full">
+        {/* Time display */}
+        <div className={`flex items-center justify-center gap-2 mb-1 ${isUrgent ? 'animate-pulse' : ''}`}>
+          <span className="text-xs font-display uppercase tracking-wider text-retro-text-muted">Time:</span>
+          <span className={`font-splitflap text-sm font-bold ${
+            isUrgent ? 'text-retro-accent' : 'text-retro-led'
+          }`}>
+            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+
+        {/* Progress bar - retro style */}
+        <div className="w-full h-2 bg-retro-panel border border-retro-border overflow-hidden">
+          <div
+            className={`h-full transition-all duration-1000 ease-linear ${
+              isUrgent ? 'bg-retro-accent' : 'bg-retro-primary'
+            }`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

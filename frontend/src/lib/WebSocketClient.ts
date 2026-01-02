@@ -1,5 +1,5 @@
 import debug from 'debug';
-import { InboundMessage, OutboundMessage, Ping } from '../../types/ws';
+import { InboundMessage, OutboundMessage } from '../../types/ws';
 import { assertWsMessage } from './validationUtils';
 
 interface Events {
@@ -126,9 +126,35 @@ export function createWebSocketClient(
     if (!url) {
       // If baseUrl already includes /api/v0, don't add it again
       const wsBase = baseUrl.replace(/^http/, 'ws');
+      const encodedRoom = encodeURIComponent(room);
+      const encodedNickname = encodeURIComponent(nickname);
       url = wsBase.includes('/api/v0')
-        ? `${wsBase}/rooms/ws/${room}/${nickname}`
-        : `${wsBase}/api/v0/rooms/ws/${room}/${nickname}`;
+        ? `${wsBase}/rooms/ws/${encodedRoom}/${encodedNickname}`
+        : `${wsBase}/api/v0/rooms/ws/${encodedRoom}/${encodedNickname}`;
+    } else {
+      try {
+        const parsedUrl = new URL(url);
+        const segments = parsedUrl.pathname.split('/').filter(Boolean);
+        const wsIndex = segments.findIndex((segment, index) =>
+          segment === 'rooms' && segments[index + 1] === 'ws',
+        );
+        if (wsIndex !== -1 && segments.length >= wsIndex + 4) {
+          const roomSegment = segments[wsIndex + 2];
+          const nickSegment = segments[wsIndex + 3];
+          const shouldEncode = (segment: string) =>
+            !segment.includes('%') && /[:\s]/.test(segment);
+          segments[wsIndex + 2] = shouldEncode(roomSegment)
+            ? encodeURIComponent(roomSegment)
+            : roomSegment;
+          segments[wsIndex + 3] = shouldEncode(nickSegment)
+            ? encodeURIComponent(nickSegment)
+            : nickSegment;
+          parsedUrl.pathname = `/${segments.join('/')}`;
+          url = parsedUrl.toString();
+        }
+      } catch (err) {
+        console.warn('[WS] Failed to normalize override URL:', err);
+      }
     }
 
     // Ensure we use wss:// when on HTTPS

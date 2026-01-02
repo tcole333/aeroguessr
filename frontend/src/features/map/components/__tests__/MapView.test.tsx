@@ -6,6 +6,8 @@ import type { PlaneState } from '../../../common/types';
 describe('MapView', () => {
   function renderMapWithPlanes(planes: PlaneState[] = []) {
     const store = createRootStore();
+    // Toggle retroMode off (default is true) to test standard mode UI
+    store.getState().ui.toggleRetroMode();
     store.getState().planes.upsertPlanes(planes);
     const Wrapper = ({ children }: { children: React.ReactNode }) => (
       <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

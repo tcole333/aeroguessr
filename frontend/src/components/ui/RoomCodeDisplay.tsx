@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { selectRoomCode } from '../../features/connection/connectionSlice';
 import { useStore } from '../../hooks/useStore';
+import { selectRetroMode } from '../../features/ui/selectors';
 
 interface RoomCodeDisplayProps {
   className?: string;
@@ -8,6 +9,7 @@ interface RoomCodeDisplayProps {
 
 export const RoomCodeDisplay: React.FC<RoomCodeDisplayProps> = ({ className = '' }) => {
   const roomCode = useStore(selectRoomCode);
+  const retroMode = useStore(selectRetroMode);
   const [copied, setCopied] = useState(false);
 
   if (!roomCode || roomCode === 'solo') {
@@ -23,6 +25,27 @@ export const RoomCodeDisplay: React.FC<RoomCodeDisplayProps> = ({ className = ''
       console.error('Failed to copy room code:', err);
     }
   };
+
+  if (retroMode) {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        <span className="text-sm font-display uppercase tracking-wider text-retro-text-muted">Room:</span>
+        <button
+          onClick={handleCopy}
+          className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-retro-forest bg-retro-panel-dark px-2 py-1 border border-retro-border hover:border-retro-primary transition-colors"
+          aria-label={`Room code ${roomCode}. Click to copy`}
+          title="Click to copy room code"
+        >
+          {roomCode}
+        </button>
+        {copied && (
+          <span className="text-xs text-retro-success animate-fade-in">
+            Copied!
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>

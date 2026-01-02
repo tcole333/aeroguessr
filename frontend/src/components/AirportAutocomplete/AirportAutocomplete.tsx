@@ -12,12 +12,14 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
   placeholder = 'Enter airport name or code',
   disabled = false,
   className = '',
+  inputClassName = '',
   id,
   name,
   required = false,
   autoFocus = false,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
+  retroMode = false,
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
@@ -208,18 +210,11 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
           aria-activedescendant={activeDescendantId}
           aria-label={ariaLabel}
           aria-describedby={ariaDescribedBy}
-          className={`
-            w-full px-3 py-2 pr-10
-            border border-gray-300 dark:border-gray-600
-            rounded-md shadow-sm
-            bg-white dark:bg-gray-800
-            text-gray-900 dark:text-gray-100
-            placeholder-gray-400 dark:placeholder-gray-500
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            disabled:bg-gray-100 dark:disabled:bg-gray-700
-            disabled:cursor-not-allowed
-            transition-colors duration-200
-          `}
+          className={
+            retroMode
+              ? `w-full bg-retro-panel border border-retro-border p-3 pr-10 font-display text-retro-ink uppercase tracking-[0.18em] placeholder:text-retro-text-muted focus:border-retro-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${inputClassName}`
+              : `w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors duration-200 ${inputClassName}`
+          }
         />
 
         {/* Clear button */}
@@ -227,7 +222,11 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+            className={
+              retroMode
+                ? 'absolute right-2 top-1/2 -translate-y-1/2 p-1 text-retro-text-muted hover:text-retro-primary transition-colors'
+                : 'absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors'
+            }
             aria-label="Clear input"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,7 +240,11 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
       {isOpen && !isLoading && results.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto"
+          className={
+            retroMode
+              ? 'absolute z-50 w-full mt-1 bg-retro-panel border border-retro-border max-h-60 overflow-auto'
+              : 'absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto'
+          }
         >
           <ul
             ref={listboxRef}
@@ -262,23 +265,37 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
                   aria-selected={isActive}
                   onClick={() => handleSelectAirport(airport)}
                   onMouseEnter={() => setActiveIndex(index)}
-                  className={`
-                    px-3 py-2 cursor-pointer transition-colors duration-150
-                    ${isActive
-                      ? 'bg-blue-100 dark:bg-gray-700 text-blue-900 dark:text-blue-100'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
-                    }
-                  `}
+                  className={
+                    retroMode
+                      ? `px-3 py-2 cursor-pointer font-display text-retro-text ${
+                          isActive
+                            ? 'bg-retro-panel-dark text-retro-ink'
+                            : 'hover:bg-retro-panel-dark'
+                        }`
+                      : `px-3 py-2 cursor-pointer transition-colors duration-150 ${
+                          isActive
+                            ? 'bg-blue-100 dark:bg-gray-700 text-blue-900 dark:text-blue-100'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
+                        }`
+                  }
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">
+                    <span className={retroMode ? 'font-display' : 'font-medium'}>
                       {airport.iata || airport.icao}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                    <span className={
+                      retroMode
+                        ? 'text-sm text-retro-text-muted ml-2'
+                        : 'text-sm text-gray-500 dark:text-gray-400 ml-2'
+                    }>
                       {airport.municipality}, {airport.country}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                  <div className={
+                    retroMode
+                      ? 'text-sm text-retro-text-muted'
+                      : 'text-sm text-gray-600 dark:text-gray-300'
+                  }>
                     {airport.name}
                   </div>
                 </li>
@@ -290,14 +307,22 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
 
       {/* Loading indicator */}
       {isOpen && isLoading && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-3 text-center text-gray-500 dark:text-gray-400">
+        <div className={
+          retroMode
+            ? 'absolute z-50 w-full mt-1 bg-retro-panel border border-retro-border p-3 text-center font-display text-retro-text-muted'
+            : 'absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-3 text-center text-gray-500 dark:text-gray-400'
+        }>
           Loading airports...
         </div>
       )}
 
       {/* No results message */}
       {isOpen && !isLoading && hasInteracted && debouncedSearchTerm && results.length === 0 && debouncedSearchTerm !== selectedValue && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-3 text-center text-gray-500 dark:text-gray-400">
+        <div className={
+          retroMode
+            ? 'absolute z-50 w-full mt-1 bg-retro-panel border border-retro-border p-3 text-center font-display text-retro-text-muted'
+            : 'absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-3 text-center text-gray-500 dark:text-gray-400'
+        }>
           No airports found
         </div>
       )}
