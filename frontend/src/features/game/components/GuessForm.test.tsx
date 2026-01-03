@@ -11,15 +11,31 @@ vi.mock('../hooks/useGuess');
 // Default mock state
 let mockRound: { direction?: string; state?: string; hex?: string } | null = null;
 let mockUsedPlanes = new Set<string>();
+let mockRetroMode = false;
+let mockPlane: {
+  hex_ident: string;
+  lat: number;
+  lon: number;
+  alt: number;
+  lat_v: number;
+  lon_v: number;
+  alt_v: number;
+  last_update_ts: number;
+  trail: [number, number, number][];
+  callsign?: string | null;
+  origin?: string | null;
+  destination?: string | null;
+  operator?: string | null;
+} | null = null;
 
 // Mock the useStore hook with a mock state
 vi.mock('../../../hooks/useStore', () => ({
   useStore: vi.fn((selector) => {
     // Create a mock state that the selectors can use
     const mockState = {
-      ui: { retroMode: false },
+      ui: { retroMode: mockRetroMode },
       game: { round: mockRound, usedPlaneHexes: mockUsedPlanes },
-      planes: { values: {} },  // Use 'values' not 'byId' to match selector
+      planes: { values: mockPlane ? { [mockPlane.hex_ident]: mockPlane } : {} },
     };
     // If selector is a function, call it with the mock state
     if (typeof selector === 'function') {
@@ -99,6 +115,8 @@ describe('GuessForm', () => {
     // Reset mock state
     mockRound = null;
     mockUsedPlanes = new Set<string>();
+    mockRetroMode = false;
+    mockPlane = null;
   });
 
   it('should not render when not visible', () => {
@@ -303,6 +321,136 @@ describe('GuessForm', () => {
       render(<GuessForm />);
 
       expect(screen.getByText(/Guess the destination/)).toBeInTheDocument();
+    });
+  });
+
+  describe('flight status display in retro mode', () => {
+    const baseMockPlane = {
+      hex_ident: 'abc123',
+      lat: 42.3601,
+      lon: -71.0589,
+      alt: 10000,
+      lat_v: 0,
+      lon_v: 0,
+      alt_v: 0,
+      last_update_ts: Date.now(),
+      trail: [] as [number, number, number][],
+      callsign: 'UAL123',
+    };
+
+    beforeEach(() => {
+      mockRetroMode = true;
+      mockRound = { direction: 'destination', state: 'guessing', hex: 'abc123' };
+    });
+
+    it('should show DEPARTING when origin is monitored airport (KBOS)', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KBOS',
+        destination: 'KLAX',
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('DEPARTING')).toBeInTheDocument();
+    });
+
+    it('should show ARRIVING when destination is monitored airport (KBOS)', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KBOS',
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('ARRIVING')).toBeInTheDocument();
+    });
+
+    it('should show ASCENDING when neither origin nor destination is monitored and climbing', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KLAX',
+        alt_v: 500,
+        alt: 15000,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('ASCENDING')).toBeInTheDocument();
+    });
+
+    it('should show DESCENDING when neither origin nor destination is monitored and descending', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KLAX',
+        alt_v: -500,
+        alt: 10000,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('DESCENDING')).toBeInTheDocument();
+    });
+
+    it('should show CRUISING when neither origin nor destination is monitored and level flight', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KLAX',
+        alt_v: 50,
+        alt: 35000,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('CRUISING')).toBeInTheDocument();
+    });
+
+    it('should show TRACKING when neither origin nor destination is monitored and no altitude data', () => {
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KLAX',
+        alt_v: 0,
+        alt: 0,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('TRACKING')).toBeInTheDocument();
+    });
+
+    it('should prioritize DEPARTING over altitude-based status even when descending', () => {
+      // A plane departing from KBOS that is already descending (unusual but possible)
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KBOS',
+        destination: 'KLAX',
+        alt_v: -500,
+        alt: 5000,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('DEPARTING')).toBeInTheDocument();
+    });
+
+    it('should prioritize ARRIVING over altitude-based status even when climbing', () => {
+      // A plane arriving at KBOS that is still climbing (missed approach scenario)
+      mockPlane = {
+        ...baseMockPlane,
+        origin: 'KJFK',
+        destination: 'KBOS',
+        alt_v: 500,
+        alt: 5000,
+      };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText('ARRIVING')).toBeInTheDocument();
     });
   });
 });

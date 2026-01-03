@@ -9,9 +9,27 @@ import { selectPlaneById } from '../../planes/selectors';
 import type { PlaneState } from '../../common/types';
 import { formatAirportDisplay } from '../../../lib/airportLookup';
 
-function getFlightStatus(alt_v: number | undefined, alt: number | undefined): string {
+/**
+ * Determine flight status based on origin/destination relative to monitored airport.
+ * - DEPARTING: Flight originated from monitored airport
+ * - ARRIVING: Flight is destined for monitored airport
+ * - Falls back to altitude-based status when origin/destination don't match
+ */
+function getFlightStatus(
+  origin: string | null | undefined,
+  destination: string | null | undefined,
+  alt_v: number | undefined,
+  alt: number | undefined
+): string {
+  // TODO: Get monitored airport from configuration instead of hardcoding
+  const monitoredAirport = 'KBOS';
+
+  // Primary logic: use origin/destination to determine arriving/departing
+  if (origin === monitoredAirport) return 'DEPARTING';
+  if (destination === monitoredAirport) return 'ARRIVING';
+
+  // Fallback: use altitude-based status when neither origin nor destination is monitored airport
   if (!alt_v || !alt) return 'TRACKING';
-  if (alt < 3000) return alt_v > 50 ? 'DEPARTING' : 'ARRIVING';
   if (alt_v > 100) return 'ASCENDING';
   if (alt_v < -100) return 'DESCENDING';
   return 'CRUISING';
@@ -78,7 +96,7 @@ export default function GuessForm(): JSX.Element | null {
 
   // Retro mode rendering
   if (retroMode) {
-    const flightStatus = getFlightStatus(plane?.alt_v, plane?.alt);
+    const flightStatus = getFlightStatus(plane?.origin, plane?.destination, plane?.alt_v, plane?.alt);
 
     return (
       <div
