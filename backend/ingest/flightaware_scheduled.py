@@ -225,17 +225,47 @@ async def build_flight_schedule_cache(
     arrivals = await client.fetch_scheduled_arrivals(AIRPORT_CODE, max_pages=3)
 
     # Build lookup tables
+    # IMPORTANT: When same callsign appears in both departures and arrivals,
+    # we need to pick the most relevant one. We prefer the flight that's
+    # scheduled closer to the current time.
     callsign_lookup: Dict[str, ScheduledFlight] = {}
     registration_lookup: Dict[str, ScheduledFlight] = {}
+    now = datetime.utcnow()
 
     for flight in departures + arrivals:
-        # Add to callsign lookup
+        # Add to callsign lookup - pick the flight scheduled closer to now
         if flight.ident:
-            callsign_lookup[flight.ident] = flight
+            existing = callsign_lookup.get(flight.ident)
+            if existing is None:
+                callsign_lookup[flight.ident] = flight
+            else:
+                # Both exist - pick the one scheduled closer to now
+                existing_time = existing.scheduled_departure or existing.scheduled_arrival
+                new_time = flight.scheduled_departure or flight.scheduled_arrival
+                if existing_time and new_time:
+                    # Pick whichever is closer to now (past or future)
+                    existing_diff = abs((existing_time - now).total_seconds())
+                    new_diff = abs((new_time - now).total_seconds())
+                    if new_diff < existing_diff:
+                        callsign_lookup[flight.ident] = flight
+                        logger.debug(
+                            f"Callsign {flight.ident}: preferring flight scheduled at "
+                            f"{new_time} over {existing_time} (closer to now)"
+                        )
 
-        # Add to registration lookup
+        # Add to registration lookup - same logic
         if flight.registration:
-            registration_lookup[flight.registration] = flight
+            existing = registration_lookup.get(flight.registration)
+            if existing is None:
+                registration_lookup[flight.registration] = flight
+            else:
+                existing_time = existing.scheduled_departure or existing.scheduled_arrival
+                new_time = flight.scheduled_departure or flight.scheduled_arrival
+                if existing_time and new_time:
+                    existing_diff = abs((existing_time - now).total_seconds())
+                    new_diff = abs((new_time - now).total_seconds())
+                    if new_diff < existing_diff:
+                        registration_lookup[flight.registration] = flight
 
     # Create cache object
     cache = FlightScheduleCache(

@@ -38,9 +38,10 @@ class RouteLookupMeta(BaseModel):
 
 
 # --- Configuration ---
-ROUTE_CACHE_TTL_SECONDS = 3600 * 6  # 6 hours for positive results
+ROUTE_CACHE_TTL_SECONDS = 3600  # 1 hour - planes are only in antenna range briefly
 OPERATOR_CACHE_TTL_SECONDS = 3600 * 24 * 7  # 7 days for operator names (rarely change)
 IS_FAKE_ADSB = os.getenv("FAKE_ADSB") == "1"
+MONITORED_AIRPORT_ICAO = os.getenv("MONITORED_AIRPORT_ICAO", "KBOS")
 
 FLIGHTAWARE_API_KEY = os.getenv("FLIGHTAWARE_API_KEY")
 AEROAPI_BASE_URL = "https://aeroapi.flightaware.com/aeroapi"
@@ -146,29 +147,35 @@ async def fetch_route_data_v2(
         logger.info(f"FAKE_ADSB active. Returning mock route data for {hex_ident}.")
         return _generate_mock_route_data(hex_ident)
 
+    # Clean up callsign first (needed for cache key)
+    clean_callsign = callsign.strip() if callsign else None
+
+    # Build cache key including callsign to prevent stale data when aircraft makes
+    # multiple flights per day (e.g., PTR2939 Toronto->Boston at 8am, Boston->Toronto at 12pm)
+    callsign_suffix = clean_callsign or "none"
+    cache_key = f"aeroapi_route_v2:{hex_ident}:{callsign_suffix}"
+
     # Check positive cache first
-    cache_key = f"aeroapi_route_v2:{hex_ident}"
     try:
         cached_data: Optional[RouteData] = await redis_client.get_model(cache_key, RouteData)
         if cached_data:
-            logger.debug(f"Cache hit for route data v2: {hex_ident}")
+            logger.debug(f"Cache hit for route data v2: {hex_ident}/{callsign_suffix}")
             match_stats["cache_hits"] += 1
             return cached_data
     except Exception as e:
         logger.error(f"Redis error checking route cache v2 for {hex_ident}: {e}")
 
-    logger.debug(f"Cache miss for route data v2: {hex_ident}. Starting multi-tier lookup.")
-
-    # Clean up callsign
-    clean_callsign = callsign.strip() if callsign else None
+    logger.debug(
+        f"Cache miss for route data v2: {hex_ident}/{callsign_suffix}. Starting multi-tier lookup."
+    )
 
     # Get registration for later use
     registration = await hex_to_registration(hex_ident, redis_client)
     if registration:
         logger.debug(f"Got registration {registration} for hex {hex_ident}")
 
-    # Metadata key for debugging
-    meta_key = f"aeroapi_route_v2_meta:{hex_ident}"
+    # Metadata key for debugging (also includes callsign for consistency)
+    meta_key = f"aeroapi_route_v2_meta:{hex_ident}:{callsign_suffix}"
 
     # Strategy 1: Try callsign lookup in scheduled flights (fast, cached)
     if clean_callsign:
@@ -264,11 +271,111 @@ async def fetch_route_data_v2(
     return None
 
 
+def _select_best_flight(flights: list[dict], ident: str) -> tuple[Optional[dict], str]:
+    """Select the most relevant flight from a list of AeroAPI flight results.
+
+    Selection priority:
+    1. Flights currently in progress (0 < progress_percent < 100)
+    2. Flights where origin OR destination matches the monitored airport
+    3. Most recent flight by scheduled/actual departure time
+
+    Args:
+        flights: List of flight dictionaries from AeroAPI
+        ident: Flight identifier for logging
+
+    Returns:
+        Tuple of (best_flight_dict, selection_reason) or (None, reason)
+    """
+    if not flights:
+        return None, "empty_list"
+
+    # Filter to flights with valid origin or destination
+    valid_flights = []
+    for flight in flights:
+        origin = flight.get("origin", {}).get("code_icao")
+        destination = flight.get("destination", {}).get("code_icao")
+        if origin or destination:
+            valid_flights.append(flight)
+
+    if not valid_flights:
+        return None, "no_valid_routes"
+
+    # Priority 1: In-progress flights
+    for flight in valid_flights:
+        progress = flight.get("progress_percent")
+        if progress is not None and 0 < progress < 100:
+            origin = flight.get("origin", {}).get("code_icao")
+            destination = flight.get("destination", {}).get("code_icao")
+            logger.debug(
+                f"Selected flight {ident}: {origin} -> {destination} (reason: in_progress, "
+                f"progress={progress}%)"
+            )
+            return flight, "in_progress"
+
+    # Priority 2: Flights matching the monitored airport
+    monitored_matches = []
+    for flight in valid_flights:
+        origin = flight.get("origin", {}).get("code_icao")
+        destination = flight.get("destination", {}).get("code_icao")
+        if origin == MONITORED_AIRPORT_ICAO or destination == MONITORED_AIRPORT_ICAO:
+            monitored_matches.append(flight)
+
+    if monitored_matches:
+        # If multiple matches, prefer the most recent by departure time
+        best_monitored = _get_most_recent_flight(monitored_matches)
+        origin = best_monitored.get("origin", {}).get("code_icao")
+        destination = best_monitored.get("destination", {}).get("code_icao")
+        logger.debug(
+            f"Selected flight {ident}: {origin} -> {destination} (reason: matches_monitored, "
+            f"airport={MONITORED_AIRPORT_ICAO})"
+        )
+        return best_monitored, "matches_monitored"
+
+    # Priority 3: Most recent flight by departure time
+    best_recent = _get_most_recent_flight(valid_flights)
+    origin = best_recent.get("origin", {}).get("code_icao")
+    destination = best_recent.get("destination", {}).get("code_icao")
+    scheduled_out = best_recent.get("scheduled_out") or best_recent.get("actual_out")
+    logger.debug(
+        f"Selected flight {ident}: {origin} -> {destination} (reason: most_recent, "
+        f"departure={scheduled_out})"
+    )
+    return best_recent, "most_recent"
+
+
+def _get_most_recent_flight(flights: list[dict]) -> dict:
+    """Get the most recent flight from a list, based on departure time.
+
+    Prefers actual_out over scheduled_out. Falls back to first flight if no times available.
+
+    Args:
+        flights: List of flight dictionaries (must be non-empty)
+
+    Returns:
+        The flight with the most recent departure time
+    """
+
+    def get_departure_time(flight: dict) -> str:
+        """Get the best available departure time for sorting."""
+        # Prefer actual_out, fall back to scheduled_out
+        return flight.get("actual_out") or flight.get("scheduled_out") or ""
+
+    # Sort by departure time descending (most recent first)
+    sorted_flights = sorted(flights, key=get_departure_time, reverse=True)
+    return sorted_flights[0]
+
+
 async def _query_aeroapi_direct(ident: str) -> Optional[RouteData]:
     """Query AeroAPI directly for flight route data.
 
     This is the fallback for flights not in the scheduled flights database,
     particularly useful for GA (general aviation) traffic.
+
+    Uses smart flight selection to pick the most relevant flight when multiple
+    historical flights are returned:
+    1. Prefer in-progress flights
+    2. Prefer flights matching the monitored airport
+    3. Prefer most recent flights by departure time
 
     Args:
         ident: Flight identifier (callsign or registration, e.g., "UAL123" or "N12345")
@@ -301,25 +408,14 @@ async def _query_aeroapi_direct(ident: str) -> Optional[RouteData]:
                 logger.debug(f"AeroAPI returned empty flights list for {ident}")
                 return None
 
-            # Find the most relevant flight (prefer in-progress or most recent)
-            best_flight = None
-            for flight in flights:
-                # Prefer flights that are currently in progress
-                if flight.get("progress_percent") is not None:
-                    progress = flight.get("progress_percent", 0)
-                    if 0 < progress < 100:
-                        best_flight = flight
-                        break
-
-                # Otherwise take the first one with valid origin/destination
-                origin = flight.get("origin", {}).get("code_icao")
-                destination = flight.get("destination", {}).get("code_icao")
-                if origin or destination:
-                    if best_flight is None:
-                        best_flight = flight
+            # Select the best flight using priority-based logic
+            best_flight, selection_reason = _select_best_flight(flights, ident)
 
             if not best_flight:
-                logger.debug(f"No suitable flight found in AeroAPI response for {ident}")
+                logger.debug(
+                    f"No suitable flight found in AeroAPI response for {ident} "
+                    f"(reason: {selection_reason})"
+                )
                 return None
 
             origin_icao = best_flight.get("origin", {}).get("code_icao")
