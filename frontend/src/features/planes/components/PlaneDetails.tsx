@@ -243,7 +243,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
         </div>
 
         <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'HEX' : 'Hex ID:'}</span>
               <p className={valueClass}>{plane.hex_ident}</p>
@@ -261,7 +261,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ALT' : 'Altitude:'}</span>
               {retroMode ? (
@@ -292,7 +292,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
           </div>
 
           {/* Show origin/destination based on game state */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
             {/* Origin - show "???" if hidden, actual value otherwise */}
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
@@ -317,7 +317,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'LAT' : 'Latitude:'}</span>
               <p className={valueClass}>{plane.lat.toFixed(4)}</p>

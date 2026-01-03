@@ -55,8 +55,8 @@ export default function SlidingPanel(): JSX.Element {
     : 'px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2';
 
   const contentClasses = retroMode
-    ? `flex-1 min-h-0 p-4 bg-retro-bg ${isPanelOpen ? 'overflow-visible md:overflow-y-auto' : 'hidden'}`
-    : `flex-1 min-h-0 p-4 ${isPanelOpen ? 'overflow-visible md:overflow-y-auto' : 'hidden'}`;
+    ? `flex-1 min-h-0 p-4 bg-retro-bg ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden' : 'hidden'}`
+    : `flex-1 min-h-0 p-4 ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden' : 'hidden'}`;
 
   return (
     <div className={panelClasses}>
