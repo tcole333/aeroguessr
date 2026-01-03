@@ -190,3 +190,64 @@ async def test_solo_ws_distance_mode_exact_guess(
         assert player_result["distance_km"] == 0.0
 
         await ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+
+async def test_solo_ws_ping_pong(test_client: AsyncClient, redis_client: RedisClient) -> None:
+    """Test that solo mode correctly handles ping/pong heartbeat messages.
+
+    Regression test for issue #128 - Solo mode disconnects during gameplay.
+    The root cause was that the solo loop did not handle PING messages from
+    the frontend client, causing error responses instead of proper PONG replies.
+    """
+    join_resp = await test_client.post("/api/v0/rooms/solo/join", json={"nickname": "SoloPing"})
+    data = join_resp.json()
+    ws_path = data["ws_url"].replace("ws://testserver", "")
+
+    plane = PlaneState(
+        hex_ident="ping1",
+        lat=0,
+        lon=0,
+        alt=0,
+        lat_v=0,
+        lon_v=0,
+        alt_v=0,
+        last_update_ts=0,
+        origin="KBOS",
+        destination="KJFK",
+    )
+    await redis_client.set_json("plane:ping1", plane)
+
+    async with aconnect_ws(ws_path, client=test_client, keepalive_ping_interval_seconds=None) as ws:
+        # Receive initial state sync
+        msg = WSMessage(**await ws.receive_json())
+        assert msg.type == WSMessageType.STATE_SYNC
+
+        # Send a PING message (as frontend does every 10 seconds)
+        ping_msg = WSMessage(type="ping", payload={"seq": 12345})
+        await ws.send_json(ping_msg.model_dump())
+
+        # Should receive a PONG response (not an error)
+        response = WSMessage(**await ws.receive_json())
+        assert response.type == WSMessageType.PONG
+        assert response.payload["seq"] == 12345
+
+        # Now proceed with normal game flow to ensure ping handling doesn't break gameplay
+        select_msg = WSMessage(type="selectPlane", payload={"hex": "ping1"})
+        await ws.send_json(select_msg.model_dump())
+        confirm = WSMessage(**await ws.receive_json())
+        assert confirm.type == WSMessageType.PLANE_SELECTED_CONFIRM
+
+        # Send another ping during gameplay
+        ping_msg2 = WSMessage(type="ping", payload={"seq": 12346})
+        await ws.send_json(ping_msg2.model_dump())
+        response2 = WSMessage(**await ws.receive_json())
+        assert response2.type == WSMessageType.PONG
+        assert response2.payload["seq"] == 12346
+
+        # Complete with a guess
+        guess_msg = WSMessage(type="guess", payload={"airport_code": "KJFK"})
+        await ws.send_json(guess_msg.model_dump())
+        result = WSMessage(**await ws.receive_json())
+        assert result.type == WSMessageType.ROUND_RESULT
+
+        await ws.send_json(WSMessage(type="leave", payload={}).model_dump())

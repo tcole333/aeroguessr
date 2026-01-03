@@ -5,6 +5,7 @@ import os
 import random
 import time
 from typing import List, Optional
+from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
@@ -202,7 +203,10 @@ async def create_room(
         # Use request.base_url to handle http/https correctly
         base_ws_url = str(request.base_url).replace("http", "ws", 1)
 
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{room_data.host_nickname}"
+    # URL-encode room code and nickname to handle special characters
+    encoded_room = quote(room_code, safe="")
+    encoded_nickname = quote(room_data.host_nickname, safe="")
+    ws_url = f"{base_ws_url}api/v0/rooms/ws/{encoded_room}/{encoded_nickname}"
 
     # Set Location header (as specified in PRD)
     response.headers["Location"] = ws_url
@@ -256,7 +260,10 @@ async def join_room(
             base_ws_url = ws_base_url
         else:
             base_ws_url = str(request.base_url).replace("http", "ws", 1)
-        ws_url = f"{base_ws_url}api/v0/rooms/ws/{solo_code}/{join_data.nickname}"
+        # URL-encode room code and nickname to handle special characters (solo: prefix has colon)
+        encoded_room = quote(solo_code, safe="")
+        encoded_nickname = quote(join_data.nickname, safe="")
+        ws_url = f"{base_ws_url}api/v0/rooms/ws/{encoded_room}/{encoded_nickname}"
         return RoomJoinResponse(room_code=solo_code, ws_url=ws_url)
 
     # 1. Check if room exists (check meta key)
@@ -309,7 +316,10 @@ async def join_room(
         base_ws_url = ws_base_url
     else:
         base_ws_url = str(request.base_url).replace("http", "ws", 1)
-    ws_url = f"{base_ws_url}api/v0/rooms/ws/{room_code}/{join_data.nickname}"
+    # URL-encode room code and nickname to handle special characters
+    encoded_room = quote(room_code, safe="")
+    encoded_nickname = quote(join_data.nickname, safe="")
+    ws_url = f"{base_ws_url}api/v0/rooms/ws/{encoded_room}/{encoded_nickname}"
 
     return RoomJoinResponse(room_code=room_code, ws_url=ws_url)
 
@@ -410,6 +420,26 @@ async def websocket_endpoint(
                     ws_msg = WSMessage.model_validate(data)
                 except ValidationError:
                     await _send_error(ErrorCode.INVALID_MESSAGE_FORMAT, "Invalid message format")
+                    continue
+
+                # Handle PING from client - respond with PONG
+                if ws_msg.type == WSMessageType.PING:
+                    try:
+                        ping_payload = PingPongPayload.model_validate(ws_msg.payload)
+                        pong_payload = PingPongPayload(seq=ping_payload.seq)
+                        pong_msg = WSMessage(type=WSMessageType.PONG, payload=pong_payload)
+                        await conn_manager.send_personal_message(pong_msg.model_dump(), websocket)
+                        logger.debug(f"[Solo] Sent PONG to {nickname} seq={ping_payload.seq}")
+                    except ValidationError as e:
+                        logger.warning(f"[Solo] Invalid PING payload from {nickname}: {e}")
+                        await _send_error(ErrorCode.INVALID_PAYLOAD, f"Invalid PING payload: {e}")
+                    continue
+
+                # Handle PONG from client (in response to server-initiated ping, if any)
+                if ws_msg.type == WSMessageType.PONG:
+                    # Record the pong for heartbeat tracking
+                    conn_manager.record_pong(room_code, nickname)
+                    logger.debug(f"[Solo] Received PONG from {nickname}")
                     continue
 
                 if ws_msg.type == WSMessageType.SELECT_PLANE:
@@ -540,8 +570,34 @@ async def websocket_endpoint(
                 elif ws_msg.type == WSMessageType.LEAVE:
                     break
 
+                elif ws_msg.type == WSMessageType.START_ROUND:
+                    # Handle START_ROUND in solo mode - send roundStart to frontend
+                    context = await room_service.get_solo_player_selection_context(redis, room_code)
+                    if not context or not context.selected_plane_hex:
+                        await _send_error(
+                            ErrorCode.INVALID_STATE_FOR_ACTION,
+                            "Select a plane first before starting the round",
+                        )
+                        continue
+
+                    # Send roundStart message so frontend shows guess form
+                    round_start_payload = {
+                        "hex": context.selected_plane_hex,
+                        "direction": context.guess_direction,
+                        "timeout_s": 60,  # Solo mode has no timeout pressure
+                        "round_number": 1,  # Solo mode doesn't track round numbers
+                    }
+                    round_start_msg = WSMessage(
+                        type=WSMessageType.ROUND_START,
+                        payload=round_start_payload,
+                    )
+                    await conn_manager.send_personal_message(
+                        round_start_msg.model_dump(), websocket
+                    )
+                    plane_hex = context.selected_plane_hex
+                    logger.info(f"[Solo] Round started for {nickname} with plane {plane_hex}")
+
                 elif ws_msg.type in {
-                    WSMessageType.START_ROUND,
                     WSMessageType.SKIP_ROUND,
                     WSMessageType.TRANSFER_HOST,
                     WSMessageType.CLAIM_HOST,
@@ -556,10 +612,20 @@ async def websocket_endpoint(
                         f"Unhandled message type {ws_msg.type}",
                     )
 
-        await _solo_loop()
-        await room_service.delete_room(redis, room_code)
-        await room_service.update_player_status(redis, room_code, nickname, connected=False)
-        conn_manager.disconnect(room_code, nickname)
+        try:
+            await _solo_loop()
+        except WebSocketDisconnect:
+            logger.info(f"[Solo] Player {nickname} disconnected from room {room_code}.")
+        except Exception as e:
+            logger.error(
+                f"[Solo] Unexpected error in solo loop for {nickname} in {room_code}: {e}",
+                exc_info=True,
+            )
+        finally:
+            # Cleanup solo room resources
+            await room_service.delete_room(redis, room_code)
+            await room_service.update_player_status(redis, room_code, nickname, connected=False)
+            conn_manager.disconnect(room_code, nickname)
         return
     # --- Broadcast Player Joined --- #
     # Exclude self from broadcast

@@ -39,7 +39,8 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const [guessError, setGuessError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
-  const isHost = !isSolo && host && myNick === host;
+  // In solo mode, the player is always the host; in multiplayer, check nickname
+  const isHost = isSolo || (host && myNick === host);
   const isSelected = selectedPlane === hex;
   const isRoundActive = round?.state === 'guessing' && round?.hex === hex;
   const isUsed = usedPlanes.has(hex);
