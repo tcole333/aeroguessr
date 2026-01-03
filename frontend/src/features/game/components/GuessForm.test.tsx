@@ -8,13 +8,17 @@ import type { Airport } from '../../../components/AirportAutocomplete';
 // Mock the useGuess hook
 vi.mock('../hooks/useGuess');
 
+// Default mock state
+let mockRound: { direction?: string; state?: string; hex?: string } | null = null;
+let mockUsedPlanes = new Set<string>();
+
 // Mock the useStore hook with a mock state
 vi.mock('../../../hooks/useStore', () => ({
   useStore: vi.fn((selector) => {
     // Create a mock state that the selectors can use
     const mockState = {
       ui: { retroMode: false },
-      game: { round: null },
+      game: { round: mockRound, usedPlaneHexes: mockUsedPlanes },
       planes: { values: {} },  // Use 'values' not 'byId' to match selector
     };
     // If selector is a function, call it with the mock state
@@ -92,6 +96,9 @@ describe('GuessForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseGuess.mockReturnValue(defaultMockValues);
+    // Reset mock state
+    mockRound = null;
+    mockUsedPlanes = new Set<string>();
   });
 
   it('should not render when not visible', () => {
@@ -108,8 +115,8 @@ describe('GuessForm', () => {
     render(<GuessForm />);
 
     expect(screen.getByTestId('airport-autocomplete')).toBeInTheDocument();
-    expect(screen.getByText(/Where is this flight/)).toBeInTheDocument();
-    expect(screen.getByText('(30s)')).toBeInTheDocument();
+    expect(screen.getByText(/Guess the destination/)).toBeInTheDocument();
+    expect(screen.getByText('(30)')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Type city or airport code...')).toBeInTheDocument();
   });
 
@@ -238,7 +245,8 @@ describe('GuessForm', () => {
 
     render(<GuessForm />);
 
-    expect(screen.queryByText(/\(\d+s\)/)).not.toBeInTheDocument();
+    // Timer format changed from (30s) to (30) - no 's' suffix
+    expect(screen.queryByText(/\(\d+\)/)).not.toBeInTheDocument();
   });
 
   it('should have proper accessibility attributes', () => {
@@ -270,5 +278,31 @@ describe('GuessForm', () => {
     render(<GuessForm />);
 
     expect(screen.getByText('Selected: Charles de Gaulle Airport (LFPG)')).toBeInTheDocument();
+  });
+
+  describe('direction-based display', () => {
+    it('should show "Guess the origin" when direction is origin', () => {
+      mockRound = { direction: 'origin', state: 'guessing', hex: 'abc123' };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText(/Guess the origin/)).toBeInTheDocument();
+    });
+
+    it('should show "Guess the destination" when direction is destination', () => {
+      mockRound = { direction: 'destination', state: 'guessing', hex: 'abc123' };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText(/Guess the destination/)).toBeInTheDocument();
+    });
+
+    it('should default to destination when direction is not set', () => {
+      mockRound = { state: 'guessing', hex: 'abc123' };
+
+      render(<GuessForm />);
+
+      expect(screen.getByText(/Guess the destination/)).toBeInTheDocument();
+    });
   });
 });

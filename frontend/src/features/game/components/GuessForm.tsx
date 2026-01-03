@@ -4,7 +4,7 @@ import { AirportAutocomplete } from '../../../components/AirportAutocomplete';
 import type { Airport } from '../../../components/AirportAutocomplete';
 import { useStore } from '../../../hooks/useStore';
 import { selectRetroMode } from '../../ui/selectors';
-import { selectRound } from '../selectors';
+import { selectRound, selectUsedPlanes } from '../selectors';
 import { selectPlaneById } from '../../planes/selectors';
 import type { PlaneState } from '../../common/types';
 
@@ -34,6 +34,30 @@ export default function GuessForm(): JSX.Element | null {
   const round = useStore(selectRound);
   const planeHex = round?.hex;
   const plane = useStore(selectPlaneById(planeHex ?? '')) as PlaneState | undefined;
+  const usedPlanes = useStore(selectUsedPlanes);
+
+  // Determine what's hidden based on round direction
+  // direction === 'origin' means we're guessing origin, so hide origin
+  // direction === 'destination' means we're guessing destination, so hide destination
+  const isRoundComplete = planeHex ? usedPlanes.has(planeHex) && round?.state !== 'guessing' : false;
+  const guessDirection = round?.direction;
+
+  // Determine what to show for origin/destination
+  const getDisplayValue = (field: 'origin' | 'destination'): string | null => {
+    if (!plane) return null;
+    const value = field === 'origin' ? plane.origin : plane.destination;
+
+    // After round is complete, show the actual value
+    if (isRoundComplete) return value || null;
+
+    // During active round, hide the field being guessed
+    if (guessDirection === field) return null; // Hide - return null to not render
+
+    return value || null;
+  };
+
+  // Get header text based on direction
+  const headerText = guessDirection === 'origin' ? 'ORIGIN' : 'DESTINATION';
 
   const handleAirportChange = useCallback((value: string) => {
     setInputValue(value);
@@ -79,11 +103,11 @@ export default function GuessForm(): JSX.Element | null {
             {/* Header with time remaining */}
             <div className="flex items-center justify-between border-b border-retro-border pb-4">
               <h2 className="font-splitflap text-xl text-retro-led tracking-widest">
-                DESTINATION
+                {headerText}
               </h2>
               {remaining != null && (
                 <div className="font-splitflap text-lg text-retro-led-bright">
-                  {remaining}s
+                  {remaining}
                 </div>
               )}
             </div>
@@ -116,13 +140,25 @@ export default function GuessForm(): JSX.Element | null {
                   </span>
                 </div>
               )}
-              {plane?.origin && (
+              {/* Show origin - conditionally hidden if that's what we're guessing */}
+              {getDisplayValue('origin') && (
                 <div className="flex items-center justify-between">
                   <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
                     Origin
                   </span>
                   <span className="font-splitflap text-retro-led tracking-wider">
-                    {plane.origin}
+                    {getDisplayValue('origin')}
+                  </span>
+                </div>
+              )}
+              {/* Show destination - conditionally hidden if that's what we're guessing */}
+              {getDisplayValue('destination') && (
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
+                    Destination
+                  </span>
+                  <span className="font-splitflap text-retro-led tracking-wider">
+                    {getDisplayValue('destination')}
                   </span>
                 </div>
               )}
@@ -141,7 +177,7 @@ export default function GuessForm(): JSX.Element | null {
             {/* Airport input */}
             <div>
               <label htmlFor="airport-guess" className="block font-display text-xs text-retro-text-muted uppercase tracking-wider mb-2">
-                Enter Destination
+                Enter {headerText}
               </label>
               <AirportAutocomplete
                 id="airport-guess"
@@ -200,7 +236,7 @@ export default function GuessForm(): JSX.Element | null {
       >
         <div>
           <label htmlFor="airport-guess" className="block text-sm font-medium mb-2">
-            Where is this flight {remaining != null && <span className="text-gray-500">({remaining}s)</span>}
+            Guess the {guessDirection === 'origin' ? 'origin' : 'destination'} {remaining != null && <span className="text-gray-500">({remaining})</span>}
           </label>
           <AirportAutocomplete
             id="airport-guess"

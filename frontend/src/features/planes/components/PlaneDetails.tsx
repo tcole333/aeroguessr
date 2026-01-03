@@ -15,7 +15,6 @@ import {
   selectConnectionStatus,
 } from '../../connection/selectors';
 import { selectRetroMode } from '../../ui/selectors';
-import type { PlaneState } from '../../common/types';
 
 interface PlaneDetailsProps {
   hex: string;
@@ -47,24 +46,37 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const canStartRound = isHost && status === 'connected' && isSelected && !isRoundActive;
   const canGuess = status === 'connected' && isRoundActive && !hasGuessed;
 
-  // Determine which airport should be hidden based on the same logic as backend
-  // TODO: Get monitored airport from configuration instead of hardcoding
-  const monitoredAirport = 'KBOS';
-  const determineGuessDirection = (plane: PlaneState): string | null => {
+  // Determine which airport to hide based on round direction and game state
+  // - During active round for this plane: hide the answer being guessed
+  // - After round completes (plane in usedPlanes and no active round): show both
+  // - For other planes or before any round: use fallback logic from backend
+  const getFieldToHide = (): 'origin' | 'destination' | null => {
+    // If this plane was used in a round and round is complete, show both
+    if (isUsed && !isRoundActive) {
+      return null; // Show both airports
+    }
+
+    // During active round on this plane, hide based on direction
+    if (isRoundActive && round?.direction) {
+      return round.direction as 'origin' | 'destination';
+    }
+
+    // For other cases (plane not selected, or before round starts),
+    // use fallback logic to prevent accidental spoilers
+    // TODO: Get monitored airport from configuration instead of hardcoding
+    const monitoredAirport = 'KBOS';
     if (!plane.origin || !plane.destination) return null;
 
-    // Same logic as backend: if origin matches monitored airport, guess destination
     if (plane.origin === monitoredAirport) {
       return 'destination';
     }
-    // If destination matches monitored airport, guess origin
     if (plane.destination === monitoredAirport) {
       return 'origin';
     }
     return null;
   };
 
-  const shouldHideAirport = determineGuessDirection(plane);
+  const fieldToHide = getFieldToHide();
 
 
   // Reset guess state when round changes
@@ -281,21 +293,21 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
           {/* Show origin/destination based on game state */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Show origin - hide if this is the airport we would be guessing */}
-            {shouldHideAirport !== 'origin' && (
-              <div>
-                <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
-                <p className={valueClass}>{(plane.origin || 'UNKNOWN').toUpperCase()}</p>
-              </div>
-            )}
+            {/* Origin - show "???" if hidden, actual value otherwise */}
+            <div>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
+              <p className={valueClass}>
+                {fieldToHide === 'origin' ? '???' : (plane.origin || 'UNKNOWN').toUpperCase()}
+              </p>
+            </div>
 
-            {/* Show destination - hide if this is the airport we would be guessing */}
-            {shouldHideAirport !== 'destination' && (
-              <div>
-                <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Destination:'}</span>
-                <p className={valueClass}>{(plane.destination || 'UNKNOWN').toUpperCase()}</p>
-              </div>
-            )}
+            {/* Destination - show "???" if hidden, actual value otherwise */}
+            <div>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Destination:'}</span>
+              <p className={valueClass}>
+                {fieldToHide === 'destination' ? '???' : (plane.destination || 'UNKNOWN').toUpperCase()}
+              </p>
+            </div>
           </div>
 
           {plane.origin_country && (
