@@ -54,7 +54,8 @@ describe('RoundResultModal', () => {
     renderWithStore(<RoundResultModal />);
 
     expect(screen.getByText('Round Complete!')).toBeInTheDocument();
-    expect(screen.getByText('BOS')).toBeInTheDocument();
+    // BOS is displayed as friendly name "Boston" via formatAirportDisplay
+    expect(screen.getByText('Boston')).toBeInTheDocument();
     expect(screen.getByText('Player1')).toBeInTheDocument();
     expect(screen.getByText('Player2')).toBeInTheDocument();
   });

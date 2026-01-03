@@ -7,6 +7,7 @@ import { selectRetroMode } from '../../ui/selectors';
 import { selectRound, selectUsedPlanes } from '../selectors';
 import { selectPlaneById } from '../../planes/selectors';
 import type { PlaneState } from '../../common/types';
+import { formatAirportDisplay } from '../../../lib/airportLookup';
 
 function getFlightStatus(alt_v: number | undefined, alt: number | undefined): string {
   if (!alt_v || !alt) return 'TRACKING';
@@ -48,12 +49,12 @@ export default function GuessForm(): JSX.Element | null {
     const value = field === 'origin' ? plane.origin : plane.destination;
 
     // After round is complete, show the actual value
-    if (isRoundComplete) return value || null;
+    if (isRoundComplete) return value ? formatAirportDisplay(value) : null;
 
     // During active round, hide the field being guessed
     if (guessDirection === field) return null; // Hide - return null to not render
 
-    return value || null;
+    return value ? formatAirportDisplay(value) : null;
   };
 
   // Get header text based on direction

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../hooks/useStore';
 import { selectRetroMode } from '../../features/ui/selectors';
+import { formatAirportDisplay } from '../../lib/airportLookup';
 
 interface RoundResultModalProps {
   autoCloseDelay?: number; // milliseconds, default 8000 (8 seconds)
@@ -41,7 +42,8 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
   }
 
   // Find the correct answer from any result
-  const correctCode = lastRoundResult.results[0]?.correct_code || 'Unknown';
+  const correctCodeRaw = lastRoundResult.results[0]?.correct_code || 'Unknown';
+  const correctCode = formatAirportDisplay(correctCodeRaw);
 
   // Sort results by score awarded (descending) for leaderboard effect
   const sortedResults = [...lastRoundResult.results].sort(
@@ -116,7 +118,7 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
                         </div>
                         {/* Their guess */}
                         <div className="font-splitflap text-xs text-retro-led mt-1">
-                          {result.guess || '---'}
+                          {result.guess ? formatAirportDisplay(result.guess) : '---'}
                           {scoringMode === 'Distance' && result.distance_km !== undefined && result.guess && (
                             <span className="ml-2 font-display text-retro-text-muted">
                               ({result.distance_km === 0
@@ -226,7 +228,7 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
                       )}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Guessed: {result.guess || 'No guess'}
+                      Guessed: {result.guess ? formatAirportDisplay(result.guess) : 'No guess'}
                       {scoringMode === 'Distance' && result.distance_km !== undefined && result.guess && (
                         <span className="ml-2">
                           ({result.distance_km === 0

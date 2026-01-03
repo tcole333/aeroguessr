@@ -15,6 +15,7 @@ import {
   selectConnectionStatus,
 } from '../../connection/selectors';
 import { selectRetroMode } from '../../ui/selectors';
+import { formatAirportDisplay } from '../../../lib/airportLookup';
 
 interface PlaneDetailsProps {
   hex: string;
@@ -297,7 +298,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
               <p className={valueClass}>
-                {fieldToHide === 'origin' ? '???' : (plane.origin || 'UNKNOWN').toUpperCase()}
+                {fieldToHide === 'origin' ? '???' : formatAirportDisplay(plane.origin).toUpperCase()}
               </p>
             </div>
 
@@ -305,7 +306,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Destination:'}</span>
               <p className={valueClass}>
-                {fieldToHide === 'destination' ? '???' : (plane.destination || 'UNKNOWN').toUpperCase()}
+                {fieldToHide === 'destination' ? '???' : formatAirportDisplay(plane.destination).toUpperCase()}
               </p>
             </div>
           </div>
