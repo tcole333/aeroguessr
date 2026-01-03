@@ -320,6 +320,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
                 route_data = RouteData(
                     origin_icao=existing_state.origin,
                     destination_icao=existing_state.destination,
+                    operator=existing_state.operator,
                 )
 
                 # Check if we should retry enrichment using backoff schedule

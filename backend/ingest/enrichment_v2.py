@@ -25,6 +25,7 @@ from backend.ingest.flightaware_scheduled import (
     lookup_flight_by_registration,
 )
 from backend.ingest.hex_to_registration import hex_to_registration
+from backend.utils.airline_codes import infer_operator_from_callsign
 from backend.utils.redis_async import RedisClient
 
 
@@ -183,10 +184,14 @@ async def fetch_route_data_v2(
         route_tuple = await lookup_flight_by_callsign(clean_callsign, redis_client)
         if route_tuple:
             origin_icao, destination_icao = route_tuple
-            route_data = RouteData(origin_icao=origin_icao, destination_icao=destination_icao)
+            # Infer operator from callsign prefix since scheduled flights don't return it
+            operator = infer_operator_from_callsign(clean_callsign)
+            route_data = RouteData(
+                origin_icao=origin_icao, destination_icao=destination_icao, operator=operator
+            )
             logger.info(
                 f"[Schedule/Callsign] Match for {hex_ident}/{clean_callsign}: "
-                f"{origin_icao} -> {destination_icao}"
+                f"{origin_icao} -> {destination_icao} (operator: {operator})"
             )
             match_stats["callsign_matches"] += 1
             await _cache_route_data(cache_key, route_data, redis_client)
@@ -200,10 +205,14 @@ async def fetch_route_data_v2(
         route_tuple = await lookup_flight_by_registration(registration, redis_client)
         if route_tuple:
             origin_icao, destination_icao = route_tuple
-            route_data = RouteData(origin_icao=origin_icao, destination_icao=destination_icao)
+            # Infer operator from callsign prefix if available
+            operator = infer_operator_from_callsign(clean_callsign) if clean_callsign else None
+            route_data = RouteData(
+                origin_icao=origin_icao, destination_icao=destination_icao, operator=operator
+            )
             logger.info(
                 f"[Schedule/Registration] Match for {hex_ident}/{registration}: "
-                f"{origin_icao} -> {destination_icao}"
+                f"{origin_icao} -> {destination_icao} (operator: {operator})"
             )
             match_stats["registration_matches"] += 1
             await _cache_route_data(cache_key, route_data, redis_client)
