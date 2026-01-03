@@ -129,16 +129,6 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
     );
   }
 
-  const handleSelectPlane = () => {
-    if (!canSelectPlane) return;
-
-    try {
-      webSocketClient.send({ type: 'selectPlane', payload: { hex } });
-    } catch (err) {
-      console.error('Failed to select plane:', err);
-    }
-  };
-
   const handleStartRound = () => {
     if (!canStartRound) return;
 
@@ -146,6 +136,21 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
       webSocketClient.send({ type: 'startRound', payload: {} });
     } catch (err) {
       console.error('Failed to start round:', err);
+    }
+  };
+
+  // Combined action: select plane and start round in one tap
+  const handleSelectAndStart = () => {
+    if (!canSelectPlane) return;
+
+    try {
+      webSocketClient.send({ type: 'selectPlane', payload: { hex } });
+      // Start round after a brief delay to ensure selection is confirmed
+      setTimeout(() => {
+        webSocketClient.send({ type: 'startRound', payload: {} });
+      }, 100);
+    } catch (err) {
+      console.error('Failed to select and start round:', err);
     }
   };
 
@@ -222,16 +227,23 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
     ? 'font-splitflap text-retro-led tracking-wider'
     : 'text-white';
 
-  const textValueClass = retroMode
-    ? 'font-display text-retro-text'
-    : 'text-white';
-
   const altTrend = altitudeTrend(plane.alt_v);
+
+  // Determine flight status for display
+  const getFlightStatus = () => {
+    if (isRoundActive) return { label: 'ACTIVE', className: 'text-retro-success' };
+    if (isUsed) return { label: 'DEPARTED', className: 'text-retro-text-muted' };
+    if (plane.alt_v && plane.alt_v > 50) return { label: 'CLIMBING', className: 'text-retro-success' };
+    if (plane.alt_v && plane.alt_v < -50) return { label: 'DESCENDING', className: 'text-retro-primary' };
+    return { label: 'CRUISING', className: 'text-retro-text' };
+  };
+
+  const flightStatus = getFlightStatus();
 
   return (
     <div className={containerClass}>
       <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-3">
           <div className={headerClass} role="heading" aria-level={3}>
             {(plane.callsign || plane.hex_ident).toUpperCase()}
           </div>
@@ -244,157 +256,113 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
           </button>
         </div>
 
-        <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'HEX' : 'Hex ID:'}</span>
-              <p className={valueClass}>{plane.hex_ident}</p>
-            </div>
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'CALLSIGN' : 'Callsign:'}</span>
-              <p className={valueClass}>{(plane.callsign || 'UNKNOWN').toUpperCase()}</p>
-            </div>
+        {/* Host Controls - MOVED TO TOP for mobile accessibility */}
+        {isHost && (
+          <div className="mb-4">
+            {isUsed && !isRoundActive ? (
+              // Departed state - show disabled button
+              <button
+                type="button"
+                disabled
+                className={retroMode
+                  ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-2 border-retro-border bg-retro-panel text-retro-text-muted cursor-not-allowed opacity-70'
+                  : 'w-full rounded py-2 px-3 bg-gray-500 text-white cursor-not-allowed'
+                }
+              >
+                {retroMode ? 'DEPARTED' : 'Already Used'}
+              </button>
+            ) : isSelected && canStartRound ? (
+              // Already selected - show BEGIN ROUND button
+              <button
+                type="button"
+                onClick={handleStartRound}
+                className={retroMode
+                  ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-0 bg-retro-primary text-retro-panel hover:bg-retro-primary-bright transition-all'
+                  : 'w-full rounded bg-green-500 py-2 px-3 text-white hover:bg-green-600'
+                }
+              >
+                {retroMode ? 'BEGIN ROUND' : 'Start Round'}
+              </button>
+            ) : !isSelected && canSelectPlane ? (
+              // Not selected - show combined START ROUND button (select + start in one tap)
+              <button
+                type="button"
+                onClick={handleSelectAndStart}
+                className={retroMode
+                  ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-0 bg-retro-primary text-retro-panel hover:bg-retro-primary-bright transition-all'
+                  : 'w-full rounded bg-green-500 py-2 px-3 text-white hover:bg-green-600'
+                }
+              >
+                {retroMode ? 'START ROUND WITH THIS FLIGHT' : 'Start Round with This Flight'}
+              </button>
+            ) : isSelected && !canStartRound ? (
+              // Selected but can't start (e.g., round in progress)
+              <div className={retroMode ? 'p-2 border border-retro-primary bg-retro-panel-dark text-center' : 'p-2 bg-blue-900 rounded border border-blue-600 text-center'}>
+                <p className={retroMode ? 'text-sm font-display text-retro-primary uppercase tracking-wider' : 'text-sm text-blue-200'}>
+                  {retroMode ? '✓ FLIGHT SELECTED' : '✓ Selected for round'}
+                </p>
+              </div>
+            ) : null}
           </div>
+        )}
 
-          {plane.operator && (
+        {/* Compact 3-column flight data grid */}
+        <div className="space-y-2 text-sm">
+          {/* Row 1: ALT | SPEED | STATUS */}
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'AIRLINE' : 'Airline:'}</span>
-              <p className={textValueClass}>{plane.operator}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'ALT' : 'Altitude:'}</span>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'ALT' : 'Alt'}</span>
               {retroMode ? (
-                <p className="flex items-baseline gap-2">
+                <p className="flex items-baseline gap-1">
                   <span className={`text-xs ${altTrend.className}`} aria-hidden="true">
                     {altTrend.symbol}
                   </span>
                   <span className={valueClass}>{formatAltitudeValue(plane.alt)}</span>
-                  <span className="text-xs font-display text-retro-text-muted">FT</span>
                 </p>
               ) : (
                 <p className={valueClass}>{`${formatAltitudeValue(plane.alt)} ft`}</p>
               )}
             </div>
             <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'SPD' : 'Speed:'}</span>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'SPD' : 'Speed'}</span>
               {retroMode ? (
-                <p className="flex items-baseline gap-2">
-                  <span className="font-splitflap text-retro-success tracking-wider">
-                    {formatSpeedValue(plane.lat_v, plane.lon_v) ?? '---'}
-                  </span>
-                  <span className="text-xs font-display text-retro-text-muted">KTS</span>
+                <p className={valueClass}>
+                  {formatSpeedValue(plane.lat_v, plane.lon_v) ?? '---'}
                 </p>
               ) : (
-                <p className={valueClass}>{`${formatSpeedValue(plane.lat_v, plane.lon_v) ?? 'Invalid'} kts`}</p>
+                <p className={valueClass}>{`${formatSpeedValue(plane.lat_v, plane.lon_v) ?? '---'} kts`}</p>
               )}
+            </div>
+            <div>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'STATUS' : 'Status'}</span>
+              <p className={retroMode ? `font-display uppercase tracking-wider ${flightStatus.className}` : valueClass}>
+                {flightStatus.label}
+              </p>
             </div>
           </div>
 
-          {/* Show origin/destination based on game state */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
-            {/* Origin - show "???" if hidden, actual value otherwise */}
+          {/* Row 2: ORIGIN | DEST | AIRLINE */}
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin:'}</span>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin'}</span>
               <p className={valueClass}>
                 {fieldToHide === 'origin' ? '???' : formatAirportDisplay(plane.origin).toUpperCase()}
               </p>
             </div>
-
-            {/* Destination - show "???" if hidden, actual value otherwise */}
             <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Destination:'}</span>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Dest'}</span>
               <p className={valueClass}>
                 {fieldToHide === 'destination' ? '???' : formatAirportDisplay(plane.destination).toUpperCase()}
               </p>
             </div>
-          </div>
-
-          {plane.origin_country && (
             <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'COUNTRY' : 'Country:'}</span>
-              <p className={textValueClass}>{plane.origin_country}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'LAT' : 'Latitude:'}</span>
-              <p className={valueClass}>{plane.lat.toFixed(4)}</p>
-            </div>
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'LON' : 'Longitude:'}</span>
-              <p className={valueClass}>{plane.lon.toFixed(4)}</p>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'AIRLINE' : 'Airline'}</span>
+              <p className={retroMode ? 'font-display text-retro-text uppercase tracking-wider text-xs' : 'text-white text-xs'}>
+                {plane.operator || '---'}
+              </p>
             </div>
           </div>
         </div>
-
-        {/* Host Controls */}
-        {isHost && (
-          <div className="mt-6 space-y-3">
-            <div className={retroMode ? 'border-t border-retro-border pt-4' : 'border-t border-gray-600 pt-4'}>
-              <h4 className={retroMode ? 'text-xs font-display uppercase tracking-widest text-retro-text-muted mb-3' : 'text-sm font-medium text-gray-300 mb-3'}>
-                {retroMode ? 'GATE CONTROL' : 'Host Controls'}
-              </h4>
-
-              {isSelected && !isUsed && (
-                <div className={retroMode ? 'mb-3 p-2 border border-retro-primary bg-retro-panel-dark' : 'mb-3 p-2 bg-blue-900 rounded border border-blue-600'}>
-                  <p className={retroMode ? 'text-sm font-display text-retro-primary uppercase tracking-wider' : 'text-sm text-blue-200'}>
-                    {retroMode ? '✓ FLIGHT SELECTED' : '✓ Selected for round'}
-                  </p>
-                </div>
-              )}
-
-              {isUsed && !isRoundActive && (
-                <div className={retroMode ? 'mb-3 p-2 border border-retro-border bg-retro-panel opacity-70' : 'mb-3 p-2 bg-gray-800 rounded border border-gray-600'}>
-                  <p className={retroMode ? 'text-sm font-display text-retro-text-muted uppercase tracking-wider' : 'text-sm text-gray-300'}>
-                    {retroMode ? '✓ FLIGHT DEPARTED' : '✓ This plane has already been used in a previous round'}
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={handleSelectPlane}
-                  disabled={!canSelectPlane}
-                  className={retroMode
-                    ? `w-full py-3 px-3 font-display uppercase tracking-widest text-sm transition-all border-2 ${
-                        isSelected && !isUsed
-                          ? 'border-retro-primary bg-retro-panel-dark text-retro-primary'
-                          : isUsed
-                          ? 'border-retro-border bg-retro-panel text-retro-text-muted cursor-not-allowed'
-                          : 'border-retro-primary bg-transparent text-retro-primary hover:bg-retro-panel-dark disabled:opacity-50'
-                      }`
-                    : `w-full rounded py-2 px-3 text-white transition-colors ${
-                        isSelected && !isUsed
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : isUsed
-                          ? 'bg-gray-500 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400'
-                      }`
-                  }
-                >
-                  {isUsed ? (retroMode ? 'DEPARTED' : 'Already Used') : isSelected ? (retroMode ? 'SELECTED' : 'Selected') : (retroMode ? 'SELECT FLIGHT' : 'Select for Round')}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleStartRound}
-                  disabled={!canStartRound}
-                  className={retroMode
-                    ? 'w-full py-3 px-3 font-display uppercase tracking-widest text-sm border-0 bg-retro-primary text-retro-panel hover:bg-retro-primary-bright disabled:opacity-50 transition-all'
-                    : 'w-full rounded bg-green-500 py-2 px-3 text-white disabled:bg-gray-400 hover:bg-green-600'
-                  }
-                >
-                  {retroMode ? 'BEGIN ROUND' : 'Start Round'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
 
         {/* Guess Form */}

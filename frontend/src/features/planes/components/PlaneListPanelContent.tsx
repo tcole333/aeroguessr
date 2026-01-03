@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../../../hooks/useStore';
 import { selectPlaneMap } from '../selectors';
 import { selectSelectedPlane, selectRound, selectUsedPlanes } from '../../game/selectors';
@@ -16,7 +16,6 @@ const getAltitudeTrend = (altV?: number) => {
 
 export default function PlaneListPanelContent(): JSX.Element {
   const planeMap = useStore(selectPlaneMap);
-  const planes = Object.values(planeMap);
   const selectedPlane = useStore(selectSelectedPlane);
   const round = useStore(selectRound);
   const usedPlanes = useStore(selectUsedPlanes);
@@ -24,6 +23,16 @@ export default function PlaneListPanelContent(): JSX.Element {
   const retroMode = useStore(selectRetroMode);
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
   const previousRoundState = useRef<string | null>(round?.state ?? null);
+
+  // Sort planes with selected plane first for easy access
+  const planes = useMemo(() => {
+    const planesList = Object.values(planeMap);
+    return planesList.sort((a, b) => {
+      if (a.hex_ident === selectedPlane) return -1;
+      if (b.hex_ident === selectedPlane) return 1;
+      return 0; // Keep original order for others
+    });
+  }, [planeMap, selectedPlane]);
 
   const handlePlaneClick = (hex: string) => {
     setExpandedPlane(expandedPlane === hex ? null : hex);

@@ -509,4 +509,13 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Mobile touch scroll improvements */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
 }

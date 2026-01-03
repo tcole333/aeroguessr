@@ -6,6 +6,8 @@ import { RoomCodeDisplay } from '../ui/RoomCodeDisplay';
 import { ScoreModeIndicator } from '../ui/ScoreModeIndicator';
 import { GameStatusIndicator } from '../ui/GameStatusIndicator';
 import { CurrentHostDisplay } from '../ui/CurrentHostDisplay';
+import { MobileStatusBar } from '../ui/MobileStatusBar';
+import { MobileGameStatus } from '../ui/MobileGameStatus';
 import { useStore } from '../../hooks/useStore';
 import {
   selectActivePanel,
@@ -34,9 +36,10 @@ export default function SlidingPanel(): JSX.Element {
   }
 
   // Retro panel styling
+  // Panel container should NOT scroll - only the content area inside should scroll
   const panelClasses = retroMode
-    ? `flex min-h-0 flex-col w-full bg-retro-bg border-l border-retro-border text-retro-text transition-all duration-300 ease-in-out relative z-[700] shadow-[-6px_0_12px_rgba(45,42,36,0.08)] ${isPanelOpen ? 'h-1/2 overflow-y-auto md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`
-    : `flex min-h-0 flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out relative z-[700] ${isPanelOpen ? 'h-1/2 overflow-y-auto md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`;
+    ? `flex min-h-0 flex-col w-full bg-retro-bg border-l border-retro-border text-retro-text transition-all duration-300 ease-in-out relative z-[700] shadow-[-6px_0_12px_rgba(45,42,36,0.08)] ${isPanelOpen ? 'h-1/2 overflow-hidden md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`
+    : `flex min-h-0 flex-col w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-300 ease-in-out relative z-[700] ${isPanelOpen ? 'h-1/2 overflow-hidden md:w-96 md:overflow-hidden' : 'h-16 overflow-hidden md:w-16 md:overflow-hidden'} md:h-full`;
 
   const headerBorderClasses = retroMode
     ? 'border-b border-retro-border'
@@ -55,15 +58,16 @@ export default function SlidingPanel(): JSX.Element {
     : 'px-4 py-2 border-t border-gray-200 dark:border-gray-700 space-y-2';
 
   const contentClasses = retroMode
-    ? `flex-1 min-h-0 p-4 bg-retro-bg ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden' : 'hidden'}`
-    : `flex-1 min-h-0 p-4 ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden' : 'hidden'}`;
+    ? `flex-1 min-h-0 p-4 bg-retro-bg ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y' : 'hidden'}`
+    : `flex-1 min-h-0 p-4 ${isPanelOpen ? 'overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y' : 'hidden'}`;
 
   return (
     <div className={panelClasses}>
       {/* Brass corner decoration for retro mode */}
       {retroMode && <div className="brass-corners absolute inset-0 pointer-events-none" />}
 
-      <div className={headerBorderClasses}>
+      {/* Header section - fixed at top, should not shrink */}
+      <div className={`flex-shrink-0 ${headerBorderClasses}`}>
         <div className={headerRowClasses}>
           <RoomCodeDisplay className={isPanelOpen ? '' : 'hidden md:hidden'} />
           <button
@@ -81,14 +85,23 @@ export default function SlidingPanel(): JSX.Element {
           </button>
         </div>
         {isPanelOpen && (
-          <div className={statusSectionClasses}>
-            <ScoreModeIndicator />
-            <CurrentHostDisplay />
-            <GameStatusIndicator />
-          </div>
+          <>
+            {/* Mobile: Condensed single-line status */}
+            <div className={`md:hidden ${statusSectionClasses} !space-y-1 !py-2`}>
+              <MobileStatusBar />
+              <MobileGameStatus />
+            </div>
+            {/* Desktop: Full multi-line status */}
+            <div className={`hidden md:block ${statusSectionClasses}`}>
+              <ScoreModeIndicator />
+              <CurrentHostDisplay />
+              <GameStatusIndicator />
+            </div>
+          </>
         )}
       </div>
-      <PanelTabs className={`${!isPanelOpen ? 'md:hidden' : ''}`} />
+      {/* Tabs - fixed below header, should not shrink */}
+      <PanelTabs className={`flex-shrink-0 ${!isPanelOpen ? 'md:hidden' : ''}`} />
       <div className={contentClasses}>{content}</div>
     </div>
   );

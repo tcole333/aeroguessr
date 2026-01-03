@@ -52,10 +52,12 @@ describe('PlaneListPanelContent', () => {
     // Click to expand details
     await userEvent.click(item);
 
-    // Click the "Select for Round" button that appears in the details
-    const selectButton = screen.getByRole('button', { name: /select for round/i });
-    await userEvent.click(selectButton);
+    // Click the combined "Start Round with This Flight" button that appears in the details
+    // This button combines select + start in one action for mobile UX
+    const startButton = screen.getByRole('button', { name: /start round with this flight/i });
+    await userEvent.click(startButton);
 
+    // The combined button sends selectPlane immediately
     expect(sendSpy).toHaveBeenCalledWith({ type: 'selectPlane', payload: { hex: 'abc' } });
     sendSpy.mockRestore();
   });
