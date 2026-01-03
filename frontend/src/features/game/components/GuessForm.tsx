@@ -145,7 +145,7 @@ export default function GuessForm(): JSX.Element | null {
                 <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
                   Status
                 </span>
-                <span className="font-splitflap text-retro-led tracking-wider">
+                <span className="font-splitflap text-retro-primary tracking-wider">
                   {flightStatus}
                 </span>
               </div>
@@ -186,7 +186,7 @@ export default function GuessForm(): JSX.Element | null {
                   <span className="font-display text-xs text-retro-text-muted uppercase tracking-wider">
                     Airline
                   </span>
-                  <span className="font-display text-retro-text tracking-wider">
+                  <span className="font-display text-retro-primary tracking-wider">
                     {plane.operator}
                   </span>
                 </div>

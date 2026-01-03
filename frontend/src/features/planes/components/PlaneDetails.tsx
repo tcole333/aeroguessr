@@ -174,7 +174,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   };
 
   const formatAltitudeValue = (alt: number) => {
-    return alt.toLocaleString();
+    return Math.round(alt).toLocaleString();
   };
 
   const formatSpeedValue = (latV: number, lonV: number) => {
@@ -306,10 +306,10 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
           </div>
         )}
 
-        {/* Compact 3-column flight data grid */}
+        {/* Compact 2-column flight data grid (3 rows) */}
         <div className="space-y-2 text-sm">
-          {/* Row 1: ALT | SPEED | STATUS */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Row 1: ALT | SPEED */}
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ALT' : 'Alt'}</span>
               {retroMode ? (
@@ -333,31 +333,35 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
                 <p className={valueClass}>{`${formatSpeedValue(plane.lat_v, plane.lon_v) ?? '---'} kts`}</p>
               )}
             </div>
-            <div>
-              <span className={labelClass} style={labelStyle}>{retroMode ? 'STATUS' : 'Status'}</span>
-              <p className={retroMode ? `font-display uppercase tracking-wider ${flightStatus.className}` : valueClass}>
-                {flightStatus.label}
-              </p>
-            </div>
           </div>
 
-          {/* Row 2: ORIGIN | DEST | AIRLINE */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Row 2: ORIGIN | DEST */}
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin'}</span>
-              <p className={valueClass}>
+              <p className={`${valueClass} truncate`}>
                 {fieldToHide === 'origin' ? '???' : formatAirportDisplay(plane.origin).toUpperCase()}
               </p>
             </div>
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Dest'}</span>
-              <p className={valueClass}>
+              <p className={`${valueClass} truncate`}>
                 {fieldToHide === 'destination' ? '???' : formatAirportDisplay(plane.destination).toUpperCase()}
+              </p>
+            </div>
+          </div>
+
+          {/* Row 3: STATUS | AIRLINE */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className={labelClass} style={labelStyle}>{retroMode ? 'STATUS' : 'Status'}</span>
+              <p className={retroMode ? 'font-display uppercase tracking-wider text-retro-primary' : valueClass}>
+                {flightStatus.label}
               </p>
             </div>
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'AIRLINE' : 'Airline'}</span>
-              <p className={retroMode ? 'font-display text-retro-text uppercase tracking-wider text-xs' : 'text-white text-xs'}>
+              <p className={`${retroMode ? 'font-display text-retro-primary uppercase tracking-wider text-xs' : 'text-white text-xs'} truncate`}>
                 {plane.operator || '---'}
               </p>
             </div>
