@@ -46,10 +46,11 @@ frontend/src/
 ## State Management
 
 ### Zustand Store Structure
+
 ```typescript
 interface RootState {
   // Connection slice
-  wsStatus: 'disconnected' | 'connecting' | 'connected';
+  wsStatus: "disconnected" | "connecting" | "connected";
   roomCode: string | null;
   nickname: string | null;
 
@@ -64,28 +65,31 @@ interface RootState {
 
   // UI slice
   darkMode: boolean;
-  panelTab: 'planes' | 'leaderboard' | 'settings';
+  panelTab: "planes" | "leaderboard" | "settings";
 }
 ```
 
 ### Slice Pattern
+
 ```typescript
 // features/game/gameSlice.ts
 export const createGameSlice: StateCreator<GameSlice> = (set, get) => ({
   players: {},
-  addPlayer: (player) => set((state) => ({
-    players: { ...state.players, [player.nickname]: player }
-  })),
+  addPlayer: (player) =>
+    set((state) => ({
+      players: { ...state.players, [player.nickname]: player },
+    })),
 });
 ```
 
 ## WebSocket Integration
 
 ### Message Handling
+
 ```typescript
 // hooks/useWebSocketManager.ts
 useEffect(() => {
-  ws.onMessage('delta', (payload) => {
+  ws.onMessage("delta", (payload) => {
     if (payload.planes?.updated) {
       updatePlanes(payload.planes.updated);
     }
@@ -97,7 +101,9 @@ useEffect(() => {
 ```
 
 ### Type Safety
+
 Types are auto-generated from backend schemas:
+
 ```bash
 make openapi    # → types/api.ts
 make ws-schema  # → types/ws.ts
@@ -106,6 +112,7 @@ make ws-schema  # → types/ws.ts
 ## Component Patterns
 
 ### Mobile-First
+
 ```tsx
 // Responsive panels
 <div className="
@@ -115,22 +122,21 @@ make ws-schema  # → types/ws.ts
 ```
 
 ### Map Integration
+
 ```tsx
 <MapContainer center={[lat, lon]} zoom={10}>
   <TileLayer url="..." />
-  {planes.map(plane => (
+  {planes.map((plane) => (
     <PlaneMarker key={plane.hex_ident} plane={plane} />
   ))}
 </MapContainer>
 ```
 
 ### React Portal for Modals
+
 ```tsx
 // Ensure z-index above map
-createPortal(
-  <RoundResultModal />,
-  document.body
-)
+createPortal(<RoundResultModal />, document.body);
 ```
 
 ## Testing
@@ -150,6 +156,7 @@ npm run test:coverage
 ```
 
 ### Testing Patterns
+
 ```typescript
 // Use Testing Library
 render(<PlaneMarker plane={mockPlane} />);
@@ -180,20 +187,20 @@ npm run lint
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `hooks/useWebSocketManager.ts` | WebSocket lifecycle & message handling |
-| `store/createRootStore.tsx` | Zustand store with all slices |
-| `components/Map/GameMap.tsx` | Main map with planes |
-| `features/game/gameSlice.ts` | Game state (players, rounds) |
-| `lib/websocket.ts` | WebSocket client class |
-| `assets/airports.json` | Airport autocomplete data (~3K airports) |
+| File                           | Purpose                                  |
+| ------------------------------ | ---------------------------------------- |
+| `hooks/useWebSocketManager.ts` | WebSocket lifecycle & message handling   |
+| `store/createRootStore.tsx`    | Zustand store with all slices            |
+| `components/Map/GameMap.tsx`   | Main map with planes                     |
+| `features/game/gameSlice.ts`   | Game state (players, rounds)             |
+| `lib/websocket.ts`             | WebSocket client class                   |
+| `assets/airports.json`         | Airport autocomplete data (~3K airports) |
 
 ## Environment Variables
 
 Set in `.env` or at build time:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_WS_URL` | `ws://localhost:8000` | WebSocket endpoint |
-| `VITE_API_URL` | `http://localhost:8000` | REST API endpoint |
+| Variable       | Default                 | Description        |
+| -------------- | ----------------------- | ------------------ |
+| `VITE_WS_URL`  | `ws://localhost:8000`   | WebSocket endpoint |
+| `VITE_API_URL` | `http://localhost:8000` | REST API endpoint  |
