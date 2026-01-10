@@ -24,15 +24,23 @@ export default function PlaneListPanelContent(): JSX.Element {
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
   const previousRoundState = useRef<string | null>(round?.state ?? null);
 
-  // Sort planes with selected plane first for easy access
+  // Sort planes: selected first, used last, others in between
   const planes = useMemo(() => {
     const planesList = Object.values(planeMap);
     return planesList.sort((a, b) => {
+      // Selected plane always first
       if (a.hex_ident === selectedPlane) return -1;
       if (b.hex_ident === selectedPlane) return 1;
-      return 0; // Keep original order for others
+
+      // Used planes go to bottom
+      const aUsed = usedPlanes.has(a.hex_ident);
+      const bUsed = usedPlanes.has(b.hex_ident);
+      if (aUsed && !bUsed) return 1;
+      if (!aUsed && bUsed) return -1;
+
+      return 0; // Keep original order within groups
     });
-  }, [planeMap, selectedPlane]);
+  }, [planeMap, selectedPlane, usedPlanes]);
 
   const handlePlaneClick = (hex: string) => {
     setExpandedPlane(expandedPlane === hex ? null : hex);
