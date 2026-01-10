@@ -44,7 +44,13 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const isSelected = selectedPlane === hex;
   const isRoundActive = round?.state === 'guessing' && round?.hex === hex;
   const isUsed = usedPlanes.has(hex);
-  const canSelectPlane = isHost && status === 'connected' && !isRoundActive && !isUsed;
+  // Only allow selecting flights connected to monitored airport (not overhead flights)
+  // TODO: Get monitored airport from configuration instead of hardcoding
+  const monitoredAirport = 'KBOS';
+  const isConnectedToMonitoredAirport =
+    plane?.origin === monitoredAirport || plane?.destination === monitoredAirport;
+  const canSelectPlane =
+    isHost && status === 'connected' && !isRoundActive && !isUsed && isConnectedToMonitoredAirport;
   const canStartRound = isHost && status === 'connected' && isSelected && !isRoundActive;
   const canGuess = status === 'connected' && isRoundActive && !hasGuessed;
 
@@ -65,8 +71,6 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
     // For other cases (plane not selected, or before round starts),
     // use fallback logic to prevent accidental spoilers
-    // TODO: Get monitored airport from configuration instead of hardcoding
-    const monitoredAirport = 'KBOS';
     if (!plane.origin || !plane.destination) return null;
 
     if (plane.origin === monitoredAirport) {

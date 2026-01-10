@@ -1354,6 +1354,24 @@ async def websocket_endpoint(
                             f"monitored='{monitored_airport_icao}'"
                         )
 
+                        # Reject overhead flights not connected to monitored airport
+                        if (
+                            origin_airport != monitored_airport_icao
+                            and destination_airport != monitored_airport_icao
+                        ):
+                            logger.info(
+                                f"Rejecting overhead flight {plane_hex_selected}: "
+                                f"neither origin '{origin_airport}' nor destination "
+                                f"'{destination_airport}' matches monitored airport "
+                                f"'{monitored_airport_icao}'"
+                            )
+                            await _send_error(
+                                ErrorCode.INVALID_PLANE_SELECTION,
+                                f"Flight must be departing from or arriving at "
+                                f"{monitored_airport_icao}.",
+                            )
+                            continue
+
                         correct_airport_for_round = None  # Initialize
                         guess_direction = "destination"  # Default
 
@@ -1373,24 +1391,8 @@ async def websocket_endpoint(
                             )
                             guess_direction = "origin"
                             correct_airport_for_round = origin_airport
-                        # Condition 3: Has a destination (and not covered by Cond 1 or 2)
-                        elif destination_airport:
-                            logger.debug(
-                                f"SELECT_PLANE Logic: Condition 3 Met. "
-                                f"Dest='{destination_airport}'. Guessing Destination."
-                            )
-                            guess_direction = "destination"
-                            correct_airport_for_round = destination_airport
-                        # Condition 4: Has an origin (and not covered by Cond 1, 2, or 3)
-                        elif origin_airport:
-                            logger.debug(
-                                f"SELECT_PLANE Logic: Condition 4 Met. "
-                                f"Origin='{origin_airport}'. Guessing Origin."
-                            )
-                            guess_direction = "origin"
-                            correct_airport_for_round = origin_airport
-                        # Fallback: No origin or destination information available or
-                        # they are empty strings
+                        # Fallback: Flight is connected to monitored airport but missing
+                        # complete route data (e.g., only origin or only destination known)
                         else:
                             logger.warning(
                                 f"SELECT_PLANE Logic: Fallback - Could not determine guess "

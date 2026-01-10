@@ -43,6 +43,8 @@ describe('PlaneListPanelContent', () => {
       alt_v: 0,
       last_update_ts: 1,
       trail: [],
+      origin: 'KBOS', // Flight connected to monitored airport to enable selection
+      destination: 'KLAX',
     };
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
     setup([plane]);
