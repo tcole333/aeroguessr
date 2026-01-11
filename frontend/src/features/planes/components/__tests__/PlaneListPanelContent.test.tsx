@@ -110,4 +110,95 @@ describe('PlaneListPanelContent', () => {
     setup();
     expect(screen.getByText(/scanning for nearby flights/i)).toBeInTheDocument();
   });
+
+  it('sorts used planes to the bottom of the list', () => {
+    // Create multiple planes with distinct hex_idents
+    const planes: PlaneState[] = [
+      {
+        hex_ident: 'plane_a',
+        lat: 0,
+        lon: 0,
+        alt: 1000,
+        lat_v: 0,
+        lon_v: 0,
+        alt_v: 0,
+        last_update_ts: 1,
+        trail: [],
+        origin: 'KBOS',
+        destination: 'KLAX',
+      },
+      {
+        hex_ident: 'plane_b',
+        lat: 0,
+        lon: 0,
+        alt: 2000,
+        lat_v: 0,
+        lon_v: 0,
+        alt_v: 0,
+        last_update_ts: 2,
+        trail: [],
+        origin: 'KBOS',
+        destination: 'KJFK',
+      },
+      {
+        hex_ident: 'plane_c',
+        lat: 0,
+        lon: 0,
+        alt: 3000,
+        lat_v: 0,
+        lon_v: 0,
+        alt_v: 0,
+        last_update_ts: 3,
+        trail: [],
+        origin: 'KBOS',
+        destination: 'KORD',
+      },
+    ];
+
+    // Set up store with usedPlanes BEFORE render
+    const store = createRootStore();
+    store.getState().ui.toggleRetroMode();
+    store.getState().planes.upsertPlanes(planes);
+    store.setState((s) => {
+      s.game.hostNickname = 'Me';
+      s.connection.nickname = 'Me';
+      s.connection.playerNickname = 'Me';
+      s.game.usedPlaneHexes = new Set(['plane_a']); // Mark plane_a as used BEFORE render
+    });
+    store.getState().connection.setStatus('connected');
+
+    render(
+      <StoreContext.Provider value={store}>
+        <PlaneListPanelContent />
+      </StoreContext.Provider>,
+    );
+
+    // Get all list items (buttons with plane hex_idents)
+    const listItems = screen.getAllByRole('button');
+
+    // Filter to only plane buttons (they contain the hex_ident in their text)
+    const planeButtons = listItems.filter((btn) =>
+      btn.textContent?.match(/plane_[abc]/i)
+    );
+
+    // Verify we have 3 plane buttons
+    expect(planeButtons).toHaveLength(3);
+
+    // The used plane (plane_a) should appear last in the list
+    // plane_b and plane_c should appear before plane_a
+    const buttonTexts = planeButtons.map((btn) => btn.textContent);
+    const plane_a_index = buttonTexts.findIndex((text) =>
+      text?.includes('plane_a')
+    );
+    const plane_b_index = buttonTexts.findIndex((text) =>
+      text?.includes('plane_b')
+    );
+    const plane_c_index = buttonTexts.findIndex((text) =>
+      text?.includes('plane_c')
+    );
+
+    // Used plane should be at the end (highest index)
+    expect(plane_a_index).toBeGreaterThan(plane_b_index);
+    expect(plane_a_index).toBeGreaterThan(plane_c_index);
+  });
 });

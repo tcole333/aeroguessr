@@ -411,6 +411,34 @@ async def websocket_endpoint(
 
     is_solo_mode = room_code.startswith("solo:")
 
+    # Define _send_error early so it's available to both solo and multiplayer code paths
+    async def _send_error(
+        code: ErrorCode | str, message: str, target_ws: WebSocket | None = None
+    ) -> None:
+        """Sends a standardized error message to the client."""
+        # Ensure 'code' is an ErrorCode enum member before passing to ErrorPayload
+        actual_code: ErrorCode
+        if isinstance(code, ErrorCode):
+            actual_code = code
+        else:
+            try:
+                actual_code = ErrorCode(code)  # Convert string to ErrorCode enum
+            except ValueError:
+                logger.error(
+                    f"Invalid ErrorCode string received: {code}. Defaulting to UNKNOWN_ERROR."
+                )
+                actual_code = ErrorCode.UNKNOWN_ERROR  # Fallback
+
+        error_payload = ErrorPayload(code=actual_code, message=message)
+        error_msg = WSMessage(type=WSMessageType.ERROR, payload=error_payload.model_dump())
+        target = target_ws or websocket  # Default to the current connection
+        try:
+            await conn_manager.send_personal_message(error_msg.model_dump(), target)
+        except WebSocketDisconnect:
+            logger.warning(f"Failed to send error to {nickname} (already disconnected?).")
+        except Exception as e:
+            logger.error(f"Failed to send error message: {e}", exc_info=True)
+
     if is_solo_mode:
 
         async def _solo_loop() -> None:
@@ -461,18 +489,30 @@ async def websocket_endpoint(
                     destination_airport = plane.destination
                     monitored_airport_icao = os.getenv("MONITORED_AIRPORT_ICAO", "KBOS")
 
+                    # Reject overhead flights not connected to monitored airport
+                    if (
+                        origin_airport != monitored_airport_icao
+                        and destination_airport != monitored_airport_icao
+                    ):
+                        logger.info(
+                            f"[Solo] Rejecting overhead flight {select_payload.hex}: "
+                            f"neither origin '{origin_airport}' nor destination "
+                            f"'{destination_airport}' matches monitored airport "
+                            f"'{monitored_airport_icao}'"
+                        )
+                        await _send_error(
+                            ErrorCode.INVALID_PLANE_SELECTION,
+                            f"Flight must be departing from or arriving at "
+                            f"{monitored_airport_icao}.",
+                        )
+                        continue
+
                     correct_code: str | None = None
                     guess_direction = "destination"
                     if origin_airport == monitored_airport_icao and destination_airport:
                         guess_direction = "destination"
                         correct_code = destination_airport
                     elif destination_airport == monitored_airport_icao and origin_airport:
-                        guess_direction = "origin"
-                        correct_code = origin_airport
-                    elif destination_airport:
-                        guess_direction = "destination"
-                        correct_code = destination_airport
-                    elif origin_airport:
                         guess_direction = "origin"
                         correct_code = origin_airport
 
@@ -929,33 +969,6 @@ async def websocket_endpoint(
         conn_manager.add_task(reset_task)  # Add task for tracking
         # Callback to remove task from set when done/cancelled
         reset_task.add_done_callback(conn_manager._remove_task_from_set)
-
-    async def _send_error(
-        code: ErrorCode | str, message: str, target_ws: WebSocket | None = None
-    ) -> None:
-        """Sends a standardized error message to the client."""
-        # Ensure 'code' is an ErrorCode enum member before passing to ErrorPayload
-        actual_code: ErrorCode
-        if isinstance(code, ErrorCode):
-            actual_code = code
-        else:
-            try:
-                actual_code = ErrorCode(code)  # Convert string to ErrorCode enum
-            except ValueError:
-                logger.error(
-                    f"Invalid ErrorCode string received: {code}. Defaulting to UNKNOWN_ERROR."
-                )
-                actual_code = ErrorCode.UNKNOWN_ERROR  # Fallback
-
-        error_payload = ErrorPayload(code=actual_code, message=message)
-        error_msg = WSMessage(type=WSMessageType.ERROR, payload=error_payload.model_dump())
-        target = target_ws or websocket  # Default to the current connection
-        try:
-            await conn_manager.send_personal_message(error_msg.model_dump(), target)
-        except WebSocketDisconnect:
-            logger.warning(f"Failed to send error to {nickname} (already disconnected?).")
-        except Exception as e:
-            logger.error(f"Failed to send error message: {e}", exc_info=True)
 
     async def _check_is_host() -> bool:
         """Check if the current player is the host by fetching current room metadata."""

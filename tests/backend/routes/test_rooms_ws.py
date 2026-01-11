@@ -77,7 +77,7 @@ async def test_solo_ws_distance_mode_flow(
     await redis_client.set_json(meta_key, room_meta)
 
     # Set up a plane with known airports for distance calculation
-    # Use IATA codes (BOS, JFK) which are available in the fallback airport data
+    # Use ICAO codes (KBOS, KJFK) - origin must be KBOS to pass overhead flight check
     plane = PlaneState(
         hex_ident="dist1",
         lat=42.3656,  # BOS coordinates
@@ -87,8 +87,8 @@ async def test_solo_ws_distance_mode_flow(
         lon_v=0,
         alt_v=0,
         last_update_ts=0,
-        origin="BOS",  # IATA code
-        destination="JFK",  # IATA code - ~300km from BOS
+        origin="KBOS",  # ICAO code - monitored airport
+        destination="KJFK",  # ICAO code - ~300km from BOS
     )
     await redis_client.set_json("plane:dist1", plane)
 
@@ -106,8 +106,8 @@ async def test_solo_ws_distance_mode_flow(
         assert confirm.payload["guess_direction"] == "destination"
 
         # Submit a guess with a different airport to get partial distance score
-        # Providence (PVD) is ~70km from JFK (both in fallback data)
-        guess_msg = WSMessage(type="guess", payload={"airport_code": "PVD"})
+        # Providence (KPVD) is ~70km from KJFK
+        guess_msg = WSMessage(type="guess", payload={"airport_code": "KPVD"})
         await ws.send_json(guess_msg.model_dump())
         result = WSMessage(**await ws.receive_json())
 
@@ -119,8 +119,8 @@ async def test_solo_ws_distance_mode_flow(
         # Verify the result contains distance scoring information
         player_result = result.payload["results"][0]
         assert player_result["nickname"] == "SoloDist"
-        assert player_result["correct_code"] == "JFK"
-        assert player_result["guess"] == "PVD"
+        assert player_result["correct_code"] == "KJFK"
+        assert player_result["guess"] == "KPVD"
         # Distance mode should include distance_km in results
         assert "distance_km" in player_result
         # Score should be partial (not 0 or 100) since PVD is not JFK but relatively close
@@ -136,7 +136,7 @@ async def test_solo_ws_distance_mode_exact_guess(
 
     Verifies that an exact match in Distance mode returns 100 points and distance_km of 0.
 
-    Note: Uses IATA codes (JFK, BOS) which are available in the fallback airport data.
+    Note: Uses ICAO codes (KJFK, KBOS) - origin must be KBOS to pass overhead flight check.
     """
     from backend.schemas.core import RoomMeta, ScoringMode
 
@@ -155,7 +155,7 @@ async def test_solo_ws_distance_mode_exact_guess(
     )
     await redis_client.set_json(meta_key, room_meta)
 
-    # Use IATA codes (JFK, BOS) which are in the fallback airport data
+    # Use ICAO codes - origin must be KBOS to pass overhead flight check
     plane = PlaneState(
         hex_ident="exact1",
         lat=42.3656,
@@ -165,8 +165,8 @@ async def test_solo_ws_distance_mode_exact_guess(
         lon_v=0,
         alt_v=0,
         last_update_ts=0,
-        origin="BOS",  # IATA code
-        destination="JFK",  # IATA code (available in fallback data)
+        origin="KBOS",  # ICAO code - monitored airport
+        destination="KJFK",  # ICAO code
     )
     await redis_client.set_json("plane:exact1", plane)
 
@@ -179,8 +179,8 @@ async def test_solo_ws_distance_mode_exact_guess(
         confirm = WSMessage(**await ws.receive_json())
         assert confirm.type == WSMessageType.PLANE_SELECTED_CONFIRM
 
-        # Guess the exact correct answer using IATA code
-        guess_msg = WSMessage(type="guess", payload={"airport_code": "JFK"})
+        # Guess the exact correct answer using ICAO code
+        guess_msg = WSMessage(type="guess", payload={"airport_code": "KJFK"})
         await ws.send_json(guess_msg.model_dump())
         result = WSMessage(**await ws.receive_json())
 
@@ -249,5 +249,54 @@ async def test_solo_ws_ping_pong(test_client: AsyncClient, redis_client: RedisCl
         await ws.send_json(guess_msg.model_dump())
         result = WSMessage(**await ws.receive_json())
         assert result.type == WSMessageType.ROUND_RESULT
+
+        await ws.send_json(WSMessage(type="leave", payload={}).model_dump())
+
+
+async def test_select_plane_rejects_overhead_flight(
+    test_client: AsyncClient, redis_client: RedisClient
+) -> None:
+    """Test that selecting an overhead flight (not connected to monitored airport) is rejected.
+
+    An overhead flight is one where neither the origin nor destination matches the
+    monitored airport (KBOS). The backend should return INVALID_PLANE_SELECTION error
+    when a user attempts to select such a flight.
+    """
+    from backend.schemas.ws import ErrorCode
+
+    join_resp = await test_client.post("/api/v0/rooms/solo/join", json={"nickname": "SoloOverhead"})
+    data = join_resp.json()
+    ws_path = data["ws_url"].replace("ws://testserver", "")
+
+    # Create a plane with origin/destination that are neither KBOS (overhead flight)
+    overhead_plane = PlaneState(
+        hex_ident="overhead1",
+        lat=42.3656,
+        lon=-71.0096,
+        alt=35000,
+        lat_v=0,
+        lon_v=0,
+        alt_v=0,
+        last_update_ts=0,
+        origin="KLAX",  # Los Angeles - not KBOS
+        destination="KJFK",  # New York JFK - not KBOS
+    )
+    await redis_client.set_json("plane:overhead1", overhead_plane)
+
+    async with aconnect_ws(ws_path, client=test_client, keepalive_ping_interval_seconds=None) as ws:
+        # Receive initial state sync
+        msg = WSMessage(**await ws.receive_json())
+        assert msg.type == WSMessageType.STATE_SYNC
+
+        # Attempt to select the overhead flight
+        select_msg = WSMessage(type="selectPlane", payload={"hex": "overhead1"})
+        await ws.send_json(select_msg.model_dump())
+
+        # Should receive an error, not a confirmation
+        error_response = WSMessage(**await ws.receive_json())
+        assert error_response.type == WSMessageType.ERROR
+        # Error code comes as string value from the enum
+        assert error_response.payload["code"] == ErrorCode.INVALID_PLANE_SELECTION.value
+        assert "KBOS" in error_response.payload["message"]
 
         await ws.send_json(WSMessage(type="leave", payload={}).model_dump())
