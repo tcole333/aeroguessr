@@ -144,7 +144,7 @@ export default function PlaneListPanelContent(): JSX.Element {
                       {altitudeTrend.symbol}
                     </span>
                     <span className="font-splitflap text-retro-led tracking-wider">
-                      {plane.alt.toLocaleString()}
+                      {Math.round(plane.alt).toLocaleString()}
                     </span>
                     <span
                       className="text-xs text-retro-text-muted"
@@ -218,7 +218,7 @@ export default function PlaneListPanelContent(): JSX.Element {
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-white">{plane.alt.toLocaleString()} ft</span>
+                  <span className="text-white">{Math.round(plane.alt).toLocaleString()} ft</span>
                   <span className={`text-gray-400 transition-transform ${
                     isExpanded ? 'rotate-180' : ''
                   }`}>
