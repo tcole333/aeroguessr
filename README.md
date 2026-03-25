@@ -1,17 +1,14 @@
-# Plane Guessing Game
-
-<!-- Add badges here: e.g., Build Status, Coverage, License -->
+# AeroGuessr
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)](https://codecov.io/gh/your-username/plane-game-v4)
-
-<!-- ![Build Status](...) -->
-<!-- ![Code Coverage](...) -->
+[![Tests](https://github.com/tcole333/plane-game-v4/actions/workflows/test.yml/badge.svg)](https://github.com/tcole333/plane-game-v4/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/tcole333/plane-game-v4/branch/main/graph/badge.svg)](https://codecov.io/gh/tcole333/plane-game-v4)
 
 ## 1. Purpose
 
-A casual, real-time web game where players guess the origin or destination of flights overhead using live ADS-B signals. Players join a shared "room" via a code, competing in timed rounds. See the full [Product Requirements Document](docs/PRD.md).
+AeroGuessr is a real-time flight tracking game where players guess the origin or destination of aircraft overhead using live ADS-B signals. It supports timed solo play and multiplayer rooms, and the live deployment is available at [aeroguessr.com](https://aeroguessr.com).
+
+See the full [Product Requirements Document](docs/PRD.md).
 
 ## 2. TL;DR Usage
 
@@ -100,8 +97,8 @@ make backend-network
 
 ### 7.1 Running Unit Tests
 
-```python
-poetry run tests/
+```bash
+poetry run pytest tests/backend -m "not integration"
 ```
 
 ### 7.2 Running Integration Tests

@@ -1,7 +1,17 @@
-import { createRoomAPI, joinRoomAPI } from '../apiService';
+import { createRoomAPI, joinRoomAPI, resolveApiBaseUrl } from '../apiService';
 import { expect, it, describe, vi } from 'vitest';
 
 describe('apiService', () => {
+  it('defaults to a relative API path when no env override is set', () => {
+    expect(resolveApiBaseUrl(undefined)).toBe('/api/v0');
+  });
+
+  it('uses the configured API base URL when provided', () => {
+    expect(resolveApiBaseUrl('https://example.com/api/v0')).toBe(
+      'https://example.com/api/v0',
+    );
+  });
+
   it('creates room', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

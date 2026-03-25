@@ -42,14 +42,25 @@ export interface WebSocketClient {
   destroy(): void;
 }
 
-// Determine WebSocket base URL based on current hostname
-const getWsBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname === 'aeroguessr.com') {
-    return 'wss://aeroguessr.com';
-  }
-  return ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_BASE_URL) as string | undefined) ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
-};
+export function resolveWsBaseUrl({
+  envBaseUrl,
+  browserOrigin,
+}: {
+  envBaseUrl?: string;
+  browserOrigin?: string;
+} = {}): string {
+  return envBaseUrl || browserOrigin || '';
+}
+
+const getWsBaseUrl = () =>
+  resolveWsBaseUrl({
+    envBaseUrl:
+      (typeof import.meta !== 'undefined' &&
+        ((import.meta as any).env?.VITE_WS_BASE_URL as string | undefined)) ||
+      undefined,
+    browserOrigin:
+      typeof window !== 'undefined' ? window.location.origin : undefined,
+  });
 
 export function createWebSocketClient(
   baseUrl: string = getWsBaseUrl(),
@@ -91,11 +102,6 @@ export function createWebSocketClient(
     try {
       const msg = assertWsMessage(typeof data === 'string' ? data : String(data));
       if (msg) {
-        // Debug logging for roundStart messages
-        if (msg.type === 'roundStart') {
-          console.log('[WS] Received roundStart message from server:', msg);
-        }
-
         if (msg.type === 'pong') {
           missedPongs = 0;
           emitter.emit('message', msg);
@@ -153,7 +159,7 @@ export function createWebSocketClient(
           url = parsedUrl.toString();
         }
       } catch (err) {
-        console.warn('[WS] Failed to normalize override URL:', err);
+        log('failed to normalize override URL %O', err);
       }
     }
 
@@ -173,17 +179,17 @@ export function createWebSocketClient(
 
     lastUrl = url;
 
-    console.log(`[WS] Connecting to URL: ${url}`);
+    log('connecting %s', url);
     socket = new WebSocket(url);
     socket.addEventListener('open', () => {
-      console.log(`[WS] Connected to ${url}`);
+      log('connected %s', url);
       emitter.emit('connected', undefined);
       reconnectDelay = 500;
       flushQueue();
     });
     socket.addEventListener('message', (e) => handleMessage(e.data));
     socket.addEventListener('close', (ev) => {
-      console.log(`[WS] Disconnected from ${url} (code=${ev.code}, reason=${ev.reason})`);
+      log('disconnected %s code=%d reason=%s', url, ev.code, ev.reason);
       emitter.emit('disconnected', undefined);
 
       // Only reconnect if this wasn't an intentional close
@@ -195,7 +201,7 @@ export function createWebSocketClient(
       }
     });
     socket.addEventListener('error', (e) => {
-      console.error(`[WS] Error on ${url}:`, e);
+      log('socket error on %s %O', url, e);
       emitter.emit('error', e as any);
     });
     heartbeat = setInterval(() => {

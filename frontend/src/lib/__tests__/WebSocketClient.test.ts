@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createWebSocketClient } from '../WebSocketClient';
+import { createWebSocketClient, resolveWsBaseUrl } from '../WebSocketClient';
 import { InboundMessage } from '../../../types/ws';
 
 class MockSocket {
@@ -66,6 +66,19 @@ afterEach(() => {
 
 
 describe('WebSocketClient', () => {
+  it('prefers the configured WebSocket base URL when present', () => {
+    expect(resolveWsBaseUrl({
+      envBaseUrl: 'wss://example.com',
+      browserOrigin: 'https://fallback.example.com',
+    })).toBe('wss://example.com');
+  });
+
+  it('falls back to the browser origin when no WebSocket env override is set', () => {
+    expect(resolveWsBaseUrl({ browserOrigin: 'https://example.com' })).toBe(
+      'https://example.com',
+    );
+  });
+
   it('emits connected and flushes queue', () => {
     const client = createWebSocketClient('ws://test');
     const msgs: InboundMessage[] = [];

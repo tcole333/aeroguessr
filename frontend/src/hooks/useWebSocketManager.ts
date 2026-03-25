@@ -44,19 +44,12 @@ function handleInbound(
       break;
     case 'delta':
       if (msg.payload) {
-        // Only log if delta contains round data
-        if ((msg.payload as any).round) {
-          console.log('[WS] Received delta message with round data:', msg.payload);
-        }
         const { planes } = msg.payload as any;
         if (planes?.updated) {
-          // Only log significant updates or when debugging
-          // console.log('[WS] Received plane updates:', planes.updated.length, 'planes');
           actions.upsertPlanes(planes.updated);
         }
         if (planes?.removed && planes.removed.length > 0) {
-          // Only log when planes are actually removed
-          console.log('[WS] Removing planes:', planes.removed);
+          log('removing planes %O', planes.removed);
           actions.removePlanes(planes.removed);
         }
         actions.applyDelta(msg.payload);
@@ -70,7 +63,7 @@ function handleInbound(
           actions.setExpandedPlane(msg.payload.hex);
         }
       } catch (error) {
-        console.error('[WS] Error handling roundStart:', error);
+        log('roundStart handling failed %O', error);
       }
       break;
     case 'roundResult':
@@ -79,19 +72,19 @@ function handleInbound(
     case 'playerJoined':
       if (msg.payload?.nickname) {
         actions.addPlayer(msg.payload.nickname);
-        console.log('[WS] Player joined:', msg.payload.nickname);
+        log('player joined %s', msg.payload.nickname);
       }
       break;
     case 'playerLeft':
       if (msg.payload?.nickname) {
         actions.removePlayer(msg.payload.nickname);
-        console.log('[WS] Player left:', msg.payload.nickname);
+        log('player left %s', msg.payload.nickname);
       }
       break;
     case 'newHost':
       if (msg.payload?.nickname) {
         actions.setHostNickname(msg.payload.nickname);
-        console.log('[WS] New host assigned:', msg.payload.nickname);
+        log('new host %s', msg.payload.nickname);
       }
       break;
     case 'planeSelectedConfirm':
@@ -137,21 +130,21 @@ export function useWebSocketManager(
   const setCurrentView = useStore((s) => s.ui.setCurrentView);
 
   useEffect(() => {
-  const actions = {
-    hydrate,
-    applyDelta,
-    setRoundStart,
-    setRoundResult,
-    setSelectedPlane,
-    setGuessDirection,
-    setHostNickname,
-    addPlayer,
-    removePlayer,
-    upsertPlanes,
-    removePlanes,
-    setExpandedPlane,
-    setActivePanel,
-  };
+    const actions = {
+      hydrate,
+      applyDelta,
+      setRoundStart,
+      setRoundResult,
+      setSelectedPlane,
+      setGuessDirection,
+      setHostNickname,
+      addPlayer,
+      removePlayer,
+      upsertPlanes,
+      removePlanes,
+      setExpandedPlane,
+      setActivePanel,
+    };
     const offMsg = client.subscribe((m) =>
       handleInbound(m, updateLatency, setLastHeartbeat, actions),
     );
@@ -160,7 +153,7 @@ export function useWebSocketManager(
       // Clear rejoin attempt flag on successful connection
       if (isRejoinAttempt) {
         setIsRejoinAttempt(false);
-        console.log('[WebSocket] Successfully rejoined room');
+        log('rejoined room successfully');
       }
     });
     const offDisc = client.on('disconnected', () => setStatus('reconnecting'));
@@ -171,7 +164,7 @@ export function useWebSocketManager(
 
       // Handle rejoin failures
       if (isRejoinAttempt) {
-        console.log('[WebSocket] Rejoin failed, redirecting to home');
+        log('rejoin failed, redirecting home');
         setIsRejoinAttempt(false);
         clearConnectionDetails();
         setCurrentView('home');

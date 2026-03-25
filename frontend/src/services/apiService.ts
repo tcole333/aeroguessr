@@ -33,16 +33,13 @@ async function handleResponse(res: Response): Promise<any> {
   return res.json();
 }
 
-// Get base URL from environment or default to relative path
-// If accessing via production domain, use production URL; otherwise use relative
-const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname === 'aeroguessr.com') {
-    return 'https://aeroguessr.com/api/v0';
-  }
-  return import.meta.env.VITE_API_BASE_URL || '/api/v0';
-};
+export function resolveApiBaseUrl(
+  envBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL,
+): string {
+  return envBaseUrl || '/api/v0';
+}
 
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = resolveApiBaseUrl();
 
 export async function createRoomAPI(
   params: RoomCreateRequest,

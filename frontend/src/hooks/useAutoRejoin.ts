@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
+import debug from 'debug';
 import { useStore } from './useStore';
+
+const log = debug('plane:auto-rejoin');
 
 /**
  * Custom hook that handles automatic rejoin logic on app startup.
@@ -13,8 +16,6 @@ export function useAutoRejoin(): void {
   const nickname = useStore((s) => s.connection.nickname);
   const currentView = useStore((s) => s.ui.currentView);
   const setIsRejoinAttempt = useStore((s) => s.connection.setIsRejoinAttempt);
-  const setCurrentView = useStore((s) => s.ui.setCurrentView);
-  const setError = useStore((s) => s.connection.setError);
   const clearConnectionDetails = useStore((s) => s.connection.clearConnectionDetails);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export function useAutoRejoin(): void {
     const shouldRejoin = hasConnectionData && currentView === 'game';
 
     if (shouldRejoin) {
-      console.log('[AutoRejoin] Attempting to rejoin room:', roomCode, 'as', nickname);
+      log('attempting rejoin room=%s nickname=%s', roomCode, nickname);
 
       // Set the rejoin flag so other components know this is an automatic rejoin
       setIsRejoinAttempt(true);
@@ -38,7 +39,7 @@ export function useAutoRejoin(): void {
     } else if (hasConnectionData && currentView === 'home') {
       // If we have connection data but we're on the home page, clear it
       // This can happen if the user manually navigated away
-      console.log('[AutoRejoin] Clearing stale connection data');
+      log('clearing stale connection data');
       clearConnectionDetails();
     }
   }, [
@@ -47,8 +48,6 @@ export function useAutoRejoin(): void {
     nickname,
     currentView,
     setIsRejoinAttempt,
-    setCurrentView,
-    setError,
     clearConnectionDetails,
   ]);
 }

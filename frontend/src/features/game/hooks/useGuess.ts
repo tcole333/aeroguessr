@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import debug from 'debug';
 import { useStore } from '../../../hooks/useStore';
 import { webSocketClient } from '../../../hooks/useWebSocketManager';
 import { selectRound, selectRoundTimeout } from '../selectors';
 import { selectConnectionStatus } from '../../connection/selectors';
 import type { Airport } from '../../../components/AirportAutocomplete';
+
+const log = debug('plane:guess');
 
 export interface UseGuessResult {
   code: string;
@@ -34,11 +37,8 @@ export function useGuess(): UseGuessResult {
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    console.log('[useGuess] Round changed:', round);
-    console.log('[useGuess] Round state:', round?.state);
-    console.log('[useGuess] Timeout:', timeout);
     if (round && round.state === 'guessing') {
-      console.log('[useGuess] Setting guess form visible');
+      log('showing guess form for round=%O timeout=%O', round, timeout);
       setVisible(true);
       setCode('');
       setInputValue('');

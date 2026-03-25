@@ -38,19 +38,9 @@ describe('useAutoRejoin', () => {
       return undefined;
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     renderHook(() => useAutoRejoin());
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[AutoRejoin] Attempting to rejoin room:',
-      'TEST',
-      'as',
-      'TestPlayer'
-    );
     expect(mockSetIsRejoinAttempt).toHaveBeenCalledWith(true);
-
-    consoleSpy.mockRestore();
   });
 
   it('should clear connection data when on home page with stale data', () => {
@@ -67,14 +57,9 @@ describe('useAutoRejoin', () => {
       return undefined;
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     renderHook(() => useAutoRejoin());
 
-    expect(consoleSpy).toHaveBeenCalledWith('[AutoRejoin] Clearing stale connection data');
     expect(mockClearConnectionDetails).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it('should not attempt rejoin when no connection data exists', () => {
@@ -91,15 +76,10 @@ describe('useAutoRejoin', () => {
       return undefined;
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     renderHook(() => useAutoRejoin());
 
-    expect(consoleSpy).not.toHaveBeenCalled();
     expect(mockSetIsRejoinAttempt).not.toHaveBeenCalled();
     expect(mockClearConnectionDetails).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it('should only run once on multiple renders', () => {
@@ -116,8 +96,6 @@ describe('useAutoRejoin', () => {
       return undefined;
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const { rerender } = renderHook(() => useAutoRejoin());
 
     // Re-render the hook
@@ -125,9 +103,6 @@ describe('useAutoRejoin', () => {
     rerender();
 
     // Should only be called once despite multiple renders
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
     expect(mockSetIsRejoinAttempt).toHaveBeenCalledTimes(1);
-
-    consoleSpy.mockRestore();
   });
 });
