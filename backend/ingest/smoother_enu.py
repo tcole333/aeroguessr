@@ -2,7 +2,7 @@
 
 Motivation
 ~~~~~~~~~~
-The original `PositionSmoother` operated directly on latitude/longitude
+An earlier smoother (since deleted) operated directly on latitude/longitude
 values expressed in **degrees** and an altitude expressed in **feet**.
 The large unit mismatch (≈100 000× between degrees and feet) causes poor
 numerical conditioning and forces the Kalman filter to rely on very high
@@ -21,8 +21,7 @@ Design choices
 •  **Frame:** simple equirectangular (flat-Earth) approximation is
    sufficient for the ≈300 NM (≈550 km) radius our antenna covers.  We
    avoid pulling in pyproj or similar heavy dependencies.
-•  **State vector:** 6-state constant-velocity model identical to the
-   previous implementation: `[x, y, z, ẋ, ẏ, ż]`.
+•  **State vector:** 6-state constant-velocity model, `[x, y, z, ẋ, ẏ, ż]`.
 •  **Noise tuning:** accepts *per-axis* process and measurement noise
    (standard deviation, *not variance*) in metres and metres/second.
 •  **Initial covariance P:** moderate (100 m² position, 25 ( m/s )²
@@ -44,6 +43,7 @@ __all__ = ["PositionSmootherENU"]
 
 _FT_TO_M = 0.3048
 _M_TO_FT = 1 / _FT_TO_M
+_SECONDS_PER_MINUTE = 60
 
 
 class PositionSmootherENU:
@@ -109,18 +109,16 @@ class PositionSmootherENU:
         F[2, 5] = dt
         self._kf.F = F
 
-        # Build block-diagonal Q for each axis using the helper (positions + velocities)
-        q_blocks = [
-            Q_discrete_white_noise(dim=2, dt=dt, var=sigma_a**2)
-            for sigma_a in self._process_noise_std
-        ]
-        self._kf.Q = np.block(
-            [
-                [q_blocks[0], np.zeros_like(q_blocks[0]), np.zeros_like(q_blocks[0])],
-                [np.zeros_like(q_blocks[1]), q_blocks[1], np.zeros_like(q_blocks[1])],
-                [np.zeros_like(q_blocks[2]), np.zeros_like(q_blocks[2]), q_blocks[2]],
-            ]
-        )
+        # Each axis's process noise is a 2x2 block over its (position, velocity). The state
+        # is ordered [x, y, z, vx, vy, vz], so axis i's block sits at rows/columns (i, i + 3);
+        # stacking the blocks along the diagonal would couple north velocity to climb rate.
+        Q = np.zeros((6, 6))
+        for axis, sigma_a in enumerate(self._process_noise_std):
+            axis_indices = [axis, axis + 3]
+            Q[np.ix_(axis_indices, axis_indices)] = Q_discrete_white_noise(
+                dim=2, dt=dt, var=sigma_a**2
+            )
+        self._kf.Q = Q
 
         self._kf.predict()
 
@@ -141,7 +139,7 @@ class PositionSmootherENU:
 
     @property
     def velocity(self) -> Tuple[float, float, float]:
-        """Current velocity as `(lat_deg/s, lon_deg/s, alt_ft/s)`.
+        """Current velocity as `(lat_deg/s, lon_deg/s, alt_ft/min)`.
 
         Note: velocities are returned in the same mixed units expected by the
         existing ingest pipeline so downstream code does not change yet.
@@ -154,26 +152,21 @@ class PositionSmootherENU:
         Output:
         - lat_v = North velocity in degrees/s (from vy)
         - lon_v = East velocity in degrees/s (from vx)
-        - alt_v = Up velocity in feet/s (from vz)
+        - alt_v = Up velocity in feet/minute (from vz), the unit ADS-B and pilots use
         """
         vx, vy, vz = self._kf.x[3:]
         # vx is East (longitude direction), vy is North (latitude direction)
         lat_v = vy / self._m_per_deg_lat  # North velocity -> lat degrees/s
         lon_v = vx / self._m_per_deg_lon  # East velocity -> lon degrees/s
-        alt_v = vz * _M_TO_FT  # m/s → ft/s
+        alt_v = vz * _M_TO_FT * _SECONDS_PER_MINUTE  # m/s → ft/min
         return lat_v, lon_v, alt_v
-
-    @property
-    def state_vector(self) -> np.ndarray:
-        """Full state vector *in filter units* (metres)."""
-        return self._kf.x.copy()
 
     # Preserve original ingest interface ----------------------------------
     @property
     def state(self) -> np.ndarray:
         """State vector in **mixed units** expected by ingest (deg/ft).
 
-        Returns np.ndarray([lat_deg, lon_deg, alt_ft, lat_deg/s, lon_deg/s, alt_ft/s])
+        Returns np.ndarray([lat_deg, lon_deg, alt_ft, lat_deg/s, lon_deg/s, alt_ft/min])
         so the rest of the ingest code can remain unchanged for now.
         """
         lat_deg, lon_deg, alt_ft = self.position

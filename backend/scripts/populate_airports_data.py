@@ -1,129 +1,86 @@
 #!/usr/bin/env python3
-"""
-populate_airports_data.py  –  build airport lookup files for backend and frontend
+"""Regenerate data/airports.json, the airport dataset shared by scoring and autocomplete.
 
 Usage:
-    python populate_airports_data.py    # writes sample_data/airports_min.json (backend)
-                                       # and frontend/src/assets/airports.json (frontend)
+    uv run python backend/scripts/populate_airports_data.py
+
+Downloads the OurAirports CSV and keeps large airports, plus medium airports
+with scheduled service, that have an IATA code and coordinates. Review the diff
+before committing: the backend refuses to start if the file is missing or if a
+code maps to two airports, and only airports in this file can be played.
 """
 
 import csv
 import json
 import logging
-import sys
 import urllib.request
 from pathlib import Path
+from typing import Iterable, Mapping
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
+DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "airports.json"
 
 
-def main() -> None:
-    repo_root = Path(__file__).resolve().parent.parent.parent
-
-    # Backend output directory
-    backend_out_dir = repo_root / "sample_data"
-    backend_out_dir.mkdir(parents=True, exist_ok=True)
-    backend_out_file = backend_out_dir / "airports_min.json"
-
-    # Frontend output directory
-    frontend_out_dir = repo_root / "frontend" / "src" / "assets"
-    frontend_out_dir.mkdir(parents=True, exist_ok=True)
-    frontend_out_file = frontend_out_dir / "airports.json"
-
-    logger.info(f"📥  Downloading airport database from {URL}")
-    with urllib.request.urlopen(URL) as resp:
-        # Decode bytes to string and split into lines
-        csv_data = resp.read().decode("utf-8").splitlines()
-        reader = csv.DictReader(csv_data)
-
-        # Convert to list to process twice
-        rows = list(reader)
-
-        # 1. Backend dataset - minimal schema, all airports with coordinates
-        logger.info("🔄  Creating backend dataset (all airports)...")
-        backend_data = [
-            {
-                "iata": row.get("iata_code") or None,
-                "icao": row.get("ident"),
-                "lat": float(row["latitude_deg"]) if row.get("latitude_deg") else None,
-                "lon": float(row["longitude_deg"]) if row.get("longitude_deg") else None,
-            }
-            for row in rows
-            if row.get("latitude_deg") and row.get("longitude_deg")
-        ]
-
-        # 2. Frontend dataset - filtered, enriched schema
-        logger.info("🔄  Creating frontend dataset (major airports only)...")
-        frontend_data = []
-        for row in rows:
-            # Skip if no coordinates
-            if not (row.get("latitude_deg") and row.get("longitude_deg")):
-                continue
-
-            # More restrictive filtering:
-            # 1. Must have scheduled service AND be large/medium airport
-            # 2. OR be a large airport (even without scheduled service)
-            has_scheduled_service = row.get("scheduled_service") == "yes"
-            is_large_airport = row.get("type") == "large_airport"
-            is_medium_airport = row.get("type") == "medium_airport"
-
-            if not (
-                (has_scheduled_service and (is_large_airport or is_medium_airport))
-                or is_large_airport
-            ):
-                continue
-
-            # Skip heliports, seaplane bases, and closed airports
-            if row.get("type") in ["heliport", "seaplane_base", "closed"]:
-                continue
-
-            # Must have IATA code (more restrictive - only airports with IATA codes)
-            iata_code = row.get("iata_code") or None
-            if not iata_code:
-                continue
-
-            icao_code = row.get("ident") or None
-
-            frontend_data.append(
-                {
-                    "iata": iata_code,
-                    "icao": icao_code,
-                    "name": row.get("name", ""),
-                    "municipality": row.get("municipality", ""),
-                    "country": row.get("iso_country", ""),
-                    "lat": float(row["latitude_deg"]),
-                    "lon": float(row["longitude_deg"]),
-                }
-            )
-
-        # Sort frontend data by IATA code (prioritizing airports with IATA codes)
-        frontend_data.sort(key=lambda x: (x["iata"] is None, x["iata"] or x["icao"] or ""))
-
-    # Write backend file
-    backend_out_file.write_text(json.dumps(backend_data, indent=2))
-    logger.info(
-        f"✅  Backend: {len(backend_data):,} records ➜ {backend_out_file.relative_to(repo_root)}"
+def _is_included(row: Mapping[str, str]) -> bool:
+    if not (row.get("latitude_deg") and row.get("longitude_deg")):
+        return False
+    if not row.get("iata_code"):
+        return False
+    airport_type = row.get("type")
+    has_scheduled_service = row.get("scheduled_service") == "yes"
+    return airport_type == "large_airport" or (
+        airport_type == "medium_airport" and has_scheduled_service
     )
 
-    # Write frontend file
-    frontend_out_file.write_text(json.dumps(frontend_data, indent=2))
-    logger.info(
-        f"✅  Frontend: {len(frontend_data):,} records ➜ {frontend_out_file.relative_to(repo_root)}"
-    )
 
-    # Check file sizes
-    backend_size = backend_out_file.stat().st_size / 1024 / 1024
-    frontend_size = frontend_out_file.stat().st_size / 1024 / 1024
-    logger.info(f"📊  Backend file size: {backend_size:.1f} MB")
-    logger.info(f"📊  Frontend file size: {frontend_size:.1f} MB")
+def build_airport_records(rows: Iterable[Mapping[str, str]]) -> list[dict]:
+    """Return dataset records for the OurAirports CSV ``rows``, sorted by IATA code.
 
-    # Estimate gzipped size (roughly 20-25% of JSON size)
-    frontend_gzip_estimate = frontend_size * 0.22 * 1024  # Convert to KB
-    logger.info(f"📊  Frontend gzipped estimate: ~{frontend_gzip_estimate:.0f} KB")
+    Raises:
+        ValueError: A code (IATA or ICAO) would map to two different airports.
+    """
+    records = [
+        {
+            "iata": row["iata_code"],
+            "icao": row.get("ident") or None,
+            "name": row.get("name", ""),
+            "municipality": row.get("municipality", ""),
+            "country": row.get("iso_country", ""),
+            "lat": float(row["latitude_deg"]),
+            "lon": float(row["longitude_deg"]),
+        }
+        for row in rows
+        if _is_included(row)
+    ]
+
+    owners: dict[str, str] = {}
+    for record in records:
+        for code in {record["iata"], record["icao"]} - {None}:
+            owner = owners.setdefault(code, record["icao"])
+            if owner != record["icao"]:
+                raise ValueError(f"Airport code '{code}' maps to both {owner} and {record['icao']}")
+
+    return sorted(records, key=lambda record: record["iata"])
+
+
+def write_dataset(records: list[dict], path: Path) -> None:
+    """Write ``records`` as pretty JSON with a trailing newline."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(records, indent=2) + "\n")
+
+
+def main(output_path: Path = DEFAULT_PATH) -> None:
+    logger.info(f"Downloading airport database from {URL}")
+    with urllib.request.urlopen(URL) as resp:  # noqa: S310 (URL is a constant https address)
+        rows = list(csv.DictReader(resp.read().decode("utf-8").splitlines()))
+
+    records = build_airport_records(rows)
+    write_dataset(records, output_path)
+    logger.info(f"Wrote {len(records):,} airports to {output_path}")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

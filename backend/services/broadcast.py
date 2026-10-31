@@ -6,11 +6,14 @@ from typing import Dict, List
 
 from pydantic import BaseModel, Field
 
-from backend.ingest.main import PlaneState  # Assuming PlaneState is defined here
+from backend.schemas.plane import PlaneState
 
 # Import the specific payload schema and WSMessage wrapper
 from backend.schemas.ws import WSMessage
 from backend.services.plane_filter import PlaneFilter
+from backend.services.plane_visibility import to_public_plane
+from backend.services.presence import publish_active_rooms
+from backend.services.round_target import monitored_airport_icao
 from backend.utils.connection_manager import ConnectionManager
 from backend.utils.redis_async import RedisClient
 
@@ -31,6 +34,26 @@ class PlaneDeltaUpdate(BaseModel):
 # -----------------------------------------------------------------------------
 
 
+def build_plane_delta_message(
+    updated: List[PlaneState], removed: List[str], monitored_airport: str
+) -> dict:
+    """Return the ``delta`` message for one tick of plane changes, ready to send.
+
+    Planes go out as ``PublicPlaneState``: the same message reaches every room,
+    so it must never carry a round's answer.
+    """
+    payload = {
+        "planes": {
+            "updated": [
+                to_public_plane(plane, monitored_airport).model_dump(mode="json")
+                for plane in updated
+            ],
+            "removed": removed,
+        }
+    }
+    return WSMessage(type="delta", payload=payload).model_dump(exclude_none=True)
+
+
 async def _get_current_plane_state_map(
     redis_client: RedisClient,
 ) -> Dict[str, PlaneState]:
@@ -47,7 +70,7 @@ async def _get_current_plane_state_map(
 
     Returns:
         Dict mapping ICAO24 hex identifiers to their deserialised
-        :class:`backend.ingest.main.PlaneState` representation.
+        :class:`backend.schemas.plane.PlaneState` representation.
     """
 
     current_state: Dict[str, PlaneState] = {}
@@ -92,10 +115,16 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
         try:
             start_time = asyncio.get_event_loop().time()
 
+            # Publish active-room presence so the (separate) ingest process knows
+            # whether to make paid enrichment API calls. The TTL self-heals if
+            # this process dies. Counts only rooms that still have a live player.
+            active_room_count = sum(1 for conns in manager.active_connections.values() if conns)
+            await publish_active_rooms(redis_client, active_room_count)
+
             # --- Task 42: Fetch Current Plane States ---
             # Use safe paging helper (avoids redis-py scan_iter bug)
             current_state_map = await _get_current_plane_state_map(redis_client)
-            logger.info(f"Fetched {len(current_state_map)} planes from Redis")
+            logger.debug(f"Fetched {len(current_state_map)} planes from Redis")
 
             # --- NEW: Filter stale planes based on range and signal quality ---
             stale_planes = await plane_filter.filter_stale_planes(current_state_map)
@@ -144,7 +173,7 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     f"Delta calculated: {len(delta.updated)} updated, {len(delta.removed)} removed."
                 )
             else:
-                logger.info("No changes detected in plane states.")
+                logger.debug("No changes detected in plane states.")
 
             # Update last_state for the next iteration (use filtered state)
             last_state = filtered_state_map
@@ -155,21 +184,10 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     f"Delta has {len(delta.updated)} updated "
                     f"and {len(delta.removed)} removed planes"
                 )
-                # Serialise PlaneState models to primitives for safe JSON encoding
-                planes_updated_serialised = [p.model_dump() for p in delta.updated]
-                payload_dict = {
-                    "planes": {
-                        "updated": planes_updated_serialised,
-                        "removed": delta.removed,
-                    }
-                }
-                ws_message = WSMessage(type="delta", payload=payload_dict)
-
-                logger.debug(
-                    f"Preparing to broadcast delta: {ws_message.model_dump_json(exclude_none=True)}"
+                delta_message = build_plane_delta_message(
+                    delta.updated, delta.removed, monitored_airport_icao()
                 )
-
-                # TODO: Implement compression for payloads > 1KB (Task #44)
+                logger.debug(f"Preparing to broadcast delta: {delta_message}")
 
                 # Get active rooms and broadcast to each one
                 active_room_codes = list(manager.active_connections.keys())  # Get codes first
@@ -180,11 +198,8 @@ async def broadcast_plane_updates(redis_client: RedisClient, manager: Connection
                     for room_code in active_room_codes:
                         try:
                             # Pass the specific room_code to the broadcast method
-                            await manager.broadcast(
-                                message=ws_message.model_dump(exclude_none=True),
-                                room_code=room_code,
-                            )
-                            logger.info(
+                            await manager.broadcast(message=delta_message, room_code=room_code)
+                            logger.debug(
                                 f"[BCAST] Delta broadcasted to room '{room_code}' with "
                                 f"{len(delta.updated)} updated / {len(delta.removed)} removed"
                                 + (f" - removed: {delta.removed}" if delta.removed else "")

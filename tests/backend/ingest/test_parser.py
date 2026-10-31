@@ -107,22 +107,6 @@ CURRENT_TIMESTAMP = time.time()
             },
         ),
         # Fixture data does not contain MSG,6, MSG,7, or MSG,8 examples.
-        # If added, tests should be updated accordingly.
-        # Example expectation for a hypothetical MSG,6:
-        # {
-        #     "msg_type": 6, "hex_ident": "SOMEHEX", "callsign": None,
-        #     "altitude": None, # Altitude might appear but isn't primary source
-        #     "latitude": None, "longitude": None, "ground_speed": None, "track": None,
-        #     "vertical_rate": None, "squawk": "1234"
-        # }
-        # Example expectation for a hypothetical MSG,7:
-        # {
-        #     "msg_type": 7, "hex_ident": "SOMEHEX", "callsign": None,
-        #     "altitude": 25000, # Primary info is altitude
-        #     "latitude": None, "longitude": None, "ground_speed": None, "track": None,
-        #     "vertical_rate": None, "squawk": None
-        # }
-        # MSG,8 has no standard position/velocity fields parsed by this implementation.
     ],
 )
 def test_parse_valid_msg_messages(
@@ -273,18 +257,7 @@ def test_parse_msg_index_error() -> None:
     assert actual is None
 
 
-# Consider adding tests for MSG,6 squawk parsing if sample data becomes available.
-# Example:
-# def test_parse_msg6_squawk():
-#    line = "MSG,6,1,1,A1B2C3,1,2025/01/01,12:00:00.000,2025/01/01,12:00:00.000,,,,,,,,1234,,,,"
-#    msg = parse_sbs_message(line, time.time())
-#    assert msg is not None
-#    assert msg.msg_type == 6
-#    assert msg.hex_ident == "A1B2C3"
-#    assert msg.squawk == "1234"
-#    assert msg.altitude is None # Assuming altitude wasn't present or primary
-
 # To run these tests:
 # 1. Navigate to the root project directory (`plane-game-v4`)
-# 2. Ensure poetry dependencies are installed: `poetry install`
-# 3. Execute from root: `poetry run pytest tests/backend/ingest/test_parser.py`
+# 2. Execute from root: `uv run pytest tests/backend/ingest/test_parser.py`
+#    (uv run installs the locked dependencies first)

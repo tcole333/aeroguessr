@@ -82,7 +82,6 @@ class RoundData(BaseModel):
     class Config:
         """Pydantic configuration."""
 
-        # use_enum_values = True  # Store enum values as strings
         json_schema_extra = {
             "example": {
                 "state": "accepting_guesses",

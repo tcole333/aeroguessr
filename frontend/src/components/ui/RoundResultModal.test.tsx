@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoundResultModal } from './RoundResultModal';
@@ -12,6 +12,10 @@ describe('RoundResultModal', () => {
     store = createRootStore();
     // Toggle retroMode off (default is true) to test standard mode UI
     store.getState().ui.toggleRetroMode();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   const renderWithStore = (component: React.ReactElement) => {
@@ -155,7 +159,7 @@ describe('RoundResultModal', () => {
     });
   });
 
-  it.skip('should auto-close after delay', async () => {
+  it('should auto-close after delay', () => {
     vi.useFakeTimers();
 
     store.setState((s) => {
@@ -173,21 +177,24 @@ describe('RoundResultModal', () => {
       };
     });
 
-    const { container } = renderWithStore(<RoundResultModal autoCloseDelay={1000} />);
+    renderWithStore(<RoundResultModal autoCloseDelay={1000} />);
 
     expect(screen.getByText('Round Complete!')).toBeInTheDocument();
 
-    // Fast-forward time and wait for close animation
     act(() => {
-      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(999);
     });
+    // Still fully shown: the close fade has not started early.
+    expect(screen.getByText('Round Complete!')).toBeInTheDocument();
+    expect(document.body.querySelector('.opacity-0')).toBeNull();
 
-    // Wait for closing state
-    await waitFor(() => {
-      expect(container.querySelector('.opacity-0')).toBeInTheDocument();
-    }, { timeout: 1000 });
-
-    vi.useRealTimers();
+    // Once the delay elapses the close animation starts; flush it so the modal unmounts.
+    // The modal is portaled to document.body, so query through screen rather than the container.
+    act(() => {
+      vi.advanceTimersByTime(1);
+      vi.runOnlyPendingTimers();
+    });
+    expect(screen.queryByText('Round Complete!')).not.toBeInTheDocument();
   });
 
   it('should show distance mode hint for non-perfect scores', () => {
@@ -359,5 +366,82 @@ describe('RoundResultModal', () => {
     renderWithStore(<RoundResultModal />);
 
     expect(screen.getByText(/4,179 km away/)).toBeInTheDocument();
+  });
+
+  describe('when the server sends no distance for a guess', () => {
+    // An airport without coordinates makes the server send distance_km: null
+    const setDistanceResultWithoutDistance = () => {
+      store.setState((s) => {
+        s.game.scoringMode = 'Distance';
+        s.game.lastRoundResult = {
+          results: [
+            {
+              nickname: 'Player1',
+              guess: 'ORD',
+              correct_code: 'KJFK',
+              score_awarded: 0,
+              current_total_score: 0,
+              distance_km: null,
+            },
+          ],
+          next_host_nickname: null,
+        };
+      });
+    };
+
+    it('renders the guess without a distance in standard mode', () => {
+      setDistanceResultWithoutDistance();
+
+      renderWithStore(<RoundResultModal />);
+
+      expect(screen.getByText('Guessed: ORD')).toBeInTheDocument();
+      expect(screen.queryByText(/km away/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Exact match!/)).not.toBeInTheDocument();
+    });
+
+    it('renders the guess without a distance in retro mode', () => {
+      store.getState().ui.toggleRetroMode();
+      setDistanceResultWithoutDistance();
+
+      renderWithStore(<RoundResultModal />);
+
+      expect(screen.getByText('Round Complete')).toBeInTheDocument();
+      expect(screen.getByText('ORD')).toBeInTheDocument();
+      expect(screen.queryByText(/km\)/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Exact/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('should display distances in retro mode', () => {
+    store.getState().ui.toggleRetroMode();
+    store.setState((s) => {
+      s.game.scoringMode = 'Distance';
+      s.game.lastRoundResult = {
+        results: [
+          {
+            nickname: 'Player1',
+            guess: 'BOS',
+            correct_code: 'BOS',
+            score_awarded: 100,
+            current_total_score: 200,
+            distance_km: 0,
+          },
+          {
+            nickname: 'Player2',
+            guess: 'LAX',
+            correct_code: 'BOS',
+            score_awarded: 0,
+            current_total_score: 100,
+            distance_km: 4178.5,
+          },
+        ],
+        next_host_nickname: null,
+      };
+    });
+
+    renderWithStore(<RoundResultModal />);
+
+    expect(screen.getByText('(Exact)')).toBeInTheDocument();
+    expect(screen.getByText('(4,179km)')).toBeInTheDocument();
   });
 });

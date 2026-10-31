@@ -1,166 +1,117 @@
-"""Unit tests for the scoring service."""
-
-from unittest.mock import MagicMock, patch
+"""Scoring behaviour against real airports from the committed dataset."""
 
 import pytest
 
-from backend.services import scoring
+from backend.ingest.airport_board import FAKE_ORIGINS, FakeAirportBoard
+from backend.schemas.core import ScoringMode
+from backend.services.round_target import resolve_round_target
+from backend.services.scoring import GuessScore, points_for_distance, score_guess
+from backend.utils.airport_db import resolve_airport
 
-# Test data
-MOCK_AIRPORTS = {
-    "BOS": (42.3656, -71.0096),  # Boston Logan
-    "JFK": (40.6413, -73.7781),  # JFK New York (Approx 305km)
-    "PVD": (41.7234, -71.4381),  # Providence (Approx 70km)
-    "FAR": (46.9207, -96.8163),  # Fargo (Approx 2150km > 1000km)
-}
+# FAKE_ADSB answers are ICAO codes, while the autocomplete submits IATA codes.
+DEMO_ANSWERS_WITH_IATA_GUESS = [
+    ("KLAX", "LAX"),
+    ("KJFK", "JFK"),
+    ("KORD", "ORD"),
+    ("KSFO", "SFO"),
+    ("KMIA", "MIA"),
+]
 
-# --- calculate_exact_score Tests --- #
+
+@pytest.mark.parametrize("mode", list(ScoringMode))
+@pytest.mark.parametrize("answer, guess", DEMO_ANSWERS_WITH_IATA_GUESS)
+def test_iata_guess_of_icao_answer_scores_full_points(
+    mode: ScoringMode, answer: str, guess: str
+) -> None:
+    assert score_guess(mode, answer, guess).points == 100
+
+
+@pytest.mark.parametrize("mode", list(ScoringMode))
+def test_icao_guess_of_icao_answer_scores_full_points(mode: ScoringMode) -> None:
+    assert score_guess(mode, "KORD", "KORD").points == 100
+
+
+def test_guess_codes_ignore_case_and_whitespace() -> None:
+    assert score_guess(ScoringMode.EXACT, "KORD", " ord ").points == 100
+
+
+def test_exact_mode_awards_nothing_for_a_different_airport_in_the_same_city() -> None:
+    assert score_guess(ScoringMode.EXACT, "KJFK", "LGA").points == 0
+
+
+def test_exact_mode_reports_no_distance() -> None:
+    assert score_guess(ScoringMode.EXACT, "KJFK", "JFK").distance_km is None
+
+
+def test_distance_mode_same_airport_is_zero_km_and_full_points() -> None:
+    assert score_guess(ScoringMode.DISTANCE, "KSFO", "SFO") == GuessScore(100, 0.0)
+
+
+def test_distance_mode_nearby_guess_scores_partial_points() -> None:
+    result = score_guess(ScoringMode.DISTANCE, "KPVD", "BOS")
+
+    assert 75 < result.distance_km < 82
+    assert result.points == 92
+
+
+def test_distance_mode_guess_beyond_1000_km_scores_zero() -> None:
+    result = score_guess(ScoringMode.DISTANCE, "KJFK", "ORD")
+
+    assert 1150 < result.distance_km < 1220
+    assert result.points == 0
+
+
+@pytest.mark.parametrize("mode", list(ScoringMode))
+@pytest.mark.parametrize(
+    "answer, guess",
+    [
+        ("KJFK", "ZZZ"),  # unknown guess
+        ("KMVY", "JFK"),  # answer missing from the dataset
+        ("KMVY", "KMVY"),  # both missing: must not look like an exact match
+        ("", ""),
+        (None, None),
+    ],
+)
+def test_unresolvable_airport_scores_nothing_and_reports_no_distance(
+    mode: ScoringMode, answer: str | None, guess: str | None
+) -> None:
+    assert score_guess(mode, answer, guess) == GuessScore(0, None)
 
 
 @pytest.mark.parametrize(
-    "correct, guessed, expected_score",
-    [
-        ("BOS", "BOS", 100),
-        ("BOS", "bos", 100),  # Case-insensitive
-        ("JFK", "BOS", 0),
-        ("LHR", "lhr", 100),
-        ("", "", 100),  # Empty strings match
-        ("BOS", "", 0),
-    ],
+    "distance_km, points",
+    [(0.0, 100), (78.8, 92), (990.0, 1), (1000.0, 0), (2150.0, 0)],
 )
-def test_calculate_exact_score(correct: str, guessed: str, expected_score: int) -> None:
-    """Test exact score calculation."""
-    assert scoring.calculate_exact_score(correct, guessed) == expected_score
+def test_points_for_distance(distance_km: float, points: int) -> None:
+    assert points_for_distance(distance_km) == points
 
 
-# --- calculate_distance_score Tests --- #
+# --- Demo mode: every route the fake board hands out can be played and scored --- #
 
 
-# Patch the coordinate lookup within the test scope
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-def test_calculate_distance_score_exact_match(mock_get_coords: MagicMock) -> None:
-    """Test distance score when guess is exactly correct."""
-    assert scoring.calculate_distance_score("BOS", "BOS") == 100
-    mock_get_coords.assert_called()
-
-
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km")
-def test_calculate_distance_score_close_guess(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
+@pytest.mark.parametrize("mode", list(ScoringMode))
+@pytest.mark.parametrize("origin_icao", FAKE_ORIGINS)
+def test_correct_iata_guess_for_every_demo_origin_scores_full_points(
+    mode: ScoringMode, origin_icao: str
 ) -> None:
-    """Test distance score for a close guess (< 1000 km)."""
-    # Mock distance for BOS <-> PVD to be 70km
-    mock_calc_dist.return_value = 70.0
-    # Score = max(0, 100 - 70 / 10) = max(0, 100 - 7) = 93
-    assert scoring.calculate_distance_score("BOS", "PVD") == 93
-    # Ensure coords were looked up and distance calculated
-    assert mock_get_coords.call_count == 2
-    mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["PVD"])
+    """Demo planes fly from FAKE_ORIGINS; the autocomplete submits the IATA code."""
+    origin = resolve_airport(origin_icao)
+    assert origin is not None and origin.iata, f"{origin_icao} is missing from the dataset"
+
+    assert score_guess(mode, origin_icao, origin.iata).points == 100
 
 
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km")
-def test_calculate_distance_score_far_guess(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
-) -> None:
-    """Test distance score for a far guess (> 1000 km)."""
-    # Mock distance for BOS <-> FAR to be 2150km
-    mock_calc_dist.return_value = 2150.0
-    # Score = max(0, 100 - 2150 / 10) = max(0, 100 - 215) = 0
-    assert scoring.calculate_distance_score("BOS", "FAR") == 0
-    assert mock_get_coords.call_count == 2
-    mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["FAR"])
+def test_every_fake_board_route_is_a_playable_round() -> None:
+    board = FakeAirportBoard("KBOS")
+    routes = [
+        board.lookup(f"{airline}{n}", now=0.0) for airline in ("AAL", "JBU") for n in range(200)
+    ]
 
-
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km")
-def test_calculate_distance_score_invalid_guess(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
-) -> None:
-    """Test distance score when the guessed airport code is invalid."""
-    assert scoring.calculate_distance_score("BOS", "INVALID") == 0
-    # Ensure correct airport was looked up, but invalid wasn't found
-    mock_get_coords.assert_any_call("BOS")
-    mock_get_coords.assert_any_call("INVALID")
-    # Distance calculation should not be called if coords are missing
-    mock_calc_dist.assert_not_called()
-
-
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km", return_value=1000.0)
-def test_calculate_distance_score_boundary(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
-) -> None:
-    """Test distance score at the 1000km boundary."""
-    # Score = max(0, 100 - 1000 / 10) = max(0, 100 - 100) = 0
-    assert (
-        scoring.calculate_distance_score("BOS", "JFK") == 0
-    )  # Using JFK coords, but mocked distance
-    mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["JFK"])
-
-
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km", return_value=999.9)
-def test_calculate_distance_score_just_below_boundary(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
-) -> None:
-    """Test distance score just below the 1000km boundary."""
-    # Score = max(0, 100 - 999.9 / 10) = max(0, 100 - 99.99) = max(0, 0.01) -> rounds to 0
-    # Note: int(round(0.01)) == 0
-    assert scoring.calculate_distance_score("BOS", "JFK") == 0
-    mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["JFK"])
-
-
-@patch(
-    "backend.services.scoring.get_airport_coords",
-    side_effect=lambda code: MOCK_AIRPORTS.get(code.upper()),
-)
-@patch("backend.utils.geo.haversine_km", return_value=0.0)
-def test_calculate_distance_score_zero_distance(
-    mock_calc_dist: MagicMock, mock_get_coords: MagicMock
-) -> None:
-    """Test distance score when distance is zero (should be 100)."""
-    # This case is handled by the explicit check `if correct_coords == guessed_coords`
-    # But if distance somehow calculated as 0 for different coords:
-    # Score = max(0, 100 - 0 / 10) = 100
-    assert scoring.calculate_distance_score("BOS", "JFK") == 100  # Using JFK, but mocked dist=0
-    mock_calc_dist.assert_called_once_with(MOCK_AIRPORTS["BOS"], MOCK_AIRPORTS["JFK"])
-
-
-def test_exact_score() -> None:
-    assert scoring.calculate_exact_score("BOS", "bos") == 100
-    assert scoring.calculate_exact_score("BOS", "JFK") == 0
-
-
-def test_distance_score_short() -> None:
-    # Boston ➔ JFK ≈ 299 km ⇒ 100 - 29.9 ≈ 70
-    score = scoring.calculate_distance_score("BOS", "JFK")
-    assert 68 <= score <= 72
-
-
-def test_distance_score_long() -> None:
-    # BOS ➔ LAX ≈ 4175 km ⇒ score≈100-417=0 (clamped)
-    assert scoring.calculate_distance_score("BOS", "LAX") == 0
-
-
-def test_distance_score_unknown() -> None:
-    assert scoring.calculate_distance_score("BOS", "XXX") == 0
+    origins = set()
+    for route in routes:
+        assert route is not None
+        target = resolve_round_target(route.origin_icao, route.destination_icao, "KBOS")
+        assert target.is_playable, route
+        assert (target.guess_direction, target.answer_code) == ("origin", route.origin_icao)
+        origins.add(route.origin_icao)
+    assert origins == set(FAKE_ORIGINS)

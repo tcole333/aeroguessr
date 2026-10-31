@@ -3,6 +3,7 @@ import type { RootState } from "../../store/createRootStore";
 import type {
   DeltaPayload,
   FullRoomState,
+  GuessDirection,
   RoundResultPayload,
   RoundStartPayload,
   RoundDelta,
@@ -13,26 +14,38 @@ export interface RoundInfo extends RoundDelta {
   direction?: string;
 }
 
+/** A finished round's answer and the end of the plane's route it belongs to. */
+export interface RevealedAnswer {
+  code: string;
+  direction: GuessDirection;
+}
+
+/** The server's refusal of this player's latest guess, which it did not record. */
+export interface GuessRejection {
+  message: string;
+}
+
 export interface GameSlice {
-  roomCode: string | null;
-  players: Record<string, unknown>;
   scores: Record<string, number>;
   hostNickname: string | null;
   isSolo: boolean;
   round: RoundInfo | null;
   roundTimeout: number | null;
   selectedPlaneHex: string | null;
-  guessDirection: string | null;
   usedPlaneHexes: Set<string>;
   scoringMode: 'Exact' | 'Distance' | null;
   lastRoundResult: RoundResultPayload | null;
+  /** Answers revealed by roundResult, keyed by plane hex; the server sends them nowhere else. */
+  revealedAnswers: Record<string, RevealedAnswer>;
+  /** Set when the server refuses a guess (e.g. an unknown airport code); the guess forms show it. */
+  guessRejection: GuessRejection | null;
   hydrate: (state: FullRoomState) => void;
   applyDelta: (delta: DeltaPayload) => void;
   setRoundStart: (payload: RoundStartPayload) => void;
   setRoundResult: (payload: RoundResultPayload) => void;
   setSelectedPlane: (hex: string | null) => void;
-  setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nickname: string | null) => void;
+  setGuessRejection: (message: string | null) => void;
   addPlayer: (nickname: string) => void;
   removePlayer: (nickname: string) => void;
   leaveRoom: () => void;
@@ -40,21 +53,33 @@ export interface GameSlice {
 
 const initialState: Omit<
   GameSlice,
-  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setSelectedPlane" | "setGuessDirection" | "setHostNickname" | "addPlayer" | "removePlayer" | "leaveRoom"
+  "hydrate" | "applyDelta" | "setRoundStart" | "setRoundResult" | "setSelectedPlane" | "setHostNickname" | "setGuessRejection" | "addPlayer" | "removePlayer" | "leaveRoom"
 > = {
-  roomCode: null,
-  players: {},
   scores: {},
   hostNickname: null,
   isSolo: false,
   round: null,
   roundTimeout: null,
   selectedPlaneHex: null,
-  guessDirection: null,
   usedPlaneHexes: new Set(),
   scoringMode: null,
   lastRoundResult: null,
+  revealedAnswers: {},
+  guessRejection: null,
 };
+
+/**
+ * The end of the route a round on `hex` asked for: the round's own direction,
+ * else (for a client that joined mid-round) the direction the plane's hint gave.
+ */
+function roundDirectionFor(state: RootState, hex: string): GuessDirection | null {
+  const round = state.game.round;
+  const direction =
+    round?.hex === hex
+      ? round.direction
+      : state.planes.values[hex]?.route_hint?.guess_direction;
+  return direction === "origin" || direction === "destination" ? direction : null;
+}
 
 export const createGameSlice: StateCreator<
   RootState,
@@ -65,7 +90,6 @@ export const createGameSlice: StateCreator<
   ...initialState,
   hydrate: (stateSync) =>
     set((state) => {
-      state.game.players = stateSync.players;
       state.game.scores = {};
       Object.entries(stateSync.players).forEach(([nickname, data]) => {
         if (typeof data === 'object' && data && 'score' in data) {
@@ -73,7 +97,6 @@ export const createGameSlice: StateCreator<
         }
       });
       if (stateSync.room_meta) {
-        state.game.roomCode = (stateSync.room_meta.code as string) || null;
         state.game.hostNickname =
           (stateSync.room_meta.host_nickname as string) || null;
         state.game.isSolo = Boolean(stateSync.room_meta.is_solo);
@@ -109,51 +132,47 @@ export const createGameSlice: StateCreator<
       state.game.selectedPlaneHex = null;
       // Mark this plane as used - need to create new Set for Immer
       state.game.usedPlaneHexes = new Set([...state.game.usedPlaneHexes, payload.hex]);
+      // A new round on this plane may have a different answer (e.g. its next leg)
+      delete state.game.revealedAnswers[payload.hex];
+      state.game.guessRejection = null;
     }),
   setRoundResult: (payload) =>
     set((state) => {
       payload.results.forEach((r) => {
         state.game.scores[r.nickname] = r.current_total_score;
       });
+      const correctCode = payload.results[0]?.correct_code;
+      const direction = payload.hex ? roundDirectionFor(state, payload.hex) : null;
+      if (payload.hex && correctCode && direction) {
+        state.game.revealedAnswers[payload.hex] = { code: correctCode, direction };
+      }
       if (payload.next_host_nickname) {
         state.game.hostNickname = payload.next_host_nickname;
       }
       state.game.round = null;
       state.game.roundTimeout = null;
       state.game.lastRoundResult = payload;
+      state.game.guessRejection = null;
     }),
   setSelectedPlane: (hex) =>
     set((state) => {
       state.game.selectedPlaneHex = hex;
-      // Clear guess direction when plane is deselected
-      if (!hex) {
-        state.game.guessDirection = null;
-      }
-    }),
-  setGuessDirection: (direction) =>
-    set((state) => {
-      state.game.guessDirection = direction;
     }),
   setHostNickname: (nickname) =>
     set((state) => {
       state.game.hostNickname = nickname;
     }),
+  setGuessRejection: (message) =>
+    set((state) => {
+      // A new object every time, so the forms react even when the same message repeats
+      state.game.guessRejection = message === null ? null : { message };
+    }),
   addPlayer: (nickname) =>
     set((state) => {
-      // Add player to players object with default data
-      state.game.players[nickname] = {
-        nickname,
-        score: 0,
-        connected: true,
-        last_seen_ts: Date.now() / 1000,
-      };
-      // Add to scores with 0 score
       state.game.scores[nickname] = 0;
     }),
   removePlayer: (nickname) =>
     set((state) => {
-      // Remove player from players and scores
-      delete state.game.players[nickname];
       delete state.game.scores[nickname];
     }),
   leaveRoom: () =>

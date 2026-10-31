@@ -4,34 +4,28 @@ import { AirportAutocomplete } from '../../../components/AirportAutocomplete';
 import type { Airport } from '../../../components/AirportAutocomplete';
 import { useStore } from '../../../hooks/useStore';
 import { selectRetroMode } from '../../ui/selectors';
-import { selectRound, selectUsedPlanes } from '../selectors';
+import { selectRound } from '../selectors';
 import { selectPlaneById } from '../../planes/selectors';
+import { getRouteDisplay, type RouteStatus } from '../../planes/routeDisplay';
+import { LEVEL_FLIGHT_MAX_FPM } from '../../planes/verticalRate';
 import type { PlaneState } from '../../common/types';
 import { formatAirportDisplay } from '../../../lib/airportLookup';
 
 /**
- * Determine flight status based on origin/destination relative to monitored airport.
- * - DEPARTING: Flight originated from monitored airport
- * - ARRIVING: Flight is destined for monitored airport
- * - Falls back to altitude-based status when origin/destination don't match
+ * Determine flight status relative to the monitored airport.
+ * - DEPARTING / ARRIVING: from the server's route hint
+ * - Falls back to altitude-based status when the plane does not touch the monitored airport
  */
 function getFlightStatus(
-  origin: string | null | undefined,
-  destination: string | null | undefined,
+  routeStatus: RouteStatus | null,
   alt_v: number | undefined,
   alt: number | undefined
 ): string {
-  // TODO: Get monitored airport from configuration instead of hardcoding
-  const monitoredAirport = 'KBOS';
+  if (routeStatus) return routeStatus;
 
-  // Primary logic: use origin/destination to determine arriving/departing
-  if (origin === monitoredAirport) return 'DEPARTING';
-  if (destination === monitoredAirport) return 'ARRIVING';
-
-  // Fallback: use altitude-based status when neither origin nor destination is monitored airport
-  if (!alt_v || !alt) return 'TRACKING';
-  if (alt_v > 100) return 'ASCENDING';
-  if (alt_v < -100) return 'DESCENDING';
+  if (alt_v == null || !alt) return 'TRACKING';
+  if (alt_v > LEVEL_FLIGHT_MAX_FPM) return 'ASCENDING';
+  if (alt_v < -LEVEL_FLIGHT_MAX_FPM) return 'DESCENDING';
   return 'CRUISING';
 }
 
@@ -53,26 +47,14 @@ export default function GuessForm(): JSX.Element | null {
   const round = useStore(selectRound);
   const planeHex = round?.hex;
   const plane = useStore(selectPlaneById(planeHex ?? '')) as PlaneState | undefined;
-  const usedPlanes = useStore(selectUsedPlanes);
-
-  // Determine what's hidden based on round direction
-  // direction === 'origin' means we're guessing origin, so hide origin
-  // direction === 'destination' means we're guessing destination, so hide destination
-  const isRoundComplete = planeHex ? usedPlanes.has(planeHex) && round?.state !== 'guessing' : false;
   const guessDirection = round?.direction;
 
-  // Determine what to show for origin/destination
+  // The form is only shown while guessing, so nothing has been revealed: only the
+  // monitored end from the route hint is known.
+  const route = getRouteDisplay(plane?.route_hint, null);
   const getDisplayValue = (field: 'origin' | 'destination'): string | null => {
-    if (!plane) return null;
-    const value = field === 'origin' ? plane.origin : plane.destination;
-
-    // After round is complete, show the actual value
-    if (isRoundComplete) return value ? formatAirportDisplay(value) : null;
-
-    // During active round, hide the field being guessed
-    if (guessDirection === field) return null; // Hide - return null to not render
-
-    return value ? formatAirportDisplay(value) : null;
+    const code = route[field];
+    return code ? formatAirportDisplay(code) : null;
   };
 
   // Get header text based on direction
@@ -96,7 +78,7 @@ export default function GuessForm(): JSX.Element | null {
 
   // Retro mode rendering
   if (retroMode) {
-    const flightStatus = getFlightStatus(plane?.origin, plane?.destination, plane?.alt_v, plane?.alt);
+    const flightStatus = getFlightStatus(route.status, plane?.alt_v, plane?.alt);
 
     return (
       <div

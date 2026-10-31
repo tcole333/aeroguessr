@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PlaneListPanelContent from '../PlaneListPanelContent';
 import { StoreContext, createRootStore } from '../../../../store/createRootStore';
@@ -43,11 +43,10 @@ describe('PlaneListPanelContent', () => {
       alt_v: 0,
       last_update_ts: 1,
       trail: [],
-      origin: 'KBOS', // Flight connected to monitored airport to enable selection
-      destination: 'KLAX',
+      route_hint: { guess_direction: 'destination', known_airport: 'KBOS', eligible: true },
     };
     const sendSpy = vi.spyOn(webSocketClient, 'send').mockImplementation(() => {});
-    setup([plane]);
+    const { store } = setup([plane]);
     const item = screen.getByRole('button', { name: /abc/i });
     expect(item).toBeInTheDocument();
 
@@ -59,8 +58,10 @@ describe('PlaneListPanelContent', () => {
     const startButton = screen.getByRole('button', { name: /start round with this flight/i });
     await userEvent.click(startButton);
 
-    // The combined button sends selectPlane immediately
+    // The combined button sends selectPlane, then startRound once the server confirms it
     expect(sendSpy).toHaveBeenCalledWith({ type: 'selectPlane', payload: { hex: 'abc' } });
+    act(() => store.getState().game.setSelectedPlane('abc'));
+    expect(sendSpy).toHaveBeenCalledWith({ type: 'startRound', payload: {} });
     sendSpy.mockRestore();
   });
 
@@ -106,6 +107,24 @@ describe('PlaneListPanelContent', () => {
     sendSpy.mockRestore();
   });
 
+  it.each([
+    ['climbing at 1,500 ft/min', 1500, '▲'],
+    ['descending at 800 ft/min', -800, '▼'],
+    ['level, drifting at 100 ft/min', 100, '•'],
+  ])('marks a plane %s in the retro list', (_label, altV, symbol) => {
+    const store = createRootStore();
+    store.getState().planes.upsertPlanes([
+      { hex_ident: 'abc', lat: 0, lon: 0, alt: 9000, lat_v: 0, lon_v: 0, alt_v: altV, last_update_ts: 1, trail: [] },
+    ]);
+    render(
+      <StoreContext.Provider value={store}>
+        <PlaneListPanelContent />
+      </StoreContext.Provider>,
+    );
+
+    expect(within(screen.getByRole('button', { name: /abc/i })).getByText(symbol)).toBeInTheDocument();
+  });
+
   it('shows placeholder when no planes', () => {
     setup();
     expect(screen.getByText(/scanning for nearby flights/i)).toBeInTheDocument();
@@ -124,8 +143,7 @@ describe('PlaneListPanelContent', () => {
         alt_v: 0,
         last_update_ts: 1,
         trail: [],
-        origin: 'KBOS',
-        destination: 'KLAX',
+        route_hint: { guess_direction: 'destination', known_airport: 'KBOS', eligible: true },
       },
       {
         hex_ident: 'plane_b',
@@ -137,8 +155,7 @@ describe('PlaneListPanelContent', () => {
         alt_v: 0,
         last_update_ts: 2,
         trail: [],
-        origin: 'KBOS',
-        destination: 'KJFK',
+        route_hint: { guess_direction: 'destination', known_airport: 'KBOS', eligible: true },
       },
       {
         hex_ident: 'plane_c',
@@ -150,8 +167,7 @@ describe('PlaneListPanelContent', () => {
         alt_v: 0,
         last_update_ts: 3,
         trail: [],
-        origin: 'KBOS',
-        destination: 'KORD',
+        route_hint: { guess_direction: 'destination', known_airport: 'KBOS', eligible: true },
       },
     ];
 

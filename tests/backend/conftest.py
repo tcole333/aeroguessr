@@ -108,26 +108,3 @@ async def test_client() -> AsyncGenerator[AsyncClient, None]:
             await client.aclose()
         except RuntimeError as e:
             logger.warning(f"Error closing AsyncClient: {e}")
-
-
-# Remove AsyncClient fixture definition
-# @pytest_asyncio.fixture(scope="function")
-# async def test_client() -> AsyncGenerator[AsyncClient, None]:
-#    ...
-
-# Remove old override logic at module level
-# app.dependency_overrides[RedisClient] = override_get_redis_client
-
-# Remove old test_client fixture
-# @pytest_asyncio.fixture(scope="session")
-# async def test_client() -> AsyncGenerator[AsyncClient, None]:
-#    """
-#    Provides an asynchronous test client for making requests to the FastAPI app.
-#    Uses ASGITransport to interact with the app directly without a running server.
-#    """
-#    # Use ASGITransport to wrap the app
-#    async with AsyncClient(transport=ASGITransport(app=app),
-#       base_url="http://testserver") as client:
-#        yield client
-
-# Remove old redis_client fixture definition if it was conflicting

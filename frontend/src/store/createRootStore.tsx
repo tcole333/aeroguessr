@@ -15,12 +15,15 @@ import type { GameSlice } from "../features/game/gameSlice";
 import { createGameSlice } from "../features/game/gameSlice";
 import type { UiSlice } from "../features/ui/uiSlice";
 import { createUiSlice } from "../features/ui/uiSlice";
+import type { ConfigSlice } from "../features/config/configSlice";
+import { createConfigSlice } from "../features/config/configSlice";
 
 export interface RootState {
   connection: ConnectionSlice;
   planes: PlanesSlice;
   game: GameSlice;
   ui: UiSlice;
+  config: ConfigSlice;
 }
 
 export type RootStore = StoreApi<RootState>;
@@ -28,6 +31,17 @@ export type RootStore = StoreApi<RootState>;
 // Define the parts that are persisted
 type PersistedUiState = Pick<UiSlice, "activePanel" | "darkMode" | "isPanelOpen" | "currentView">;
 type PersistedConnectionState = Pick<ConnectionSlice, "nickname" | "roomCode" | "wsUrl">;
+
+/**
+ * Redux devtools expose the whole store to anyone with the extension, so they
+ * connect only in development builds (and only when the extension is installed,
+ * which avoids zustand's "please install" warning everywhere else).
+ */
+function devtoolsEnabled(): boolean {
+  return (
+    import.meta.env.DEV && typeof window !== "undefined" && "__REDUX_DEVTOOLS_EXTENSION__" in window
+  );
+}
 
 export function createRootStore(): RootStore {
   const persistOptions: PersistOptions<RootState, { ui: PersistedUiState; connection: PersistedConnectionState }> = {
@@ -76,10 +90,12 @@ export function createRootStore(): RootStore {
             planes: createPlanesSlice(set, get, api),
             game: createGameSlice(set, get, api),
             ui: createUiSlice(set, get, api), // Directly create ui slice here
+            config: createConfigSlice(set, get, api),
           };
         }),
         persistOptions, // Pass the configured options
       ),
+      { name: "aeroguessr", enabled: devtoolsEnabled() },
     ),
   );
 }

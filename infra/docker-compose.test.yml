@@ -1,9 +1,8 @@
-version: "3.8"
+# `make integration-test` runs pytest inside backend-test, so the stack publishes no host ports
+# and runs next to any local Redis or API. The Makefile names its Compose project per checkout.
 services:
   redis-test:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -17,26 +16,24 @@ services:
     working_dir: /app
     volumes:
       - ..:/app
-    # Revert to original uvicorn command
+    # make integration-test runs pytest in this container with docker compose exec.
     command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
-    # Run pytest directly in the container for integration tests
-    # command: >
-    #   bash -c "\n    #   echo '--- Waiting for Redis ---' &&\n    #   while ! redis-cli -h redis-test ping; do sleep 1; done &&\n    #   echo '--- Redis Ready ---' &&\n    #   echo '--- Running Pytest ---' &&\n    #   cd /app && PYTHONPATH=/app poetry run pytest -vv -m integration\n    #   "
     environment:
-      # Ensure backend connects to the test Redis instance
-      REDIS_URL: redis://redis-test:6379/0
+      # Ensure backend connects to the test Redis instance. pytest runs in this container via
+      # `make integration-test` and shares the database with the backend; the real-Redis
+      # fixture refuses db 0 (see tests/README.md).
+      REDIS_URL: redis://redis-test:6379/1
+      TEST_REDIS_URL: redis://redis-test:6379/1
+      INTEGRATION_BASE_URL: http://localhost:8000
       # Provide necessary env vars for the running application
       FLIGHTAWARE_API_KEY: "test-key"
-      OPENSKY_USERNAME: "test-user"
-      OPENSKY_PASSWORD: "test-pass"
       FAKE_ADSB: "1"
       PYTHONUNBUFFERED: 1
       LOG_LEVEL: DEBUG
       # Set short timeout for integration tests
       HOST_DISCONNECT_CLAIM_WINDOW_SECONDS: 2
+      # The repo is mounted at /app, so without this the backend would read the developer's .env.
+      AEROGUESSR_ENV_FILE: ""
     depends_on:
       redis-test:
         condition: service_healthy
-    # Expose port for external tests to connect
-    ports:
-      - "8000:8000"

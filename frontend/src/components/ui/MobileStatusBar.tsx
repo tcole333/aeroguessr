@@ -1,8 +1,7 @@
 import React from 'react';
 import { useStore } from '../../hooks/useStore';
-import { selectRoomCode } from '../../features/connection/connectionSlice';
-import { selectPlayerNickname } from '../../features/connection/selectors';
-import { selectScores, selectHost } from '../../features/game/selectors';
+import { selectRoomCode, selectPlayerNickname } from '../../features/connection/selectors';
+import { selectScores, selectHost, selectIsSoloRoom } from '../../features/game/selectors';
 import { selectRetroMode } from '../../features/ui/selectors';
 
 interface MobileStatusBarProps {
@@ -21,7 +20,7 @@ export const MobileStatusBar: React.FC<MobileStatusBarProps> = ({ className = ''
   const myNickname = useStore(selectPlayerNickname);
   const hostNickname = useStore(selectHost);
   const retroMode = useStore(selectRetroMode);
-  const isSolo = roomCode === 'solo';
+  const isSolo = useStore(selectIsSoloRoom);
 
   const myScore = myNickname ? scores[myNickname] || 0 : 0;
   const modeLabel = scoringMode === 'Exact' ? 'Exact' : scoringMode === 'Distance' ? 'Dist' : null;

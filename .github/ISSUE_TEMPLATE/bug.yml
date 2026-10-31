@@ -40,7 +40,7 @@ body:
       label: Logs/Errors
       description: Any relevant logs from logs/ directory or browser console
       placeholder: |
-        Check logs/backend.log and logs/frontend.log
+        Check logs/backend.log and the browser console
         Paste relevant errors here
 
   - type: dropdown

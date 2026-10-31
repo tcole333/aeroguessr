@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 import type { Airport, AirportSearchResult, UseAirportSearchResult } from '../types';
-import airportsData from '../../../assets/airports.json';
+import airportsData from '@data/airports.json';
 
 const fuseOptions: IFuseOptions<Airport> = {
   keys: [

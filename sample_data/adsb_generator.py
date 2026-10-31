@@ -12,20 +12,24 @@ from typing import List
 
 from geopy.distance import geodesic
 
+from backend.settings import get_settings
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_HOST = os.getenv("ADSB_HOST", "127.0.0.1")
-DEFAULT_PORT = int(os.getenv("ADSB_PORT", 30003))
+Coords = tuple[float, float]
+
+# Standalone defaults for `python -m sample_data.adsb_generator`; the ingest passes its own.
+DEFAULT_HOST = os.getenv("ADSB_HOST") or "127.0.0.1"
+DEFAULT_PORT = int(os.getenv("ADSB_PORT") or 30003)
 
 # --- Constants for synthetic mode --- #
-# Boston Logan coordinates (approximate centre of the field)
-BOS_LAT = 42.3656
-BOS_LON = -71.0096
-# Default synthetic traffic parameters
-SYN_PLANE_COUNT = int(os.getenv("SYN_PLANE_COUNT", 3))  # 1–3 planes
+SYN_PLANE_COUNT = int(os.getenv("SYN_PLANE_COUNT") or 3)
 SYN_STEP_SECONDS = 1.0  # Emit update every second
 SYN_GROUNDSPEED_KTS = 220  # Typical mid-descent speed
 SYN_DESCENT_FPM = 800  # Descent rate
+# Aircraft broadcast identification (callsign) every few seconds, separately
+# from position; the ingest only learns callsigns from these MSG,1 lines.
+SYN_IDENT_EVERY_STEPS = 5
 
 # Pre-compute per-tick deltas
 _SYN_STEP_KM = (SYN_GROUNDSPEED_KTS * 1.852) * (SYN_STEP_SECONDS / 3600)
@@ -49,7 +53,9 @@ def _parse_timestamp(tokens: List[str]) -> float:
         tokens: Split CSV fields.
 
     Returns:
-        Epoch seconds as ``float``. If parsing fails, returns ``0``.
+        Epoch seconds as ``float``, reading the time as UTC. A capture doesn't record its
+        time zone, and replay uses only the gaps between lines, which UTC keeps free of DST
+        jumps. If parsing fails, returns ``0``.
     """
 
     try:
@@ -60,7 +66,9 @@ def _parse_timestamp(tokens: List[str]) -> float:
         date_str, time_str = tokens[date_idx], tokens[time_idx]
         if not date_str or not time_str:
             return 0.0
-        dt = datetime.strptime(f"{date_str} {time_str}", "%Y/%m/%d %H:%M:%S.%f")
+        dt = datetime.strptime(f"{date_str} {time_str}", "%Y/%m/%d %H:%M:%S.%f").replace(
+            tzinfo=timezone.utc
+        )
         return dt.timestamp()
     except Exception:
         return 0.0
@@ -112,26 +120,36 @@ async def _client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWr
     await reader.read()  # Block until client disconnects
 
 
+def receiver_location() -> Coords:
+    """``(CENTER_LAT, CENTER_LON)`` from the settings: where synthetic planes fly in to."""
+    settings = get_settings()
+    return (settings.center_lat, settings.center_lon)
+
+
 class _SyntheticPlane:
-    """Lightweight state container for a synthetic aircraft."""
+    """Lightweight state container for a synthetic aircraft flying in to ``center``."""
 
     __slots__ = (
+        "center",
         "hex_ident",
         "callsign",
         "lat",
         "lon",
         "alt",
+        "_reports",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, center: Coords) -> None:
+        self.center = center
         self.hex_ident = "".join(random.choices("0123456789ABCDEF", k=6))
         airline = random.choice(["AAL", "DAL", "UAL", "JBU", "SWA", "BAW", "AFR"])
         self.callsign = f"{airline}{random.randint(10, 999)}"
-        # Spawn 20–40 km away from BOS in a random bearing at 8–12 kft
+        # Spawn 20–40 km from the centre on a random bearing at 8–12 kft
         bearing = random.uniform(0, 360)
-        start = geodesic(kilometers=random.uniform(20, 40)).destination((BOS_LAT, BOS_LON), bearing)
+        start = geodesic(kilometers=random.uniform(20, 40)).destination(center, bearing)
         self.lat, self.lon = start.latitude, start.longitude
         self.alt = random.uniform(8000, 12000)
+        self._reports = 0
 
     # Utility --------------------------------------------------------------- #
     def _initial_bearing(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -146,32 +164,55 @@ class _SyntheticPlane:
         bearing_rad = math.atan2(x, y)
         return (math.degrees(bearing_rad) + 360) % 360
 
-    def _distance_to_bos(self) -> float:
-        return geodesic((self.lat, self.lon), (BOS_LAT, BOS_LON)).kilometers
+    def _distance_to_center(self) -> float:
+        return geodesic((self.lat, self.lon), self.center).kilometers
 
     def step(self) -> None:
-        """Advance aircraft position one tick toward BOS."""
-        if self.alt <= 200 or self._distance_to_bos() < 1.0:
+        """Advance aircraft position one tick toward the centre."""
+        if self.alt <= 200 or self._distance_to_center() < 1.0:
             # Re-spawn when "landed"
-            self.__init__()
+            self.__init__(self.center)
             return
 
-        # Compute bearing to BOS
-        bearing = self._initial_bearing(self.lat, self.lon, BOS_LAT, BOS_LON)
-        # Move toward BOS
+        # Compute bearing to the centre
+        bearing = self._initial_bearing(self.lat, self.lon, *self.center)
+        # Move toward the centre
         dest = geodesic(kilometers=_SYN_STEP_KM).destination((self.lat, self.lon), bearing)
         self.lat, self.lon = dest.latitude, dest.longitude
         # Descend
         self.alt = max(0, self.alt - _SYN_STEP_ALT)
 
     # --------------------------------------------------------------------- #
-    def sbs_line(self) -> str:
-        """Return an SBS-1 formatted MSG (transmission type 3) line."""
+    def sbs_lines(self) -> List[str]:
+        """Lines for one tick: MSG,1 identification when due, then the MSG,3 position."""
+        lines = [self.identification_line()] if self._reports % SYN_IDENT_EVERY_STEPS == 0 else []
+        self._reports += 1
+        lines.append(self.sbs_line())
+        return lines
 
+    @staticmethod
+    def _timestamp_fields() -> List[str]:
         now = datetime.now(timezone.utc)
         date_str = now.strftime("%Y/%m/%d")
         time_str = now.strftime("%H:%M:%S.%f")[:-3]  # millisecond precision
+        return [date_str, time_str, date_str, time_str]  # generated, then logged
 
+    def identification_line(self) -> str:
+        """Return an SBS-1 MSG,1 (identification) line carrying the callsign."""
+        fields = [
+            "MSG",  # 1 Message type
+            "1",  # 2 Transmission type (1 = identification and category)
+            "1",  # 3 Session ID (dummy)
+            "1",  # 4 Aircraft ID (dummy)
+            self.hex_ident,  # 5 Hex ident
+            "0",  # 6 Flight ID (dummy)
+            *self._timestamp_fields(),  # 7-10 Date/time generated and logged
+            self.callsign,  # 11 Callsign
+        ]
+        return ",".join(fields + [""] * 11)  # 12-22 are empty for MSG,1
+
+    def sbs_line(self) -> str:
+        """Return an SBS-1 formatted MSG (transmission type 3) line."""
         fields = [
             "MSG",  # 1 Message type
             "3",  # 2 Transmission type (3 = airborne position)
@@ -179,11 +220,8 @@ class _SyntheticPlane:
             "1",  # 4 Aircraft ID (dummy)
             self.hex_ident,  # 5 Hex ident
             "0",  # 6 Flight ID (dummy)
-            date_str,  # 7 Date generated
-            time_str,  # 8 Time generated
-            date_str,  # 9 Date logged
-            time_str,  # 10 Time logged
-            self.callsign,  # 11 Callsign
+            *self._timestamp_fields(),  # 7-10 Date/time generated and logged
+            "",  # 11 Callsign (only sent in MSG,1)
             f"{int(self.alt)}",  # 12 Altitude (ft)
             f"{int(SYN_GROUNDSPEED_KTS)}",  # 13 Ground speed (kt)
             "0",  # 14 Track (placeholder)
@@ -199,16 +237,17 @@ class _SyntheticPlane:
         return ",".join(fields)
 
 
-async def _synthetic_replay(writers: List[asyncio.StreamWriter]) -> None:
-    """Continuously emit synthetic SBS lines for a small fleet."""
+async def _synthetic_replay(
+    writers: List[asyncio.StreamWriter], plane_count: int, center: Coords
+) -> None:
+    """Continuously emit synthetic SBS lines for a small fleet flying in to ``center``."""
 
-    planes = [_SyntheticPlane() for _ in range(SYN_PLANE_COUNT)]
+    planes = [_SyntheticPlane(center) for _ in range(plane_count)]
 
     while True:
         for plane in planes:
             plane.step()
-            line = plane.sbs_line()
-            data = (line + "\n").encode()
+            data = "".join(line + "\n" for line in plane.sbs_lines()).encode()
             for w in writers:
                 try:
                     w.write(data)
@@ -225,13 +264,15 @@ async def run_server(
     speed: float = 1.0,
     jitter: float = 0.0,
     loop_forever: bool = False,
+    plane_count: int = SYN_PLANE_COUNT,
+    center: Coords | None = None,
 ) -> None:
     """Start TCP server in **replay** or **synthetic** mode.
 
     If *filepath* equals ``"synthetic"`` or the *synthetic* CLI flag is used, the
     server emits procedurally generated SBS messages for a handful of aircraft
-    flying toward Boston Logan (KBOS). Otherwise, the given capture file is
-    replayed verbatim.
+    flying in to *center* (default: ``CENTER_LAT``/``CENTER_LON`` from the
+    settings). Otherwise, the given capture file is replayed verbatim.
     """
 
     synthetic_mode = filepath == "synthetic" or filepath is None
@@ -265,62 +306,65 @@ async def run_server(
     server = await asyncio.start_server(new_conn, host, port)
     logger.info("ADS-B sample generator listening on %s:%s", host, port)
 
-    # Handle graceful shutdown via signals (works only in main thread)
-    stop_event = asyncio.Event()
-
-    def _signal_handler(_: signal.Signals) -> None:  # type: ignore[type-var]
-        logger.info("Received termination signal – shutting down generator.")
-        stop_event.set()
-
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        with contextlib.suppress(ValueError):
-            loop.add_signal_handler(sig, _signal_handler, sig)  # type: ignore[arg-type]
-
     # Start appropriate coroutine
     if synthetic_mode:
         logger.info(
             "Starting **synthetic** ADS-B generator: %d planes, step %.1fs",
-            SYN_PLANE_COUNT,
+            plane_count,
             SYN_STEP_SECONDS,
         )
-        replay_task = asyncio.create_task(_synthetic_replay(writers))
+        if center is None:
+            center = receiver_location()
+        replay_task = asyncio.create_task(_synthetic_replay(writers, plane_count, center))
     else:
         replay_task = asyncio.create_task(
             _replay(lines, writers, speed=speed, jitter=jitter, loop_forever=loop_forever)
         )
 
-    # Convert stop_event.wait to a Task so asyncio.wait accepts it
-    stop_wait_task = asyncio.create_task(stop_event.wait())
-
-    # Wait until either the replay finishes (non-loop mode) or shutdown signal.
-    await asyncio.wait(
-        {replay_task, stop_wait_task},
-        return_when=asyncio.FIRST_COMPLETED,
-    )
-
-    # Cancel whichever task is still running and wait for graceful exit
-    replay_task.cancel()
-    stop_wait_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
+    try:
+        # Runs until the replay finishes (non-loop mode) or run_server is cancelled. Signals
+        # are left to whoever owns the process: the CLI below, or the ingest (FAKE_ADSB).
         await replay_task
-        await stop_wait_task
-
-    server.close()
-    await server.wait_closed()
+    finally:
+        # Runs on normal exit and when run_server itself is cancelled (the ingest loop, the
+        # CLI and tests cancel it), so no task, client socket or listener outlives the server.
+        replay_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await replay_task
+        server.close()
+        for writer in list(writers):
+            writer.close()
+        await server.wait_closed()
 
 
 async def _async_cli(args: argparse.Namespace) -> None:
     filepath = "synthetic" if args.synthetic else args.file
 
-    await run_server(
-        filepath=filepath,
-        host=args.host,
-        port=args.port,
-        speed=args.speed,
-        jitter=args.jitter,
-        loop_forever=args.loop,
+    server_task = asyncio.create_task(
+        run_server(
+            filepath=filepath,
+            host=args.host,
+            port=args.port,
+            speed=args.speed,
+            jitter=args.jitter,
+            loop_forever=args.loop,
+        )
     )
+
+    # The standalone generator owns its process, so it turns SIGTERM/SIGINT into a clean
+    # shutdown. run_server itself installs no handlers: inside the ingest they would swallow
+    # the signals meant to stop the whole process.
+    def _shut_down() -> None:
+        logger.info("Received termination signal – shutting down generator.")
+        server_task.cancel()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        with contextlib.suppress(NotImplementedError):  # no loop signal handlers on Windows
+            loop.add_signal_handler(sig, _shut_down)
+
+    with contextlib.suppress(asyncio.CancelledError):
+        await server_task
 
 
 def _sync_main() -> None:
@@ -337,7 +381,7 @@ def _sync_main() -> None:
     group.add_argument(
         "--synthetic",
         action="store_true",
-        help="Generate synthetic traffic inbound to KBOS instead of replaying a file",
+        help="Generate synthetic traffic inbound to CENTER_LAT/LON instead of replaying a file",
     )
     parser.add_argument("--host", default=DEFAULT_HOST, help="Bind host (default: %(default)s)")
     parser.add_argument(

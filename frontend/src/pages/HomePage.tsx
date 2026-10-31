@@ -145,7 +145,7 @@ export default function HomePage(): JSX.Element {
   // Original homepage
   return (
     <div className="p-4 space-y-6 max-w-md mx-auto relative">
-      <h1 className="text-3xl font-bold text-center">Plane Guessing Game</h1>
+      <h1 className="text-3xl font-bold text-center">AeroGuessr</h1>
       <p className="text-center text-gray-600 dark:text-gray-300">
         Guess where flights are headed. Play solo or with friends!
       </p>

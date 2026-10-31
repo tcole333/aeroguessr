@@ -1,6 +1,6 @@
 name: Tech Debt
 description: Track technical debt or refactoring needs
-labels: ["tech-debt"]
+labels: ["enhancement"]
 body:
   - type: textarea
     attributes:

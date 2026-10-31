@@ -32,7 +32,7 @@ class Player(BaseModel):
                 "nickname": "PilotPete",
                 "score": 150,
                 "connected": True,
-                "last_seen_ts": time.time(),
+                "last_seen_ts": 1678886401.0,
             }
         }
 
@@ -64,11 +64,7 @@ class RoomMeta(BaseModel):
                 "round_timeout_seconds": 30,
                 "host_nickname": "PlayerOne",
                 "is_solo": False,
-                "created_ts": time.time(),
-                "host_disconnected_ts": None,  # Add to example
+                "created_ts": 1678886400.0,
+                "host_disconnected_ts": None,
             }
         }
-
-
-# Note: The Plane model is more complex and related to ingest;
-# we'll likely define it separately, possibly in schemas/plane.py later.

@@ -1,6 +1,6 @@
 # Project Coding & Documentation Standards
 
-This document defines coding conventions, architectural patterns, and documentation requirements for the Plane Game v4 codebase. For development workflow, see @CLAUDE.md.
+This document defines coding conventions, architectural patterns, and documentation requirements for the AeroGuessr codebase. For development workflow, see @CLAUDE.md.
 
 ## 1. Code Style & Conventions
 
@@ -25,9 +25,10 @@ def process_flight_data(icao: str, altitude: int) -> FlightData:
 **Requirements:**
 - Type hints for all function parameters and returns
 - Docstrings for all public functions/classes
-- Max function length: 50 lines (extract helpers if larger)
+- Keep functions short (about 50 lines) and extract helpers. `websocket_endpoint` in `backend/routes/rooms.py` is the known exception; the Phase 2 engine rebuild (#148) replaces it.
 - Use `pydantic.BaseModel` for data structures
 - Async functions for all routes and I/O operations
+- No commented-out code: delete it. Ruff's ERA001 fails the check on it.
 - Log important operations and errors
 
 ### 1.2 TypeScript/React (Frontend)
@@ -49,7 +50,7 @@ export const FlightMap: React.FC<FlightMapProps> = ({
 ```
 
 **Requirements:**
-- Functional components only (no class components)
+- Functional components, except error boundaries (React requires a class)
 - Full TypeScript types (no `any`)
 - Props interfaces for all components
 - Tailwind CSS for styling
@@ -64,6 +65,8 @@ Use Conventional Commits:
 - `refactor:` Code restructuring
 - `test:` Test additions/changes
 - `chore:` Build process, dependencies
+- `perf:` Performance improvement
+- `ci:` CI and release workflows
 
 ## 2. Architecture Patterns
 
@@ -75,7 +78,6 @@ backend/
 ├── services/           # Business logic layer
 ├── schemas/            # Pydantic models
 ├── ingest/             # ADS-B data ingestion
-├── features/           # Feature-specific modules
 ├── scripts/            # Utility scripts
 └── utils/              # Shared utilities
 ```
@@ -106,9 +108,9 @@ frontend/
 
 ### 2.3 Testing Structure
 - **Backend**: Unit tests mirror source structure: `tests/backend/routes/test_*.py`
-- **Integration**: Tests in `tests/integration/` using Docker containers
-- **Frontend**: Tests alongside components: `*.test.tsx` using Vitest + Testing Library
-- **Coverage**: Minimum 1% threshold (configured in `vitest.config.ts`)
+- **Integration**: `tests/integration/`, against a real Redis and a live backend (see [tests/README.md](../tests/README.md))
+- **Frontend**: Tests next to components or in `__tests__/` folders (`*.test.ts(x)`), using Vitest + Testing Library
+- **Coverage**: backend 50% floor (CI); frontend 1% (`vitest.config.ts`)
 
 ## 3. Documentation Requirements
 
@@ -119,16 +121,27 @@ frontend/
 - **Components**: JSDoc comments for props and behavior
 
 ### 3.2 Project Documentation
-- **README**: Keep "Context for LLMs" section updated
-- **API Changes**: Run `make openapi` and commit generated `types/api.ts`
-- **WebSocket Changes**: Run `make ws-schema` and commit generated `types/ws.ts`
-- **Architecture Changes**: Create/update ADR in `ADR/`
-- **Issue Tracking**: Use GitHub Issues with provided templates for features, bugs, and tech debt
+- **Long-lived docs**:
+  - [README](../README.md), for players and self-hosters;
+  - [CONTRIBUTING](../CONTRIBUTING.md), for the development setup, conventions and common tasks;
+  - [PRD](PRD.md), for what the game does;
+  - [architecture](architecture.md), for how it works;
+  - [self-hosting](self-hosting.md), for running it on your own receiver;
+  - [deployment](deployment.md), the aeroguessr.com runbook;
+  - [tests/README](../tests/README.md);
+  - [NOTICE](../NOTICE.md), for third-party credits and licenses.
+  Each fact lives in one of them. Update that one and link to it from elsewhere, rather than restating the fact.
+- **API or WebSocket changes**: regenerate the schemas and types (3.3) and commit them
+- **Plans, status and findings** belong in GitHub issues and PRs, not in the repo. Use the templates for features, bugs and tech debt.
 
 ### 3.3 Type Generation
-- **API Types**: Auto-generated from OpenAPI schema to `frontend/types/api.ts`
-- **WebSocket Types**: Auto-generated from schema to `frontend/types/ws.ts`
-- **Update Command**: `make openapi && make ws-schema` after backend changes
+It takes two steps, in this order:
+1. `make openapi && make ws-schema` writes `docs/api_openapi.yaml` and `docs/ws_schema.yaml` from the backend.
+2. `cd frontend && npm run gen:schema` writes `frontend/types/api.ts` and `frontend/types/ws.ts` from that YAML.
+
+Running step 2 alone rebuilds the types from whatever YAML is committed. If that YAML is stale, fields silently drop from the zod schemas.
+
+CI runs both steps and fails if the output differs from what is committed.
 
 ## 4. Logging Standards
 
@@ -148,29 +161,29 @@ logger.critical(f"Redis connection lost")  # System failures
 
 ### 4.2 Frontend Logging
 ```typescript
-// Use console methods appropriately
-console.debug('Component render details');
-console.log('User action:', action);
-console.warn('Deprecated API usage');
-console.error('Failed to load map tiles:', error);
+// Problems worth seeing in any browser console
+console.warn('[VectorBaseLayer] Basemap error', String(event.error));
+console.error('Failed to copy room code:', err);
+
+// Diagnostics, shown only after localStorage.debug = 'plane:*'
+import debug from 'debug';
+const log = debug('plane:ws');
+log('connected to', url);
 ```
+- ESLint warns on `console.log` and `console.debug`, so a new one fails `npm run lint` at the warning cap.
+- The browser's logs stay in the browser; nothing sends them to the backend.
 
 ### 4.3 Log Output
 - **Backend logs**: `logs/backend.log`
-- **Frontend logs**: `logs/frontend.log` (captured via logging API)
 - **Integration test logs**: `logs/integration.log`
-- **Format**: `[timestamp] [level] [module] message`
+- **Format**: API `%(asctime)s - %(name)s - %(levelname)s - %(message)s`; ingest `%(asctime)s %(levelname)s [service] %(name)s: %(message)s` (`backend/utils/logging_config.py`)
 
 ### 4.4 Log Rotation
 - **Development Settings**:
   - Rotate when file size exceeds 5MB
   - Keep only 1 backup file
-  - Python's RotatingFileHandler for backend/frontend logs
-- **Production Settings** (via logrotate):
-  - Daily rotation
-  - Keep 1 day of history
-  - Compress rotated files
-  - Config in `infra/logrotate.d/plane-game`
+  - Python's RotatingFileHandler for the backend log
+- **On the Pi**: Docker caps container output at 10 MB × 3, and the app rotates its own files. [deployment.md](deployment.md#logs) lists what bounds each log. `infra/logrotate.d/plane-game` exists but is not installed.
 
 ## 5. API & WebSocket Standards
 
@@ -178,31 +191,24 @@ console.error('Failed to load map tiles:', error);
 - Version in URL: `/api/v0/`
 - Resource-based naming: `/rooms`, `/players`
 - Standard HTTP status codes
-- Consistent error format:
-```json
-{
-  "detail": "Error message",
-  "code": "ERROR_CODE"
-}
-```
+- Errors use FastAPI's format: `{"detail": "Error message"}`
 
 ### 5.2 WebSocket Messages
-- JSON format with `type` field
-- Consistent naming: `snake_case`
-- Include `timestamp` on server messages
-- Document in `docs/ws_schema.yaml`
+- Envelope `{type, payload, ts}`, with `ts` in epoch milliseconds
+- Message types are camelCase (`selectPlane`, `roundResult`); payload fields are snake_case
+- Errors are `{type: "error", payload: {code, message}}`
+- Define messages as Pydantic models; `make ws-schema` generates `docs/ws_schema.yaml` from them
 
 ## 6. Environment & Configuration
 
 ### 6.1 Environment Variables
-- Define in `.env.example` with descriptions
-- Group by service (REDIS_, OPENSKY_, etc.)
-- Required vs optional clearly marked
-- No secrets in code or commits
+- Define every backend setting in `backend/settings.py`, with its default, and read it with `get_settings()`, never `os.getenv`.
+- List it in `.env.example` with a description. `tests/backend/test_settings.py` enforces this.
+- No secrets in code or commits. gitleaks checks staged changes in pre-commit, and the files and each pull request's commits in CI.
 
 ### 6.2 Feature Flags
 - Use environment variables: `FAKE_ADSB=1`
-- Document behavior in README
+- Document the behavior in `.env.example`, and in [self-hosting.md](self-hosting.md) when self-hosters need it
 - Default to production behavior
 
 ## 7. Quality Checks
@@ -214,12 +220,24 @@ All code must pass:
 - JSON/YAML: syntax validation
 - File size limits
 - No merge conflicts
+- Shell scripts: shellcheck
+- GitHub workflows: actionlint, which also checks their `run:` scripts when `shellcheck` is on your PATH
+- No secrets in staged changes: gitleaks
 
 ### 7.2 CI Requirements
-- Unit tests must pass
-- Coverage threshold: 1% (minimal baseline)
-- All linting checks green
-- Docker builds succeed
+`.github/workflows/ci.yml` runs on pushes to `main` and on every PR, whatever its base branch, so stacked PRs get CI too. Every job must be green:
+- Ruff
+- the other pre-commit hooks: file checks, shellcheck and actionlint
+- gitleaks finds no secret in the files or in the pull request's commits
+- the PR title is a conventional commit (1.3), because a squash merge uses it as the commit message (a single-commit PR uses its commit's message, which is checked too); a separate workflow, `pr-title.yml`, checks it
+- skipped tests reference an issue (`scripts/check_test_skips.py`)
+- backend unit tests (50% coverage floor)
+- integration tests against real Redis
+- frontend lint (capped warnings), typecheck and tests
+- generated schemas and types match the code
+- Docker image builds
+
+CI is advisory: there is no branch protection, and the maintainer's Pi deploys whatever lands on `main`. Check the run before merging.
 
 ## 8. Performance Guidelines
 

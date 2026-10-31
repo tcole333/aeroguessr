@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../../hooks/useStore';
 import { webSocketClient } from '../../../hooks/useWebSocketManager';
 import { selectPlaneById } from '../selectors';
+import { getRouteDisplay } from '../routeDisplay';
+import { LEVEL_FLIGHT_MAX_FPM } from '../verticalRate';
 import {
+  selectGuessRejection,
   selectHost,
   selectIsSolo,
+  selectRevealedAnswer,
   selectSelectedPlane,
   selectRound,
   selectRoundTimeout,
@@ -15,7 +19,7 @@ import {
   selectConnectionStatus,
 } from '../../connection/selectors';
 import { selectRetroMode } from '../../ui/selectors';
-import { formatAirportDisplay } from '../../../lib/airportLookup';
+import { formatAirportDisplay, guessCodeError } from '../../../lib/airportLookup';
 
 interface PlaneDetailsProps {
   hex: string;
@@ -32,58 +36,30 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const round = useStore(selectRound);
   const roundTimeout = useStore(selectRoundTimeout);
   const usedPlanes = useStore(selectUsedPlanes);
+  const revealedAnswer = useStore(selectRevealedAnswer(hex));
   const retroMode = useStore(selectRetroMode);
+  const guessRejection = useStore(selectGuessRejection);
+  const setGuessRejection = useStore((s) => s.game.setGuessRejection);
 
   const [guessCode, setGuessCode] = useState('');
   const [hasGuessed, setHasGuessed] = useState(false);
   const [guessError, setGuessError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const [startWhenSelected, setStartWhenSelected] = useState(false);
 
   // In solo mode, the player is always the host; in multiplayer, check nickname
   const isHost = isSolo || (host && myNick === host);
   const isSelected = selectedPlane === hex;
   const isRoundActive = round?.state === 'guessing' && round?.hex === hex;
   const isUsed = usedPlanes.has(hex);
-  // Only allow selecting flights connected to monitored airport (not overhead flights)
-  // TODO: Get monitored airport from configuration instead of hardcoding
-  const monitoredAirport = 'KBOS';
-  const isConnectedToMonitoredAirport =
-    plane?.origin === monitoredAirport || plane?.destination === monitoredAirport;
+  // The server never sends the guessed end of a route; it is shown only once a
+  // roundResult for this plane has revealed it.
+  const route = getRouteDisplay(plane?.route_hint, revealedAnswer);
+  // Only offer planes the server accepts (it derives `eligible` from the same rule)
   const canSelectPlane =
-    isHost && status === 'connected' && !isRoundActive && !isUsed && isConnectedToMonitoredAirport;
+    isHost && status === 'connected' && !isRoundActive && !isUsed && route.eligible;
   const canStartRound = isHost && status === 'connected' && isSelected && !isRoundActive;
   const canGuess = status === 'connected' && isRoundActive && !hasGuessed;
-
-  // Determine which airport to hide based on round direction and game state
-  // - During active round for this plane: hide the answer being guessed
-  // - After round completes (plane in usedPlanes and no active round): show both
-  // - For other planes or before any round: use fallback logic from backend
-  const getFieldToHide = (): 'origin' | 'destination' | null => {
-    // If this plane was used in a round and round is complete, show both
-    if (isUsed && !isRoundActive) {
-      return null; // Show both airports
-    }
-
-    // During active round on this plane, hide based on direction
-    if (isRoundActive && round?.direction) {
-      return round.direction as 'origin' | 'destination';
-    }
-
-    // For other cases (plane not selected, or before round starts),
-    // use fallback logic to prevent accidental spoilers
-    if (!plane.origin || !plane.destination) return null;
-
-    if (plane.origin === monitoredAirport) {
-      return 'destination';
-    }
-    if (plane.destination === monitoredAirport) {
-      return 'origin';
-    }
-    return null;
-  };
-
-  const fieldToHide = getFieldToHide();
-
 
   // Reset guess state when round changes
   useEffect(() => {
@@ -110,6 +86,21 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
     }
     return undefined;
   }, [round, roundTimeout, isRoundActive]);
+
+  // The server recorded nothing for a refused guess, so the player can fix it and send again
+  useEffect(() => {
+    if (!guessRejection) return;
+    setHasGuessed(false);
+    setGuessError(guessRejection.message);
+  }, [guessRejection]);
+
+  // Start the round only once the server confirms the selection. A refused selection then
+  // shows one error, not a second one from a startRound that was bound to fail too.
+  useEffect(() => {
+    if (!startWhenSelected || !isSelected) return;
+    setStartWhenSelected(false);
+    webSocketClient.send({ type: 'startRound', payload: {} });
+  }, [startWhenSelected, isSelected]);
 
   if (!plane) {
     return (
@@ -149,10 +140,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
     try {
       webSocketClient.send({ type: 'selectPlane', payload: { hex } });
-      // Start round after a brief delay to ensure selection is confirmed
-      setTimeout(() => {
-        webSocketClient.send({ type: 'startRound', payload: {} });
-      }, 100);
+      setStartWhenSelected(true);
     } catch (err) {
       console.error('Failed to select and start round:', err);
     }
@@ -167,8 +155,14 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
       setGuessError('Airport code required');
       return;
     }
+    const unknownCodeError = guessCodeError(trimmed);
+    if (unknownCodeError) {
+      setGuessError(unknownCodeError);
+      return;
+    }
 
     try {
+      setGuessRejection(null);
       webSocketClient.send({ type: 'guess', payload: { airport_code: trimmed } });
       setHasGuessed(true);
       setGuessError(null);
@@ -200,8 +194,8 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
 
   const altitudeTrend = (altV?: number) => {
     if (altV == null) return { symbol: '•', className: 'text-retro-text-light' };
-    if (altV > 50) return { symbol: '▲', className: 'text-retro-success' };
-    if (altV < -50) return { symbol: '▼', className: 'text-retro-primary' };
+    if (altV > LEVEL_FLIGHT_MAX_FPM) return { symbol: '▲', className: 'text-retro-success' };
+    if (altV < -LEVEL_FLIGHT_MAX_FPM) return { symbol: '▼', className: 'text-retro-primary' };
     return { symbol: '•', className: 'text-retro-text-light' };
   };
 
@@ -237,8 +231,8 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
   const getFlightStatus = () => {
     if (isRoundActive) return { label: 'ACTIVE', className: 'text-retro-success' };
     if (isUsed) return { label: 'DEPARTED', className: 'text-retro-text-muted' };
-    if (plane.alt_v && plane.alt_v > 50) return { label: 'CLIMBING', className: 'text-retro-success' };
-    if (plane.alt_v && plane.alt_v < -50) return { label: 'DESCENDING', className: 'text-retro-primary' };
+    if (plane.alt_v > LEVEL_FLIGHT_MAX_FPM) return { label: 'CLIMBING', className: 'text-retro-success' };
+    if (plane.alt_v < -LEVEL_FLIGHT_MAX_FPM) return { label: 'DESCENDING', className: 'text-retro-primary' };
     return { label: 'CRUISING', className: 'text-retro-text' };
   };
 
@@ -344,13 +338,13 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'ORIGIN' : 'Origin'}</span>
               <p className={`${valueClass} truncate`}>
-                {fieldToHide === 'origin' ? '???' : formatAirportDisplay(plane.origin).toUpperCase()}
+                {formatAirportDisplay(route.origin).toUpperCase()}
               </p>
             </div>
             <div>
               <span className={labelClass} style={labelStyle}>{retroMode ? 'DEST' : 'Dest'}</span>
               <p className={`${valueClass} truncate`}>
-                {fieldToHide === 'destination' ? '???' : formatAirportDisplay(plane.destination).toUpperCase()}
+                {formatAirportDisplay(route.destination).toUpperCase()}
               </p>
             </div>
           </div>
@@ -424,7 +418,7 @@ export default function PlaneDetails({ hex, onClose }: PlaneDetailsProps): JSX.E
                 </div>
 
                 {guessError && (
-                  <p className={retroMode ? 'text-sm font-display text-retro-accent uppercase tracking-wider' : 'text-sm text-red-400'}>
+                  <p role="alert" className={retroMode ? 'text-sm font-display text-retro-accent uppercase tracking-wider' : 'text-sm text-red-400'}>
                     {guessError}
                   </p>
                 )}

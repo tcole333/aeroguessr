@@ -1,30 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { useStore } from '../../../hooks/useStore';
 import { selectPlaneMap } from '../../planes/selectors';
 import { selectRound, selectSelectedPlane, selectUsedPlanes } from '../../game/selectors';
 import { selectExpandedPlane, selectRetroMode } from '../../ui/selectors';
+import { selectClientConfig, selectClientConfigStatus, selectLoadClientConfig } from '../../config/selectors';
+import { useLoadClientConfig } from '../../config/useLoadClientConfig';
+import type { ClientConfig } from '../../../services/apiService';
+import MapPlaceholder from './MapPlaceholder';
 import PlaneMarker from './PlaneMarker';
 import RetroMapAnnotations from './RetroMapAnnotations';
 import RetroMapOverlay from './RetroMapOverlay';
+import VectorBaseLayer from './VectorBaseLayer';
 
-const centerLat = parseFloat(
-  (import.meta.env.VITE_CENTER_LAT ?? import.meta.env.CENTER_LAT) ?? '42.3656',
-);
-const centerLon = parseFloat(
-  (import.meta.env.VITE_CENTER_LON ?? import.meta.env.CENTER_LON) ?? '-71.0096',
-);
-const standardTileUrl =
-  import.meta.env.VITE_OSM_TILE_URL ??
-  import.meta.env.OSM_TILE_URL ??
-  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-// Retro tile options - light chart base with no labels
-const retroTileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
-const standardAttribution = '&copy; OpenStreetMap contributors';
-const retroAttribution = '&copy; OpenStreetMap contributors, &copy; CARTO';
 const defaultZoom = 12;
+// Leaflet takes its zoom limit from tile layers, which this map no longer has.
+const maxZoom = 18;
 
 // Component to handle map focusing and zoom tracking
 function MapController({
@@ -93,8 +85,9 @@ interface MapViewProps {
   onPlaneClick?: (hex: string) => void;
 }
 
-function ResetViewControl(): null {
+function ResetViewControl({ center }: { center: ClientConfig['center'] }): null {
   const map = useMap();
+  const { lat, lon } = center;
 
   useEffect(() => {
     // Create a custom control using Leaflet's Control class
@@ -109,7 +102,7 @@ function ResetViewControl(): null {
 
         L.DomEvent.on(button, 'click', (event) => {
           L.DomEvent.stopPropagation(event);
-          map.setView([centerLat, centerLon], defaultZoom, {
+          map.setView([lat, lon], defaultZoom, {
             animate: true,
             duration: 0.8,
           });
@@ -126,12 +119,32 @@ function ResetViewControl(): null {
     return () => {
       control.remove();
     };
-  }, [map]);
+  }, [map, lat, lon]);
 
   return null;
 }
 
+/**
+ * The game map. It opens on the receiver's location from the client config, so it shows a
+ * placeholder until that config has loaded.
+ */
 export default function MapView({ onPlaneClick }: MapViewProps): JSX.Element {
+  useLoadClientConfig();
+  const status = useStore(selectClientConfigStatus);
+  const clientConfig = useStore(selectClientConfig);
+  const loadClientConfig = useStore(selectLoadClientConfig);
+
+  if (clientConfig === null) {
+    return <MapPlaceholder failed={status === 'failed'} onRetry={() => void loadClientConfig()} />;
+  }
+  return <ConfiguredMap clientConfig={clientConfig} onPlaneClick={onPlaneClick} />;
+}
+
+interface ConfiguredMapProps extends MapViewProps {
+  clientConfig: ClientConfig;
+}
+
+function ConfiguredMap({ clientConfig, onPlaneClick }: ConfiguredMapProps): JSX.Element {
   const planes = useStore(selectPlaneMap);
   const selectedPlaneHex = useStore(selectSelectedPlane);
   const round = useStore(selectRound);
@@ -140,38 +153,28 @@ export default function MapView({ onPlaneClick }: MapViewProps): JSX.Element {
   const expandedPlaneHex = useStore(selectExpandedPlane);
   const [currentZoom, setCurrentZoom] = useState(defaultZoom);
 
-  const tileUrl = retroMode ? retroTileUrl : standardTileUrl;
-  const attribution = retroMode ? retroAttribution : standardAttribution;
-
-  // Debug logging removed for production - uncomment if needed for debugging
-  // useEffect(() => {
-  //   const planeCount = Object.keys(planes).length;
-  //   console.log('[MapView] Planes in store:', planeCount);
-  //   if (planeCount > 0 && planeCount <= 5) {
-  //     console.log('[MapView] Plane details:', planes);
-  //   }
-  // }, [planes]);
+  const { center } = clientConfig;
 
   return (
     <MapContainer
-      center={[centerLat, centerLon]}
+      center={[center.lat, center.lon]}
       zoom={defaultZoom}
+      maxZoom={maxZoom}
       className="h-full w-full"
     >
-      <TileLayer
-        key={retroMode ? 'retro' : 'standard'}
-        url={tileUrl}
-        attribution={attribution}
-        className={retroMode ? 'retro-map-base-layer' : undefined}
+      <VectorBaseLayer
+        styleUrl={clientConfig.map_style_url}
+        attribution={clientConfig.attributions.join(' | ')}
+        placeLabelsOnly={retroMode}
       />
       {retroMode && <RetroMapOverlay />}
-      {retroMode && <RetroMapAnnotations />}
+      {retroMode && <RetroMapAnnotations airport={clientConfig.monitored_airport} />}
       <MapController
         onZoomChange={setCurrentZoom}
         focusPlaneHex={expandedPlaneHex}
         selectedPlaneHex={selectedPlaneHex}
       />
-      <ResetViewControl />
+      <ResetViewControl center={center} />
       {Object.values(planes).map((plane) => {
         const isActive = round?.state === 'guessing' && round?.hex === plane.hex_ident;
         const isUsed = usedPlanes.has(plane.hex_ident);

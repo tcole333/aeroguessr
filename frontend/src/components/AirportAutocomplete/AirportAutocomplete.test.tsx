@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { AirportAutocomplete } from './AirportAutocomplete';
 
 // Mock the airport data
-vi.mock('../../assets/airports.json', () => ({
+vi.mock('@data/airports.json', () => ({
   default: [
     {
       iata: 'BOS',

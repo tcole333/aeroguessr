@@ -1,23 +1,27 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
+
+# Keep in step with the uv in ci.yml and backend/Dockerfile.
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /bin/uv
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y curl git redis-tools && apt-get clean
 
-# Install Poetry using the official installer
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="/root/.local/bin:${PATH}"
+# The repo is mounted over /app at runtime, so the venv lives outside it, on PATH for the
+# compose command and found by uv run. UV_LOCKED makes uv install uv.lock as it is and
+# fail on a stale one; it never rewrites the mounted lockfile.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LOCKED=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    PATH="/opt/venv/bin:$PATH"
 
-# Configure Poetry to not create virtual environments
-RUN poetry config virtualenvs.create false
-
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Generate lock file and install dependencies
-RUN poetry lock --no-interaction && \
-    poetry install --with=dev --no-root
+# Install the locked dependencies, dev group included
+COPY pyproject.toml uv.lock .python-version ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project
 
 # The app code will be mounted at runtime
 

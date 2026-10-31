@@ -1,14 +1,26 @@
-# Complete Docker Compose configuration for Plane Game v4
+# Complete Docker Compose configuration for AeroGuessr
 # Orchestrates all services: nginx, frontend, backend, redis
 # Production-ready deployment with proper networking and dependencies
+#
+# No container_name here: names come from the Compose project, and `make start` gives each
+# checkout its own. The Pi's names and project live in docker-compose.pi.yml.
 
-version: '3.8'
+# Docker's json-file driver keeps a container's output forever unless capped.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Each mem_limit is a few times the service's resident memory on the Pi
+# (Oct 2026: backend ~290 MB, frontend and nginx under 20 MB, redis ~10 MB).
+# Docker enforces limits only when the kernel's memory cgroup is enabled;
+# Raspberry Pi OS boots with cgroup_disable=memory (see docs/deployment.md).
 
 services:
   # Nginx reverse proxy - main entry point
   nginx:
     image: nginx:alpine
-    container_name: plane-game-nginx
     ports:
       - "80:80"
     volumes:
@@ -19,6 +31,8 @@ services:
       frontend:
         condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
     networks:
       - plane-game-network
     healthcheck:
@@ -33,8 +47,9 @@ services:
     build:
       context: ..
       dockerfile: frontend/Dockerfile
-    container_name: plane-game-frontend
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
     networks:
       - plane-game-network
     healthcheck:
@@ -49,41 +64,34 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
-    container_name: plane-game-backend
+    # Settings come from the repo-root .env, as for native runs; backend/settings.py has the
+    # defaults and .env.example lists them. On the Pi that file holds the AeroAPI key.
+    env_file:
+      - path: ../.env
+        required: false
+    # Container wiring; these win over the file.
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - ADSB_HOST=${ADSB_HOST:-127.0.0.1}
-      - ADSB_PORT=${ADSB_PORT:-30003}
-      - CENTER_LAT=${CENTER_LAT:-42.3656}
-      - CENTER_LON=${CENTER_LON:-71.0096}
-      - OPENSKY_USERNAME=${OPENSKY_USERNAME}
-      - OPENSKY_PASSWORD=${OPENSKY_PASSWORD}
-      - FLIGHTAWARE_API_KEY=${FLIGHTAWARE_API_KEY}
-      - FAKE_ADSB=${FAKE_ADSB:-0}
-      - FAKE_ADSB_FILE=${FAKE_ADSB_FILE:-synthetic}
-      - FAKE_ADSB_SPEED=${FAKE_ADSB_SPEED:-2.0}
-      - KALMAN_PROCESS_NOISE=${KALMAN_PROCESS_NOISE:-0.5}
-      - KALMAN_MEASUREMENT_NOISE=${KALMAN_MEASUREMENT_NOISE:-10.0}
-      - PLANE_TTL_SECONDS=${PLANE_TTL_SECONDS:-300}
-      - MAX_ANTENNA_RANGE_KM=${MAX_ANTENNA_RANGE_KM:-250}
-      - MIN_UPDATE_INTERVAL_SECONDS=${MIN_UPDATE_INTERVAL_SECONDS:-60}
-      - OSM_TILE_URL=${OSM_TILE_URL:-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
-      # Flight enrichment V2 settings
-      - ENRICHMENT_V2_ENABLED=${ENRICHMENT_V2_ENABLED:-1}
-      - FLIGHT_SCHEDULE_REFRESH_HOURS=${FLIGHT_SCHEDULE_REFRESH_HOURS:-6}
-      # Production settings
       - PYTHONUNBUFFERED=1
-      - LOG_LEVEL=INFO
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
     networks:
       - plane-game-network
     volumes:
       - ../logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+      # Liveness only: /healthz does no I/O, so this fails only when the API
+      # process is broken. Do not point it at /readyz: nginx does not start until
+      # this service is healthy, so the site would stay offline whenever ingest
+      # or the ADS-B feed is down. scripts/auto-update.sh gates deploys on /readyz.
+      # Use stdlib Python (always present in this image) instead of curl, which
+      # isn't installed in the backend image. urlopen raises on non-2xx/connection
+      # failure -> non-zero exit -> unhealthy; succeeds on 200.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,12 +100,21 @@ services:
   # Redis cache and game state
   redis:
     image: redis:7-alpine
-    container_name: plane-game-redis
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    # Every key the game writes has a TTL and the dataset is a few MB, so
+    # maxmemory is only a safety net. noeviction rejects writes at the limit
+    # instead of evicting keys: the AeroAPI budget counters
+    # (aeroapi:result_sets:*) must never disappear, and the budget denies
+    # spend on any Redis error. No AOF, which rewrote the Pi's SD card every
+    # second; Redis's default RDB snapshots (a few KB, at most once a minute)
+    # keep the counters across restarts.
+    command: redis-server --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
     volumes:
       - redis-data:/data
       - ../logs:/var/log/redis
     restart: unless-stopped
+    logging: *default-logging
+    # Room for maxmemory plus the copy-on-write fork of an RDB snapshot.
+    mem_limit: 512m
     networks:
       - plane-game-network
     healthcheck:
@@ -112,10 +129,8 @@ volumes:
   redis-data:
     driver: local
 
-# Internal network for service communication
+# Internal network for service communication. Docker picks a free subnet; the Pi override
+# pins the one the Pi's network was created with.
 networks:
   plane-game-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

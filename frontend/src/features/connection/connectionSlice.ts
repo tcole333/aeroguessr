@@ -4,8 +4,6 @@ import type { ConnectionStatus } from "../common/types";
 
 export interface ConnectionSlice {
   status: ConnectionStatus;
-  latencyMs: number | null;
-  lastHeartbeat: number | null;
   nickname: string | null;
   roomCode: string | null;
   wsUrl: string | null;
@@ -13,9 +11,6 @@ export interface ConnectionSlice {
   isRejoinAttempt: boolean;
   setStatus: (status: ConnectionStatus) => void;
   setError: (err: string | null) => void;
-  updateLatency: (latency: number) => void;
-  setLastHeartbeat: (ts: number | null) => void;
-  setNickname: (nickname: string | null) => void;
   setConnectionDetails: (d: { roomCode: string; wsUrl: string; nickname: string }) => void;
   clearConnectionDetails: () => void;
   setIsRejoinAttempt: (isRejoin: boolean) => void;
@@ -28,8 +23,6 @@ export const createConnectionSlice: StateCreator<
   ConnectionSlice
 > = (set) => ({
   status: "disconnected",
-  latencyMs: null,
-  lastHeartbeat: null,
   nickname: null,
   roomCode: null,
   wsUrl: null,
@@ -42,18 +35,6 @@ export const createConnectionSlice: StateCreator<
   setError: (err) =>
     set((state) => {
       state.connection.error = err;
-    }),
-  updateLatency: (latency) =>
-    set((state) => {
-      state.connection.latencyMs = latency;
-    }),
-  setLastHeartbeat: (ts) =>
-    set((state) => {
-      state.connection.lastHeartbeat = ts;
-    }),
-  setNickname: (nickname) =>
-    set((state) => {
-      state.connection.nickname = nickname;
     }),
   setConnectionDetails: ({ roomCode, wsUrl, nickname }) =>
     set((state) => {
@@ -73,9 +54,3 @@ export const createConnectionSlice: StateCreator<
       state.connection.isRejoinAttempt = isRejoin;
     }),
 });
-
-// Selectors
-export const selectRoomCode = (state: RootState) => state.connection.roomCode;
-export const selectNickname = (state: RootState) => state.connection.nickname;
-export const selectConnectionStatus = (state: RootState) => state.connection.status;
-export const selectWsUrl = (state: RootState) => state.connection.wsUrl;

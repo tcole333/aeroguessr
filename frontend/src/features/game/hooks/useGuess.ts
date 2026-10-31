@@ -1,22 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import debug from 'debug';
 import { useStore } from '../../../hooks/useStore';
 import { webSocketClient } from '../../../hooks/useWebSocketManager';
-import { selectRound, selectRoundTimeout } from '../selectors';
+import { selectGuessRejection, selectRound, selectRoundTimeout } from '../selectors';
 import { selectConnectionStatus } from '../../connection/selectors';
 import type { Airport } from '../../../components/AirportAutocomplete';
-
-const log = debug('plane:guess');
+import { guessCodeError } from '../../../lib/airportLookup';
 
 export interface UseGuessResult {
-  code: string;
   inputValue: string;
   selectedAirport: Airport | null;
   disabled: boolean;
   error: string | null;
   remaining: number | null;
   visible: boolean;
-  setCode: (val: string) => void;
   setInputValue: (val: string) => void;
   setSelectedAirport: (airport: Airport | null) => void;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
@@ -27,8 +23,9 @@ export function useGuess(): UseGuessResult {
   const round = useStore(selectRound);
   const timeout = useStore(selectRoundTimeout);
   const status = useStore(selectConnectionStatus);
+  const guessRejection = useStore(selectGuessRejection);
+  const setGuessRejection = useStore((s) => s.game.setGuessRejection);
 
-  const [code, setCode] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [selectedAirport, setSelectedAirport] = useState<Airport | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
@@ -38,9 +35,7 @@ export function useGuess(): UseGuessResult {
 
   useEffect(() => {
     if (round && round.state === 'guessing') {
-      log('showing guess form for round=%O timeout=%O', round, timeout);
       setVisible(true);
-      setCode('');
       setInputValue('');
       setSelectedAirport(null);
       setHasGuessed(false);
@@ -62,6 +57,13 @@ export function useGuess(): UseGuessResult {
     return undefined;
   }, [round, timeout]);
 
+  // The server recorded nothing for a refused guess, so the player can fix it and send again
+  useEffect(() => {
+    if (!guessRejection) return;
+    setHasGuessed(false);
+    setError(guessRejection.message);
+  }, [guessRejection]);
+
   const disabled = hasGuessed || status !== 'connected';
 
   const submit = useCallback(() => {
@@ -78,22 +80,23 @@ export function useGuess(): UseGuessResult {
         setError('Please select or enter an airport code');
         return;
       }
-      // Validate it looks like an airport code (3-4 letters)
-      if (!/^[A-Z]{3,4}$/.test(trimmed)) {
-        setError('Invalid airport code format');
+      const unknownCodeError = guessCodeError(trimmed);
+      if (unknownCodeError) {
+        setError(unknownCodeError);
         return;
       }
       airportCode = trimmed;
     }
 
     try {
+      setGuessRejection(null);
       webSocketClient.send({ type: 'guess', payload: { airport_code: airportCode } });
       setHasGuessed(true);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
     }
-  }, [selectedAirport, inputValue]);
+  }, [selectedAirport, inputValue, setGuessRejection]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -106,14 +109,12 @@ export function useGuess(): UseGuessResult {
   };
 
   return {
-    code,
     inputValue,
     selectedAirport,
     disabled,
     error,
     remaining,
     visible,
-    setCode: (v: string) => setCode(v.toUpperCase()),
     setInputValue,
     setSelectedAirport,
     handleSubmit,

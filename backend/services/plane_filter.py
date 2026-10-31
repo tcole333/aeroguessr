@@ -1,22 +1,22 @@
 """Plane filtering service for range-based and signal quality plane removal."""
 
 import logging
-import os
 import time
 from typing import Dict, List, Set
 
-from backend.ingest.main import PlaneState
 from backend.schemas.game import RoundData
+from backend.schemas.plane import PlaneState
+from backend.settings import get_settings
 from backend.utils.geo import haversine_km
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
 
-# Configuration from environment variables
-CENTER_LAT = float(os.getenv("CENTER_LAT", "42.3656"))
-CENTER_LON = float(os.getenv("CENTER_LON", "-71.0096"))
-MAX_ANTENNA_RANGE_KM = float(os.getenv("MAX_ANTENNA_RANGE_KM", "250"))
-MIN_UPDATE_INTERVAL_SECONDS = int(os.getenv("MIN_UPDATE_INTERVAL_SECONDS", "60"))
+# Configuration from backend/settings.py
+CENTER_LAT = get_settings().center_lat
+CENTER_LON = get_settings().center_lon
+MAX_ANTENNA_RANGE_KM = get_settings().max_antenna_range_km
+MIN_UPDATE_INTERVAL_SECONDS = get_settings().min_update_interval_seconds
 
 # Signal quality thresholds
 MIN_UPDATES_FOR_QUALITY_CHECK = 3  # Minimum updates before applying quality filters

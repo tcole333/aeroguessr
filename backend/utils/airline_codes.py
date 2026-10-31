@@ -7,8 +7,9 @@ information when the scheduled flight lookup doesn't return it.
 
 from typing import Optional
 
-# ICAO airline codes to short airline names
-# Source: https://en.wikipedia.org/wiki/List_of_airline_codes
+# ICAO airline codes to short airline names, adapted from "List of airline codes" by Wikipedia
+# contributors (https://en.wikipedia.org/wiki/List_of_airline_codes), CC BY-SA 4.0. This table
+# is under CC BY-SA 4.0 too, not the MIT License (NOTICE.md).
 AIRLINE_ICAO_CODES: dict[str, str] = {
     # Major US carriers
     "AAL": "American Airlines",

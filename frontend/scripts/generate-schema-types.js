@@ -8,8 +8,9 @@ const rootDir = join(__dirname, "..", "..");
 const docsDir = join(rootDir, "docs");
 const typesDir = join(rootDir, "frontend/types");
 
+// No timestamp: the output must depend only on its source, so CI can regenerate it and diff.
 function header(src) {
-  return `/**\n * AUTO-GENERATED FILE. DO NOT EDIT.\n * Source: ${src}\n * Generated: ${new Date().toISOString()}\n */\n`;
+  return `/**\n * AUTO-GENERATED FILE. DO NOT EDIT.\n * Source: ${src}\n */\n`;
 }
 
 function schemaToZod(schema, defs) {
@@ -20,8 +21,13 @@ function schemaToZod(schema, defs) {
     return defs[schema.$ref] || "z.any()";
   }
   if (schema.anyOf) {
-    const parts = schema.anyOf.map((s) => schemaToZod(s, defs));
-    return `z.union([${parts.join(", ")}])`;
+    // pydantic writes `X | None` as anyOf [X, {type: null}]; zod spells that X.nullable()
+    const members = schema.anyOf.filter((s) => s.type !== "null");
+    const parts = members.map((s) => schemaToZod(s, defs));
+    if (parts.length === 0) return "z.null()";
+    const zod =
+      parts.length === 1 ? parts[0] : `z.union([${parts.join(", ")}])`;
+    return members.length < schema.anyOf.length ? `${zod}.nullable()` : zod;
   }
   switch (schema.type) {
     case "string":
@@ -35,6 +41,8 @@ function schemaToZod(schema, defs) {
       return "z.number()";
     case "boolean":
       return "z.boolean()";
+    case "null":
+      return "z.null()";
     case "array":
       return `z.array(${schema.items ? schemaToZod(schema.items, defs) : "z.any()"})`;
     case "object": {
@@ -61,6 +69,13 @@ function schemaToZod(schema, defs) {
   }
 }
 
+function collectRefs(schema) {
+  if (!schema || typeof schema !== "object") return [];
+  return Object.entries(schema).flatMap(([key, value]) =>
+    key === "$ref" ? [value] : key === "$defs" ? [] : collectRefs(value),
+  );
+}
+
 async function generateWs() {
   const wsPath = join(docsDir, "ws_schema.yaml");
   const wsYaml = await fs.readFile(wsPath, "utf8");
@@ -69,14 +84,22 @@ async function generateWs() {
   const parts = [header("docs/ws_schema.yaml"), "import { z } from 'zod';\n"];
   const refMap = {};
 
+  // Emit each def after the sibling defs it references, so a $ref never points at a
+  // schema declared later (which would fall back to z.any()).
   function processDefs(defs) {
-    Object.entries(defs || {}).forEach(([name, def]) => {
+    const pending = new Map(Object.entries(defs || {}));
+    const emit = (name) => {
+      const def = pending.get(name);
+      if (!def) return;
+      pending.delete(name);
       if (def.$defs) processDefs(def.$defs);
+      collectRefs(def).forEach((ref) => emit(ref.replace("#/$defs/", "")));
       const schemaStr = schemaToZod(def, refMap);
       parts.push(`export const ${name}Schema = ${schemaStr};`);
       parts.push(`export type ${name} = z.infer<typeof ${name}Schema>;`);
       refMap[`#/$defs/${name}`] = `${name}Schema`;
-    });
+    };
+    [...pending.keys()].forEach(emit);
   }
 
   processDefs(ws.$defs);
@@ -126,7 +149,7 @@ async function generateWs() {
     `export type OutboundMessage = z.infer<typeof OutboundMessageSchema>;`,
   );
 
-  await fs.writeFile(join(typesDir, "ws.ts"), parts.join("\n"));
+  await fs.writeFile(join(typesDir, "ws.ts"), `${parts.join("\n")}\n`);
 }
 
 async function generateApi() {

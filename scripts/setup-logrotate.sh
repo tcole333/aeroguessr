@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup script for log rotation on deployment server
 
-echo "Setting up log rotation for Plane Game..."
+echo "Setting up log rotation for AeroGuessr..."
 
 # Check if running as root or with sudo
 if [ "$EUID" -ne 0 ]; then

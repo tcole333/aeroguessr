@@ -1,12 +1,14 @@
-# Plane Guessing Game – Product Requirements Document
+# AeroGuessr – Product Requirements Document
 
-### Version 1.0 · April 26 2025 (final consolidated)
+### Version 1.0 · April 26 2025 · requirements reviewed October 2026
+
+This document says what the game must do. How it does it lives in [architecture.md](architecture.md), and how it runs on the Pi lives in [deployment.md](deployment.md).
 
 ---
 
 ## 1 Overview & Goals
 
-A casual, real‑time web game where players guess the **other end** of flights overhead at Boston Logan using live ADS‑B signals captured by a Raspberry Pi. One player (the **host**) opens a "room" that friends join on their phones via a four‑letter code—Jackbox‑style. Rounds last about 30 s so the game keeps pace with short‑range aircraft visibility. **Mobile portrait** is the primary form‑factor; the codebase should be modular, easy to extend to a native iOS client later.
+A casual, real‑time web game where players guess the **other end** of flights overhead at Boston Logan using live ADS‑B signals captured by a Raspberry Pi. One player (the **host**) opens a "room" that friends join on their phones via a four‑letter code—Jackbox‑style. Rounds last about 30 s so the game keeps pace with short‑range aircraft visibility. The game is played **only on phones, in portrait**: every player, the host included, uses their own phone, and there is no shared TV or big screen. The codebase should be modular, easy to extend to a native iOS client later.
 
 **Success criteria**
 • A host can run a 5‑round game with up to 10 players on a home‑bandwidth Pi without manual resets.
@@ -17,11 +19,11 @@ A casual, real‑time web game where players guess the **other end** of flights 
 
 ## 2 Personas & Usage Scenarios
 
-| Persona                       | Scenario                                                                             | Primary Device           |
-| ----------------------------- | ------------------------------------------------------------------------------------ | ------------------------ |
-| **Travis** (power user, host) | Projects the map on a living‑room TV, controls the game from his phone during a BBQ. | Desktop monitor + iPhone |
-| **Jess** (casual guest)       | Scans QR / types room code, plays a few rounds while chatting.                       | iPhone                   |
-| **Solo traveller**            | Waiting at the gate in Logan, opens single‑player mode for 10 min.                   | Android phone            |
+| Persona                       | Scenario                                                                                          | Primary Device |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | -------------- |
+| **Travis** (power user, host) | Hosts at a BBQ from an iPhone: picks flights, starts rounds, guesses, and sees each reveal there. | iPhone         |
+| **Jess** (casual guest)       | Scans QR / types room code, plays a few rounds while chatting.                                    | iPhone         |
+| **Solo traveller**            | Waiting at the gate in Logan, opens single‑player mode for 10 min.                                | Android phone  |
 
 ---
 
@@ -56,14 +58,17 @@ The join endpoint returns a unique solo room code for subsequent WebSocket conne
 
 ## 4 User Experience & Visual Design
 
-- **Mobile‑first portrait**; at ≥600 px viewport the side panel docks left instead of bottom.
-- Leaflet map fills the screen. Pinch / two‑finger drag pan works natively.
+- **Phones only, portrait.**
+  - Every screen is designed for a phone in portrait, the host controls and the round reveal included. Each player sees the reveal on their own phone; no screen is designed for a TV or a desktop.
+  - Today the panel sits below the map on phones and beside it from 768 px.
+  - Phase 3 replaces this with a map‑first layout: a full‑screen map, a top HUD, a bottom sheet for flights and guessing, and results revealed on the map. The visual direction is the evolved departure board (#176).
+- Leaflet map with an OpenFreeMap vector basemap. Pinch / two‑finger drag pan works natively.
 - Collapsible **Panel** with tabs: **Planes**, **Leaderboard**, **Settings**.
   • **Planes** – list of active flights (callsign, altitude). Selecting pans/zooms map, shows details (altitude, speed, model, airline, SVG icon).
   • **Leaderboard** – live score table; confetti on lead changes.
   • **Settings** – night‑mode toggle, leave room, host controls.
 - Plane icons: minimalist SVG; trail rendered as fading polyline (opacity decays over 60 s).
-- Airport input uses client‑side fuzzy search (`Fuse.js`) over a 160 kB compressed JSON of worldwide airports for typo‑tolerant autocomplete.
+- Airport input uses client‑side fuzzy search (`Fuse.js`) over `data/airports.json` (about 3K airports, about 136 kB gzipped) for typo‑tolerant autocomplete. The same file defines which airports score.
 
 ---
 
@@ -71,74 +76,39 @@ The join endpoint returns a unique solo room code for subsequent WebSocket conne
 
 ### 5.1 Flight ingest, enrichment & smoothing
 
-| Stage           | Tooling                                        | Details                                                                  |
-| --------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| ADS‑B capture   | `dump1090‑mutability`                          | SBS‑1 lines over TCP 30003.                                              |
-| Parser          | Python `asyncio`                               | Parse ➔ `RawMessage` dataclass.                                          |
-| Smoothing       | Kalman filter (lat/lon/alt, constant‑velocity) | Prevents jitter & heading flips.                                         |
-| Enrichment      | OpenSky REST (auth account)                    | Adds `origin`, `dest`, `type`, `airline`; cached 24 h.                   |
-| Redis plane key | `plane:{hex}` HASH                             | `lat,lon,alt,spd,hdg,trail[],origin,dest,…`; TTL 5 min after last point. |
+- Read live ADS‑B (SBS‑1 over TCP 30003 from `dump1090‑mutability`), or a synthetic feed for development.
+- Smooth positions with a Kalman filter, so that planes don't jitter or flip heading.
+- Attach a route (origin and destination) by matching callsigns against the monitored airport's FlightAware AeroAPI boards.
+  - AeroAPI is called only while someone is playing, under a hard daily and per‑minute budget (§10).
+- Planes leave the map 60 s after their last position, unless they are in a live round.
+
+Pipeline details are in [architecture.md](architecture.md#ingest-pipeline).
 
 ### 5.2 Backend API (FastAPI v0)
 
-#### REST
+- **REST:** create a room, join a room, join solo, and health probes. There is no endpoint that reads or deletes a room. Room and round state reach clients only over the WebSocket (#151).
+- **WebSocket:** one connection per player, carrying every game action and update.
+- **The contract** is generated from the code: [`api_openapi.yaml`](api_openapi.yaml) and [`ws_schema.yaml`](ws_schema.yaml). Paths and the message flow are in [architecture.md](architecture.md#wire-contract).
 
-| Method | Path                        | Body                        | Response                     | Notes                               |
-| ------ | --------------------------- | --------------------------- | ---------------------------- | ----------------------------------- |
-| POST   | `/api/v0/rooms`             | `{nickname, mode, timeout}` | `{code}` + `Location` WS URL | Host creates room                   |
-| POST   | `/api/v0/rooms/{code}/join` | `{nickname}`                | `{ws_url}`                   | 409 if duplicate name               |
-| GET    | `/api/v0/rooms/{code}`      | –                           | Full room JSON               | Dev/debug only                      |
-| DELETE | `/api/v0/rooms/{code}`      | Host token hdr              | 204                          | Ends room                           |
-| GET    | `/api/v0/airports/search`   | `?q=`                       | Array                        | Removed after client preload stable |
-| GET    | `/healthz`                  | –                           | `{"status":"ok"}`            | Tunnel/K8s probe                    |
+**Answer secrecy.** One end of every playable route is a round's answer, so no server message
+before `roundResult` names a route's airports (#156). Delta planes never carry `origin` or
+`destination`, for any plane. Each carries `route_hint: {guess_direction, known_airport,
+eligible}` instead: the end players would guess, the monitored airport's ICAO code, and whether
+the server accepts the plane for a round. Overflights get an empty hint and show neither end.
+`planeSelectedConfirm` names no airport, because the host and the solo player also guess.
+`roundResult` (`results[].correct_code` plus the plane `hex`) is the only reveal.
 
-#### WebSocket `/ws/{room}/{player}`
+Known limitations, left to the Phase 2 engine:
 
-Common envelope:
+- A solo session, or a second room with a lone host, can select the plane of another room's
+  live round and read its answer from its own immediate `roundResult`. The plane's `hex` is in
+  `roundStart`, and solo needs no `startRound` (`selectPlane` then `guess`), so one extra tab
+  reads the answer within a fraction of a second. #171 tracks a per-plane round lock.
+- Callsign and operator are sent and allow lookups on external flight-tracking sites.
 
-```jsonc
-type WSMessage = {
-  "type": string,      // see tables below
-  "payload": any,
-  "ts": number         // epoch ms
-}
-```
+### 5.3 State
 
-_Client → Server_
-| type | payload |
-|------|---------|
-| `ping` | `{seq}` |
-| `guess` | `{airport_code}` |
-| `selectPlane` | `{hex}` (host) |
-| `startRound` | `{}` (host) |
-| `skipRound` | `{}` (host) |
-| `transferHost` | `{to}` (host) |
-| `leave` | `{}` |
-
-_Server → Client_
-| type | payload |
-|------|---------|
-| `stateSync` | `FullRoomState` |
-| `delta` | `{planes?, scores?}` |
-| `roundStart` | `{hex, timeout_s, direction}` |
-| `roundResult` | `{results[], next_host?}` |
-| `playerJoined` | `{nick}` |
-| `playerLeft` | `{nick}` |
-| `newHost` | `{nick}` |
-| `pong` | `{seq}` |
-| `error` | `{code, message}` |
-
-### 5.3 Redis Schema
-
-| Key                   | Type | TTL   | Purpose                                                        |
-| --------------------- | ---- | ----- | -------------------------------------------------------------- |
-| `plane:{hex}`         | HASH | 5 min | Pos, Vel, Origin, Dest, Meta (Callsign, Country, Cat), Trail[] |
-| `room:{code}:meta`    | HASH | 1 h   | mode, timeout, host, created_ts                                |
-| `room:{code}:players` | HASH | 1 h   | `{nick: {score, connected, last_seen}}`                        |
-| `room:{code}:round`   | HASH | 1 h   | active plane & state                                           |
-| `airport:list`        | JSON | ∞     | Pre‑cached airport directory                                   |
-| `enrich_cache:{hex}`  | JSON | 24 h  | Cached Callsign, Country, Category from OpenSky                |
-| `aeroapi_route:{hex}` | JSON | 6 h   | Cached Origin/Destination ICAO codes from AeroAPI              |
+All shared state lives in Redis, and every key expires. The keys are listed in [architecture.md](architecture.md#redis-keys).
 
 ### 5.4 Resilience & Error Handling
 
@@ -153,7 +123,7 @@ _Server → Client_
 - **Latency** ≤ 300 ms end‑to‑end map update.
 - **Scale** ≤ 10 players room / 5 rooms concurrently.
 - **Security** – anonymous, room code + nickname only; no cross‑room data leak.
-- **Logging** – JSON lines, rotated daily (10 MiB, no compression, 3 copies for dev).
+- **Logging** – every log stays bounded on the Pi's SD card ([deployment.md](deployment.md#logs)).
 - **Accessibility** – colour‑blind safe palette; proper ARIA labels.
 - **Internationalisation** – ASCII nicknames only for v1.
 
@@ -161,47 +131,18 @@ _Server → Client_
 
 ## 7 Technical Architecture & Configuration
 
-```text
-┌───────────┐  WS  ┌────────────┐  loopback  ┌────────────┐
-│ React SPA │◀───▶│ FastAPI app│◀──────────▶│ dump1090   │
-└───────────┘     └────────────┘             └────────────┘
-      ▲                │ REST                        ▲
-      │  Redis pub/sub ▼                            │ HTTP
- Browser          Redis server               OpenSky REST
-```
-
-### 7.1 `.env` variables
-
-| Var                                     | Example                                              | Description                                    |
-| --------------------------------------- | ---------------------------------------------------- | ---------------------------------------------- |
-| `CENTER_LAT`                            | `42.378`                                             | Map default center                             |
-| `CENTER_LON`                            | `-71.027`                                            | –                                              |
-| `OPENSKY_USERNAME` / `OPENSKY_PASSWORD` | –                                                    | Enrichment API creds                           |
-| `OSM_TILE_URL`                          | `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png` | Tile template                                  |
-| `REDIS_URL`                             | `redis://localhost:6379/0`                           | Cache                                          |
-| `ADSB_HOST`                             | `localhost`                                          | Hostname/IP of ADS-B source                    |
-| `ADSB_PORT`                             | `30003`                                              | TCP port of ADS-B source                       |
-| `KALMAN_PROCESS_NOISE`                  | `0.5`                                                | Kalman filter process noise variance           |
-| `KALMAN_MEASUREMENT_NOISE`              | `10.0`                                               | Kalman filter measurement noise variance       |
-| `PLANE_TTL_SECONDS`                     | `300`                                                | Time-to-live for plane data in Redis (seconds) |
-| `FAKE_ADSB`                             | `0`                                                  | Use sample data (1) or live feed (0)           |
+See [architecture.md](architecture.md), including its configuration notes. Every backend setting is listed in [`.env.example`](../.env.example).
 
 ---
 
 ## 8 Deployment & Operations
 
-- Single `docker‑compose.yml` (backend API + Nginx for static React build).
-- **CI** – GitHub Actions: lint → test → build multi‑arch image → SSH into Pi → `docker compose pull && up -d`.
-- **Public access** – default Cloudflare Tunnel (`cloudflared tunnel run`); alternatives: Let's Encrypt + DDNS, or Tailscale Funnel (see README).
-- **Log rotation** – `/etc/logrotate.d/plane‑game`: daily, size 10 M, no compress.
+- **Host:** one Raspberry Pi, with its own ADS‑B receiver, runs the Docker Compose stack.
+- **Deploys:** every merge to `main` deploys itself. The Pi pulls, builds, and retries a failed deploy.
+- **Public access:** a Cloudflare Tunnel serves aeroguessr.com.
+- **Map tiles:** OpenFreeMap (decided 2026‑10‑16). It needs no API key and has no quota, but it also has no SLA. Its attribution must stay visible.
 
-### 8.1 Map Tiles
-
-OpenStreetMap's public tile servers are fair‑use. Counter‑measures:
-
-1. `Leaflet.TileLayer.Cached` ➜ IndexedDB cache.
-2. Cloudflare edge caching hides most hits.
-3. If play volume >50 000 tiles month⁻¹, switch to MapTiler free tier or self‑host `tileserver‑gl` on the Pi.
+Details are in [deployment.md](deployment.md).
 
 ---
 
@@ -215,10 +156,6 @@ OpenStreetMap's public tile servers are fair‑use. Counter‑measures:
 
 ## 10 Open Questions / Risks
 
-- **OpenSky rate limits** – 100 req day⁻¹ unauthenticated; monitor usage and cache aggressively.
+- **AeroAPI cost** – $0.005 per result set; requests only while someone plays, capped per UTC day (default 25) and per minute (8).
 - **Kalman tuning** – may require real‑world tweak of process/measurement noise.
-- **Map tile quotas** – addressed in §8.1.
-
----
-
-_Task breakdown lives in a separate document (`Plane Guessing Game – Task List v1.0`)._
+- **Map tiles** – OpenFreeMap has no SLA; a self‑hosted OpenFreeMap is the fallback (`MAP_STYLE_URL`).

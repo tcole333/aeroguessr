@@ -3,14 +3,13 @@ import { useStore } from '../../../hooks/useStore';
 import { selectPlaneMap } from '../selectors';
 import { selectSelectedPlane, selectRound, selectUsedPlanes } from '../../game/selectors';
 import { selectExpandedPlane, selectRetroMode } from '../../ui/selectors';
+import { LEVEL_FLIGHT_MAX_FPM } from '../verticalRate';
 import PlaneDetails from './PlaneDetails';
-
-const ALT_TREND_THRESHOLD = 50;
 
 const getAltitudeTrend = (altV?: number) => {
   if (altV == null) return { symbol: '•', className: 'text-retro-text-light' };
-  if (altV > ALT_TREND_THRESHOLD) return { symbol: '▲', className: 'text-retro-success' };
-  if (altV < -ALT_TREND_THRESHOLD) return { symbol: '▼', className: 'text-retro-primary' };
+  if (altV > LEVEL_FLIGHT_MAX_FPM) return { symbol: '▲', className: 'text-retro-success' };
+  if (altV < -LEVEL_FLIGHT_MAX_FPM) return { symbol: '▼', className: 'text-retro-primary' };
   return { symbol: '•', className: 'text-retro-text-light' };
 };
 

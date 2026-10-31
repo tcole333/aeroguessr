@@ -7,19 +7,21 @@ target-version = "py312"
 [lint]
 # Enable Pyflakes, Pycodestyle, isort, flake8-annotations, flake8-bugbear, etc.
 # See full list: https://docs.astral.sh/ruff/rules/
-select = ["E", "F", "W", "I", "ANN", "B", "C4", "T20", "PYI"]
+# ASYNC: blocking calls inside async code. DTZ: datetimes without a timezone.
+# S: flake8-bandit's security checks (secrets themselves are gitleaks' job).
+# RUF006: an asyncio task nothing references can be garbage-collected before it finishes.
+select = ["E", "F", "W", "I", "ANN", "B", "C4", "T20", "PYI", "ERA", "ASYNC", "DTZ", "S", "RUF006"]
 ignore = [
-    # ANN101 and ANN102 have been removed in newer ruff versions
-    # Allow missing return type annotations for tests for now
-    # "ANN201", # Missing return type annotation for public function/method
     "B008", # Do not perform function call `Depends` in argument defaults;
 ]
 
-# Allow unused variables when underscore-prefixed.
-# dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
 [lint.per-file-ignores]
-"tests/*" = ["ANN201", "ANN001"]  # Allow missing type annotations in tests
+# Tests: missing type annotations, timeout parameters on async helpers (ASYNC109), assert
+# (S101), and subprocess runs of the repo's own scripts and tools (S603, S607)
+"tests/*" = ["ANN201", "ANN001", "ASYNC109", "S101", "S603", "S607"]
+"scripts/*" = ["T201"]  # Command-line scripts report with print
+# The synthetic ADS-B feed's randomness is simulation, not security
+"sample_data/adsb_generator.py" = ["S311"]
 
 [lint.isort]
 known-first-party = ["backend", "tests"]
@@ -29,5 +31,3 @@ known-first-party = ["backend", "tests"]
 quote-style = "double"
 # Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-# Like Black, skip string normalization.
-#skip-string-normalization = true

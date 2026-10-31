@@ -1,8 +1,4 @@
-import asyncio
 import logging
-import time  # Add time import
-import unittest.mock  # Import unittest.mock for ANY
-from unittest.mock import patch  # Import ANY
 
 import pytest
 from fastapi import status
@@ -11,22 +7,13 @@ from fastapi import status
 from httpx import AsyncClient
 from pytest import MonkeyPatch
 
-# Import WebSocket related exceptions if needed for testing client-side handling
-# from starlette.websockets import WebSocketDisconnect
 # Import your FastAPI app and schemas/models
 # No need to import app here if test_client fixture handles it
 from backend.schemas.core import Player, RoomMeta, ScoringMode
 from backend.schemas.game import RoundData, RoundStateEnum
-from backend.schemas.room import RoomState
 
 # Import WebSocket schemas
-from backend.schemas.ws import (
-    ErrorCode,
-    ErrorPayload,
-    NewHostPayload,
-    PingPongPayload,
-    WSMessage,
-)
+from backend.schemas.ws import WSMessage
 
 # Import room_service for test setup
 from backend.services import room_service
@@ -292,204 +279,46 @@ async def test_join_room_nickname_taken(
     assert len(all_players) == 1  # Ensure only host exists
 
 
-# --- Tests for GET /api/v0/rooms/{code} --- #
+# --- Room state is not exposed over REST --- #
 
 
-@pytest.fixture
-def mock_room_data() -> dict:
-    """Provides sample data for a mock room state."""
-    code = "ABCD"
-    host_nick = "MockHost"
-    player_nick = "MockPlayer"
-    now = time.time()
-
-    meta = RoomMeta(
-        mode=ScoringMode.EXACT,
-        round_timeout_seconds=30,
-        host_nickname=host_nick,
-        created_ts=now - 60,
+async def setup_room_with_active_round(redis_instance: RedisClient, room_code: str) -> None:
+    """Helper to set up a room whose current round holds a secret answer (KJFK)."""
+    await setup_existing_room(redis_instance, room_code=room_code)
+    await room_service.set_round_data(
+        redis_instance,
+        room_code,
+        RoundData(
+            state=RoundStateEnum.ACCEPTING_GUESSES,
+            selected_plane_hex="abc123",
+            correct_airport_code="KJFK",
+            guess_direction="destination",
+        ),
     )
-    players = {
-        host_nick: Player(nickname=host_nick, score=10, connected=True, last_seen_ts=now),
-        player_nick: Player(nickname=player_nick, score=0, connected=False, last_seen_ts=now - 30),
-    }
-    round_data = RoundData(
-        state=RoundStateEnum.WAITING_FOR_SELECTION,
-        round_number=1,
-    )
-    return {"code": code, "meta": meta, "players": players, "round_data": round_data}
 
 
-async def test_get_room_details_success(
-    test_client: AsyncClient,
-    # redis_client is not needed here as we mock the service layer
-    mock_room_data: dict,
+async def test_room_state_is_not_readable_over_rest(
+    test_client: AsyncClient, redis_client: RedisClient
 ) -> None:
-    """Test successfully retrieving room details when the room exists."""
-    code = mock_room_data["code"]
-    meta = mock_room_data["meta"]
-    players = mock_room_data["players"]
-    round_data = mock_room_data["round_data"]
+    """GET on a live room code matches no endpoint, so the round answer stays private."""
+    await setup_room_with_active_round(redis_client, room_code="SECR")
 
-    # Mock the service layer functions called by the endpoint
-    with (
-        patch(
-            "backend.routes.rooms.room_service.get_room_meta", return_value=meta
-        ) as mock_get_meta,
-        patch(
-            "backend.routes.rooms.room_service.get_all_players", return_value=players
-        ) as mock_get_players,
-        patch(
-            "backend.routes.rooms.room_service.get_round_data", return_value=round_data
-        ) as mock_get_round,
-    ):
-        response = await test_client.get(f"/api/v0/rooms/{code}")
-
-    assert response.status_code == status.HTTP_200_OK
-    response_data = response.json()
-
-    # Validate against the RoomState schema structure
-    try:
-        result_state = RoomState(**response_data)
-    except Exception as e:
-        pytest.fail(f"Response validation failed: {e}")
-
-    # Check specific fields match mocked data
-    assert result_state.code == code
-    assert result_state.mode == meta.mode
-    assert result_state.round_timeout_seconds == meta.round_timeout_seconds
-    assert result_state.host_nickname == meta.host_nickname
-    assert result_state.created_ts == meta.created_ts
-    assert len(result_state.players) == len(players)
-    assert result_state.players["MockHost"].score == 10
-    assert result_state.players["MockPlayer"].connected is False
-    assert result_state.current_round is not None
-    assert result_state.current_round.state == RoundStateEnum.WAITING_FOR_SELECTION
-    assert result_state.current_round.round_number == 1
-
-    # Verify mocks were called - use assert_called_once without checking args
-    mock_get_meta.assert_called_once()
-    mock_get_players.assert_called_once()
-    mock_get_round.assert_called_once()
-
-
-async def test_get_room_details_not_found(test_client: AsyncClient) -> None:
-    """Test retrieving details for a room code that does not exist."""
-    code = "XXXX"
-
-    # Mock get_room_meta to return None
-    with patch(
-        "backend.routes.rooms.room_service.get_room_meta", return_value=None
-    ) as mock_get_meta:
-        response = await test_client.get(f"/api/v0/rooms/{code}")
+    response = await test_client.get("/api/v0/rooms/SECR")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert f"Room with code '{code}' not found" in response.json()["detail"]
-    mock_get_meta.assert_called_once()
+    assert "KJFK" not in response.text
 
 
-async def test_get_room_details_service_error(test_client: AsyncClient) -> None:
-    """Test handling of an unexpected error during service layer calls."""
-    code = "ABCD"
-
-    # Mock get_room_meta to raise an exception
-    with patch(
-        "backend.routes.rooms.room_service.get_room_meta", side_effect=Exception("Redis boom!")
-    ) as mock_get_meta:
-        response = await test_client.get(f"/api/v0/rooms/{code}")
-
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert "unexpected internal error" in response.json()["detail"].lower()
-    mock_get_meta.assert_called_once()
-
-
-# --- Tests for DELETE /api/v0/rooms/{code} --- #
-
-
-async def test_delete_room_success(test_client: AsyncClient, redis_client: RedisClient) -> None:
-    """Room keys removed and 204 returned."""
-    # create room first using Enum value
-    create_resp = await test_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": "DelHost",
-            "mode": ScoringMode.EXACT.value,
-            "round_timeout_seconds": 30,
-        },
-    )
-    assert create_resp.status_code == status.HTTP_201_CREATED
-    code = create_resp.json()["room_code"]
-
-    # ensure keys exists (set by create_room via service)
-    assert await redis_client.exists(f"room:{code}:meta")
-    assert await redis_client.exists(f"room:{code}:players")
-
-    # delete
-    del_resp = await test_client.delete(f"/api/v0/rooms/{code}")
-    assert del_resp.status_code == status.HTTP_204_NO_CONTENT
-
-    # keys should be gone (deleted by delete_room service func)
-    assert not await redis_client.exists(f"room:{code}:meta")
-    assert not await redis_client.exists(f"room:{code}:players")
-    assert not await redis_client.exists(
-        f"room:{code}:round"
-    )  # Round might not exist yet, but check anyway
-
-
-async def test_delete_room_not_found(test_client: AsyncClient, monkeypatch: MonkeyPatch) -> None:
-    code = "ZZZZ"
-
-    # Mock get_room_meta to return None to trigger not found path before delete_room call
-    # Use a simple async def helper function
-    # ruff: noqa
-    async def mock_get_meta_none(*args, **kwargs) -> None:
-        return None
-
-    monkeypatch.setattr("backend.routes.rooms.room_service.get_room_meta", mock_get_meta_none)
-
-    resp = await test_client.delete(f"/api/v0/rooms/{code}")
-    assert resp.status_code == status.HTTP_404_NOT_FOUND
-
-
-async def test_delete_room_service_error(
-    test_client: AsyncClient, monkeypatch: MonkeyPatch, redis_client: RedisClient
+async def test_room_cannot_be_deleted_over_rest(
+    test_client: AsyncClient, redis_client: RedisClient
 ) -> None:
-    code = "ABCD"
-    # Ensure room meta exists so the first check passes
-    await setup_existing_room(redis_client, room_code=code)
-    # Mock get_redis dependency to return our fixture
-    monkeypatch.setattr("backend.routes.rooms.get_redis", lambda: redis_client)
-    # Mock the delete_room service function to raise an error
-    monkeypatch.setattr(
-        "backend.services.room_service.delete_room",
-        lambda redis, room_code: exec('raise Exception("Redis fail")'),
-    )  # Use exec to raise in lambda
+    """DELETE on a live room code matches no endpoint and leaves the room intact."""
+    await setup_room_with_active_round(redis_client, room_code="KEEP")
 
-    resp = await test_client.delete(f"/api/v0/rooms/{code}")
-    assert resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    response = await test_client.delete("/api/v0/rooms/KEEP")
 
-
-# --- WebSocket Tests --- #
-
-# NOTE: WebSocket tests are complex to unit test reliably due to mocking
-# lifecycle events, timers, and transports. Core WS functionality will be
-# covered by integration tests against live services.
-# Removing the failing unit test attempts below.
-
-# @pytest.mark.asyncio
-# async def test_websocket_ping_pong(...):
-#    ...
-#
-# @pytest.mark.asyncio
-# async def test_websocket_claim_host_success(...):
-#    ...
-#
-# @pytest.mark.asyncio
-# async def test_websocket_claim_host_too_early(...):
-#    ...
-#
-# @pytest.mark.asyncio
-# async def test_websocket_claim_host_still_connected(...):
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert await room_service.get_room_meta(redis_client, "KEEP") is not None
 
 
 # --- Host Validation Tests --- #
@@ -587,6 +416,3 @@ async def test_host_validation_with_multiple_transfers(
         updated_meta = await redis_client.get_model(f"room:{room_code}:meta", RoomMeta)
         assert updated_meta is not None
         assert updated_meta.host_nickname == f"Host{i}"
-
-
-#    ...

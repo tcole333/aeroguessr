@@ -5,442 +5,197 @@ These tests cover the two main paths that should trigger a `roundResult`:
 1. Timer expiry when not all players have guessed.
 2. All connected players submitting guesses before the timer expires.
 
-Both tests assume the backend-test service and redis-test service are running via
-`infra/docker-compose.test.yml` (executed by `make integration-test`).
+They run against a live backend and real Redis; see tests/README.md.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
-import logging
-import time
-from typing import Any
 
 import pytest
 import redis.asyncio as redis
 from fastapi import status
 from httpx import AsyncClient
-from httpx_ws import aconnect_ws
+from httpx_ws import AsyncWebSocketSession, aconnect_ws
 
-from backend.ingest.main import PlaneState
 from backend.schemas.core import ScoringMode
 from backend.schemas.game import RoundData, RoundStateEnum
-from backend.schemas.ws import (
-    GuessPayload,
-    PingPongPayload,
-    RoundResultPayload,
-    SelectPlanePayload,
-    WSMessage,
-)
+from backend.schemas.ws import GuessPayload, RoundResultPayload, WSMessage
+
+from .planes import seed_plane
+from .ws_helpers import Expected, wait_for_message, wait_for_messages
 
 pytestmark = pytest.mark.integration
-logger = logging.getLogger(__name__)
 
 
-async def _wait_for_message(
-    # ruff: noqa
-    ws: Any,  # httpx_ws.AsyncWebSocketSession but keep generic to avoid import issues
-    target_type: str,
-    timeout: float = 15.0,
-) -> WSMessage:
-    """Consume WS frames until `target_type` is received.
+async def _create_room(
+    client: AsyncClient, host_nick: str, mode: ScoringMode, *player_nicks: str
+) -> str:
+    resp = await client.post(
+        "/api/v0/rooms",
+        json={"host_nickname": host_nick, "mode": mode.value, "round_timeout_seconds": 10},
+    )
+    assert resp.status_code == status.HTTP_201_CREATED
+    room_code = resp.json()["room_code"]
+    for nick in player_nicks:
+        join = await client.post(f"/api/v0/rooms/{room_code}/join", json={"nickname": nick})
+        assert join.status_code == status.HTTP_200_OK
+    return room_code
 
-    Automatically responds to `ping` messages to keep the connection alive.
-    """
 
-    end_time = asyncio.get_event_loop().time() + timeout
-    while True:
-        remaining = end_time - asyncio.get_event_loop().time()
-        if remaining <= 0:
-            raise asyncio.TimeoutError(f"Timeout waiting for WS message '{target_type}'.")
+async def _start_round(ws_host: AsyncWebSocketSession, plane_hex: str) -> None:
+    await ws_host.send_json(WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump())
+    await wait_for_message(ws_host, "planeSelectedConfirm", hex=plane_hex)
+    await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
 
-        raw = await asyncio.wait_for(ws.receive_json(), timeout=remaining)
-        msg = WSMessage(**raw)
-        if msg.type == "ping":
-            # Echo pong
-            ping_payload = PingPongPayload(**msg.payload)
-            pong = WSMessage(type="pong", payload=ping_payload.model_dump())
-            await ws.send_json(pong.model_dump())
-            continue
-        if msg.type == target_type:
-            return msg
-        # For tests we silently ignore other types (e.g., delta) – could be logged
+
+async def _send_guess(ws: AsyncWebSocketSession, airport_code: str) -> None:
+    guess = WSMessage(type="guess", payload=GuessPayload(airport_code=airport_code).model_dump())
+    await ws.send_json(guess.model_dump())
+
+
+async def _read_round(redis_conn: redis.Redis, room_code: str) -> RoundData:
+    stored_json = await redis_conn.get(f"room:{room_code}:round")
+    assert stored_json is not None
+    return RoundData(**json.loads(stored_json))
 
 
 @pytest.mark.asyncio
 async def test_round_timeout_triggers_result(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Host-only room ‑ expect `roundResult` after timer expires."""
     host_nick = "host_timeout"
     plane_hex = "deadbe"
     timeout_s = 10  # Minimum allowed by schema
-
-    # — Create room
-    resp = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.EXACT.value,
-            "round_timeout_seconds": timeout_s,
-        },
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    room_code = resp.json()["room_code"]
-
-    # — Insert dummy plane state into Redis
-    plane_key = f"plane:{plane_hex}"
-    dummy_plane = PlaneState(
-        hex_ident=plane_hex,
-        lat=42.0,
-        lon=-71.0,
-        alt=30000,
-        lat_v=0,
-        lon_v=0,
-        alt_v=0,
-        last_update_ts=time.time(),
-        trail=[],
-        origin="KLAX",
-        destination="KJFK",
-        callsign=None,
-        origin_country=None,
-        category=None,
-    )
-    await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
+    room_code = await _create_room(integration_client, host_nick, ScoringMode.EXACT)
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KLAX")
 
     ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
-
     async with aconnect_ws(ws_path, client=integration_client) as ws_host:
-        # Consume initial stateSync
-        await ws_host.receive_json()
+        await wait_for_message(ws_host, "stateSync")
+        await _start_round(ws_host, plane_hex)
+        await wait_for_message(ws_host, "roundStart")
+        result_msg = await wait_for_message(ws_host, "roundResult", timeout=timeout_s + 5)
 
-        # Select plane then start round
-        select_payload = SelectPlanePayload(hex=plane_hex)
-        await ws_host.send_json(
-            WSMessage(type="selectPlane", payload=select_payload.model_dump()).model_dump()
-        )
-        await asyncio.sleep(0.1)
-        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
-
-        # Wait for roundStart broadcast then for roundResult
-        await _wait_for_message(ws_host, "roundStart", timeout=2.0)
-        result_msg = await _wait_for_message(ws_host, "roundResult", timeout=timeout_s + 5)
-
-    # Validate payload
-    result_payload = RoundResultPayload(**result_msg.payload)
+    result_payload = RoundResultPayload(**result_msg["payload"])
     assert len(result_payload.results) == 1  # Only host in room
+    assert result_payload.hex == plane_hex
 
-    # Validate Redis state
-    round_key = f"room:{room_code}:round"
-    stored_json = await integration_redis.get(round_key)
-    assert stored_json is not None
-    stored_round = RoundData(**json.loads(stored_json))
+    stored_round = await _read_round(real_redis, room_code)
     assert stored_round.state == RoundStateEnum.SHOWING_RESULTS
-
-    # Cleanup
-    await integration_redis.delete(plane_key)
-    await integration_redis.delete(f"room:{room_code}:meta")
-    await integration_redis.delete(f"room:{room_code}:players")
-    await integration_redis.delete(round_key)
 
 
 @pytest.mark.asyncio
 async def test_round_result_when_all_players_guessed(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Host + 1 player both guess quickly ─ expect early `roundResult`."""
     host_nick = "host_all"
     player_nick = "player_all"
     plane_hex = "c0ffee"
-    timeout_s = 10
-
-    # Create room
-    resp = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.DISTANCE.value,
-            "round_timeout_seconds": timeout_s,
-        },
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    room_code = resp.json()["room_code"]
-
-    # Player joins via REST
-    resp2 = await integration_client.post(
-        f"/api/v0/rooms/{room_code}/join", json={"nickname": player_nick}
-    )
-    assert resp2.status_code == status.HTTP_200_OK
-
-    # Dummy plane
-    plane_key = f"plane:{plane_hex}"
-    await integration_redis.set(
-        plane_key,
-        PlaneState(
-            hex_ident=plane_hex,
-            lat=50.0,
-            lon=8.0,
-            alt=32000,
-            lat_v=0,
-            lon_v=0,
-            alt_v=0,
-            last_update_ts=time.time(),
-            trail=[],
-            origin="EDDF",
-            destination="EGLL",
-            callsign=None,
-            origin_country=None,
-            category=None,
-        ).model_dump_json(),
-        ex=60,
-    )
+    room_code = await _create_room(integration_client, host_nick, ScoringMode.DISTANCE, player_nick)
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="EGLL")
 
     ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
     ws_player_path = f"/api/v0/rooms/ws/{room_code}/{player_nick}"
-
     async with (
         aconnect_ws(ws_host_path, client=integration_client) as ws_host,
         aconnect_ws(ws_player_path, client=integration_client) as ws_player,
     ):
-        # Consume initial syncs & playerJoined
-        await ws_host.receive_json()
-        await ws_player.receive_json()
-        await _wait_for_message(ws_host, "playerJoined", timeout=2.0)
-
-        # Host selects plane & starts round
-        await ws_host.send_json(
-            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
+        await wait_for_messages(
+            ws_host, Expected("stateSync"), Expected("playerJoined", {"nickname": player_nick})
         )
-        await asyncio.sleep(0.1)
-        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
-        await _wait_for_message(ws_host, "roundStart", timeout=2.0)
-        await _wait_for_message(ws_player, "roundStart", timeout=2.0)
+        await wait_for_message(ws_player, "stateSync")
 
-        # Both players guess
-        await ws_player.send_json(
-            WSMessage(
-                type="guess", payload=GuessPayload(airport_code="BOS").model_dump()
-            ).model_dump()
-        )
-        await ws_host.send_json(
-            WSMessage(
-                type="guess", payload=GuessPayload(airport_code="BOS").model_dump()
-            ).model_dump()
-        )
+        await _start_round(ws_host, plane_hex)
+        await wait_for_message(ws_host, "roundStart")
+        await wait_for_message(ws_player, "roundStart")
 
-        # Expect roundResult quickly (< 3 s)
-        result_host = await _wait_for_message(ws_host, "roundResult", timeout=5.0)
-        # Accept delta message in any order
-        payload_host = RoundResultPayload(**result_host.payload)
-        assert {res.nickname for res in payload_host.results} == {host_nick, player_nick}
+        # Both players guess back to back, well inside the 10s timer.
+        await _send_guess(ws_player, "BOS")
+        await _send_guess(ws_host, "BOS")
 
-    # Check Redis state & scores
-    round_key = f"room:{room_code}:round"
-    stored_json = await integration_redis.get(round_key)
-    assert stored_json is not None
-    rd = RoundData(**json.loads(stored_json))
+        result_host = await wait_for_message(ws_host, "roundResult")
+
+    payload_host = RoundResultPayload(**result_host["payload"])
+    assert payload_host.hex == plane_hex
+    assert {res.nickname for res in payload_host.results} == {host_nick, player_nick}
+    assert all(res.guess == "BOS" for res in payload_host.results)
+
+    rd = await _read_round(real_redis, room_code)
     assert rd.state == RoundStateEnum.SHOWING_RESULTS
     assert rd.results is not None
-
-    await integration_redis.delete(plane_key)
-    await integration_redis.delete(f"room:{room_code}:meta")
-    await integration_redis.delete(f"room:{room_code}:players")
-    await integration_redis.delete(round_key)
 
 
 @pytest.mark.asyncio
 async def test_round_result_includes_distance_km_in_distance_mode(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Test that distance_km is included in round results for Distance mode."""
     host_nick = "host_distance"
     player_nick = "player_distance"
     plane_hex = "abc123"
-    timeout_s = 10
-
-    # Create room with Distance mode
-    resp = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.DISTANCE.value,
-            "round_timeout_seconds": timeout_s,
-        },
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    room_code = resp.json()["room_code"]
-
-    # Player joins via REST
-    resp2 = await integration_client.post(
-        f"/api/v0/rooms/{room_code}/join", json={"nickname": player_nick}
-    )
-    assert resp2.status_code == status.HTTP_200_OK
-
-    # Dummy plane with known origin
-    plane_key = f"plane:{plane_hex}"
-    await integration_redis.set(
-        plane_key,
-        PlaneState(
-            hex_ident=plane_hex,
-            lat=42.3656,
-            lon=-71.0096,
-            alt=0,
-            lat_v=0,
-            lon_v=0,
-            alt_v=0,
-            last_update_ts=time.time(),
-            trail=[],
-            origin="KBOS",  # Boston
-            destination="KJFK",  # New York
-            callsign=None,
-            origin_country=None,
-            category=None,
-        ).model_dump_json(),
-        ex=60,
-    )
+    room_code = await _create_room(integration_client, host_nick, ScoringMode.DISTANCE, player_nick)
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KJFK")
 
     ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
     ws_player_path = f"/api/v0/rooms/ws/{room_code}/{player_nick}"
-
     async with (
         aconnect_ws(ws_host_path, client=integration_client) as ws_host,
         aconnect_ws(ws_player_path, client=integration_client) as ws_player,
     ):
-        # Consume initial syncs & playerJoined
-        await ws_host.receive_json()
-        await ws_player.receive_json()
-        await _wait_for_message(ws_host, "playerJoined", timeout=2.0)
-
-        # Host selects plane & starts round
-        await ws_host.send_json(
-            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
+        await wait_for_messages(
+            ws_host, Expected("stateSync"), Expected("playerJoined", {"nickname": player_nick})
         )
-        await asyncio.sleep(0.1)
-        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
-        await _wait_for_message(ws_host, "roundStart", timeout=2.0)
-        await _wait_for_message(ws_player, "roundStart", timeout=2.0)
+        await wait_for_message(ws_player, "stateSync")
 
-        # Players guess different airports
-        # Host guesses correctly (0 km)
-        await ws_host.send_json(
-            WSMessage(
-                type="guess", payload=GuessPayload(airport_code="KJFK").model_dump()
-            ).model_dump()
-        )
-        # Player guesses a different airport (~305 km away)
-        await ws_player.send_json(
-            WSMessage(
-                type="guess", payload=GuessPayload(airport_code="KBOS").model_dump()
-            ).model_dump()
-        )
+        await _start_round(ws_host, plane_hex)
+        await wait_for_message(ws_host, "roundStart")
+        await wait_for_message(ws_player, "roundStart")
 
-        # Wait for roundResult
-        result_host = await _wait_for_message(ws_host, "roundResult", timeout=5.0)
+        # Host guesses the destination (0 km); the player guesses the origin (~300 km away).
+        await _send_guess(ws_host, "KJFK")
+        await _send_guess(ws_player, "KBOS")
 
-        # Validate payload includes distance_km
-        payload_host = RoundResultPayload(**result_host.payload)
-        assert len(payload_host.results) == 2
+        result_host = await wait_for_message(ws_host, "roundResult")
 
-        # Find each player's result
-        host_result = next(r for r in payload_host.results if r.nickname == host_nick)
-        player_result = next(r for r in payload_host.results if r.nickname == player_nick)
+    payload_host = RoundResultPayload(**result_host["payload"])
+    assert len(payload_host.results) == 2
+    host_result = next(r for r in payload_host.results if r.nickname == host_nick)
+    player_result = next(r for r in payload_host.results if r.nickname == player_nick)
 
-        # Host guessed correctly - distance should be 0
-        assert host_result.distance_km == 0.0
-        assert host_result.score_awarded == 100
+    assert host_result.distance_km == 0.0
+    assert host_result.score_awarded == 100
 
-        # Player guessed BOS when correct was JFK - distance should be ~305 km
-        assert player_result.distance_km is not None
-        assert 300 <= player_result.distance_km <= 310  # Allow some variance
-        assert 0 <= player_result.score_awarded < 100  # Should get partial score
-
-    # Cleanup
-    await integration_redis.delete(plane_key)
-    await integration_redis.delete(f"room:{room_code}:meta")
-    await integration_redis.delete(f"room:{room_code}:players")
-    await integration_redis.delete(f"room:{room_code}:round")
+    # KBOS-KJFK great-circle distance is ~300 km.
+    assert player_result.distance_km is not None
+    assert 295 <= player_result.distance_km <= 305
+    assert 0 <= player_result.score_awarded < 100  # Partial score
 
 
 @pytest.mark.asyncio
 async def test_round_result_no_distance_km_in_exact_mode(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Test that distance_km is None in round results for Exact mode."""
     host_nick = "host_exact"
     plane_hex = "def456"
-    timeout_s = 10
-
-    # Create room with Exact mode
-    resp = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.EXACT.value,
-            "round_timeout_seconds": timeout_s,
-        },
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    room_code = resp.json()["room_code"]
-
-    # Dummy plane
-    plane_key = f"plane:{plane_hex}"
-    await integration_redis.set(
-        plane_key,
-        PlaneState(
-            hex_ident=plane_hex,
-            lat=42.3656,
-            lon=-71.0096,
-            alt=0,
-            lat_v=0,
-            lon_v=0,
-            alt_v=0,
-            last_update_ts=time.time(),
-            trail=[],
-            origin="KBOS",
-            destination="KJFK",
-            callsign=None,
-            origin_country=None,
-            category=None,
-        ).model_dump_json(),
-        ex=60,
-    )
+    room_code = await _create_room(integration_client, host_nick, ScoringMode.EXACT)
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KJFK")
 
     ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
-
     async with aconnect_ws(ws_host_path, client=integration_client) as ws_host:
-        # Consume initial stateSync
-        await ws_host.receive_json()
+        await wait_for_message(ws_host, "stateSync")
+        await _start_round(ws_host, plane_hex)
+        await wait_for_message(ws_host, "roundStart")
 
-        # Host selects plane & starts round
-        await ws_host.send_json(
-            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
-        )
-        await asyncio.sleep(0.1)
-        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
-        await _wait_for_message(ws_host, "roundStart", timeout=2.0)
+        await _send_guess(ws_host, "KJFK")
+        result_msg = await wait_for_message(ws_host, "roundResult")
 
-        # Host guesses
-        await ws_host.send_json(
-            WSMessage(
-                type="guess", payload=GuessPayload(airport_code="KJFK").model_dump()
-            ).model_dump()
-        )
-
-        # Wait for roundResult
-        result_msg = await _wait_for_message(ws_host, "roundResult", timeout=5.0)
-
-        # Validate payload - distance_km should be None for Exact mode
-        payload = RoundResultPayload(**result_msg.payload)
-        assert len(payload.results) == 1
-
-        host_result = payload.results[0]
-        assert host_result.nickname == host_nick
-        assert host_result.distance_km is None  # Should be None in Exact mode
-        assert host_result.score_awarded == 100  # Exact match
-
-    # Cleanup
-    await integration_redis.delete(plane_key)
-    await integration_redis.delete(f"room:{room_code}:meta")
-    await integration_redis.delete(f"room:{room_code}:players")
-    await integration_redis.delete(f"room:{room_code}:round")
+    payload = RoundResultPayload(**result_msg["payload"])
+    assert len(payload.results) == 1
+    host_result = payload.results[0]
+    assert host_result.nickname == host_nick
+    assert host_result.distance_km is None  # Exact mode reports no distance
+    assert host_result.score_awarded == 100  # Exact match

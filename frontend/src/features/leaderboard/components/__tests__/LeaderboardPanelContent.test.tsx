@@ -9,7 +9,7 @@ describe('LeaderboardPanelContent', () => {
     // Toggle retroMode off (default is true) to test standard mode UI
     store.getState().ui.toggleRetroMode();
     store.getState().game.applyDelta({ scores: initialScores });
-    store.getState().connection.setNickname('Bob');
+    store.getState().connection.setConnectionDetails({ roomCode: 'ABCD', wsUrl: 'ws://x', nickname: 'Bob' });
     if (hostNickname) {
       store.getState().game.setHostNickname(hostNickname);
     }
@@ -50,7 +50,7 @@ describe('LeaderboardPanelContent', () => {
   it('renders without highlight when nickname null', () => {
     const { store } = setup({ Bob: 15 });
     act(() => {
-      store.getState().connection.setNickname(null);
+      store.getState().connection.clearConnectionDetails();
     });
     const item = screen.getByRole('listitem');
     expect(item).not.toHaveClass('font-bold');

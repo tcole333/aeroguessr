@@ -1,0 +1,86 @@
+# AeroGuessr for self-hosters: the published images, set up by the .env next to this file.
+# docs/self-hosting.md is the guide. From this directory:  docker compose up -d
+#
+# The maintainer's stack (infra/) keeps the same guarantees, and tests/deploy/test_compose_config.py
+# checks both: Redis never evicts keys and keeps no append-only file, and every container caps
+# its logs and its memory.
+
+name: aeroguessr
+
+# Docker's json-file driver keeps a container's output forever unless capped.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # The only service with a published port. Its nginx serves the game and proxies /api/,
+  # /healthz and /readyz to the backend.
+  frontend:
+    image: ghcr.io/tcole333/aeroguessr-frontend:${AEROGUESSR_VERSION:?set AEROGUESSR_VERSION in .env}
+    ports:
+      - "${HTTP_PORT:-8088}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # The API and the ADS-B ingest, under supervisord.
+  backend:
+    image: ghcr.io/tcole333/aeroguessr-backend:${AEROGUESSR_VERSION:?set AEROGUESSR_VERSION in .env}
+    # The game's settings. backend/settings.py defines them all, with their defaults.
+    env_file: .env
+    # Container wiring; these win over .env. ADSB_HOST keeps the .env value when it has one.
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - ADSB_HOST=${ADSB_HOST:-host.docker.internal}
+    # host.docker.internal reaches a feeder running on this machine (dump1090-fa, readsb).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    # About 290 MB resident on a Raspberry Pi 4.
+    mem_limit: 1g
+    healthcheck:
+      # Liveness only (/healthz does no I/O). /readyz reports the ADS-B feed, and a feed outage
+      # should not take the site down.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Game state. Every key the game writes has a TTL and the dataset is a few MB, so maxmemory
+  # is only a safety net. noeviction rejects writes at the limit instead of evicting keys: the
+  # AeroAPI budget counters must never disappear. No AOF, which would rewrite an SD card every
+  # second; the default RDB snapshots keep the counters across restarts.
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    logging: *default-logging
+    # Room for maxmemory plus the copy-on-write fork of an RDB snapshot.
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  redis-data:

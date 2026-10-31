@@ -1,17 +1,14 @@
-import random
+import secrets
 import string
-import time
-from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from .core import Player, RoomMeta, ScoringMode
-from .game import RoundData
+from .core import ScoringMode
 
 
 def generate_room_code(length: int = 4) -> str:
-    """Generates a random room code."""
-    return "".join(random.choices(string.ascii_uppercase, k=length))
+    """Generates a random room code. The code is what lets a player join, so it uses secrets."""
+    return "".join(secrets.choice(string.ascii_uppercase) for _ in range(length))
 
 
 class RoomCreateRequest(BaseModel):
@@ -50,7 +47,7 @@ class RoomCreateResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "room_code": "ABCD",
-                "ws_url": "ws://localhost:8000/ws/ABCD/HostessHannah",  # Example URL
+                "ws_url": "ws://localhost:8000/api/v0/rooms/ws/ABCD/HostessHannah",
             }
         }
 
@@ -87,64 +84,6 @@ class RoomJoinResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "room_code": "ABCD",
-                "ws_url": "ws://localhost:8000/ws/ABCD/JoinerJane",  # Example URL
-            }
-        }
-
-
-# ---- New Schema ----
-class RoomState(RoomMeta):
-    """Represents the complete state of a game room, suitable for debug view or state sync."""
-
-    code: str = Field(..., description="The 4-letter code identifying the room.")
-    players: Dict[str, Player] = Field(
-        default_factory=dict, description="Players currently in the room, keyed by nickname."
-    )
-    current_round: Optional[RoundData] = Field(
-        default=None, description="Data for the currently active round, if any."
-    )
-
-    class Config(RoomMeta.Config):
-        """Pydantic configuration, inherits from RoomMeta."""
-
-        json_schema_extra = {
-            "example": {
-                # Inherited from RoomMeta example
-                "mode": "Distance",
-                "round_timeout_seconds": 45,
-                "host_nickname": "HostHarry",
-                "created_ts": time.time(),
-                # RoomState specific fields
-                "code": "WXYZ",
-                "players": {
-                    "HostHarry": {
-                        "nickname": "HostHarry",
-                        "score": 100,
-                        "connected": True,
-                        "last_seen_ts": time.time(),
-                    },
-                    "JoinerJane": {
-                        "nickname": "JoinerJane",
-                        "score": 50,
-                        "connected": True,
-                        "last_seen_ts": time.time() - 10,
-                    },
-                },
-                "current_round": {  # Example using RoundData's example
-                    "state": "accepting_guesses",
-                    "selected_plane_hex": "a1b2c3",
-                    "correct_airport_code": "JFK",
-                    "guess_direction": "destination",
-                    "round_start_time": time.time() - 10,
-                    "guesses": {
-                        "JoinerJane": {
-                            "nickname": "JoinerJane",
-                            "guess": "LGA",
-                            "timestamp": time.time() - 5,
-                        }
-                    },
-                    "results": None,
-                    "round_number": 3,
-                },
+                "ws_url": "ws://localhost:8000/api/v0/rooms/ws/ABCD/JoinerJane",
             }
         }

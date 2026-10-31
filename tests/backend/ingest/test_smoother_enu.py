@@ -140,6 +140,41 @@ class TestVelocityDirection:
         assert abs(lat_v) < abs(lon_v) * 0.1, f"Expected lat_v near zero, got {lat_v}"
 
 
+@pytest.mark.parametrize(
+    "lat_step, lon_step",
+    [(0.0006, 0.0), (-0.0006, 0.0), (0.0, 0.0006), (0.0, -0.0006)],
+    ids=["north", "south", "east", "west"],
+)
+def test_level_flight_shows_no_climb_or_descent_whichever_way_it_flies(
+    origin_ll: tuple[float, float], lat_step: float, lon_step: float
+) -> None:
+    """Horizontal motion must not leak into the vertical rate, even while the filter settles."""
+    lat, lon, alt = 42.6, -71.2, 10000.0
+    smoother = PositionSmootherENU((lat, lon, alt), origin_ll)
+
+    vertical_rates = []
+    for _ in range(30):
+        lat, lon = lat + lat_step, lon + lon_step
+        smoother.predict(1.0)
+        smoother.update((lat, lon, alt))
+        vertical_rates.append(smoother.velocity[2])
+
+    assert max(abs(rate) for rate in vertical_rates) < 1.0
+
+
+def test_vertical_rate_is_in_feet_per_minute(origin_ll: tuple[float, float]) -> None:
+    """A plane descending at 800 ft/min, reported in 25 ft steps, settles at about -800."""
+    lat, lon, alt = 42.6, -71.2, 10000.0
+    smoother = PositionSmootherENU((lat, lon, alt), origin_ll)
+
+    for _ in range(30):
+        lat, alt = lat - 0.0006, alt - 800 / 60
+        smoother.predict(1.0)
+        smoother.update((lat, lon, round(alt / 25) * 25))
+
+    assert smoother.velocity[2] == pytest.approx(-800, rel=0.15)
+
+
 class TestHeadingCalculation:
     """Test that heading can be correctly calculated from velocity.
 

@@ -2,10 +2,20 @@
 # This file extends docker-compose.yml with Pi-specific settings
 # Use: docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
 
-version: '3.8'
+# The Pi's Redis volume (infra_redis-data, with the AeroAPI budget counters) and its network
+# belong to this project; under another name, Compose would start an empty volume. The
+# runbook (docs/deployment.md) uses the container names below.
+name: infra
 
 services:
+  nginx:
+    container_name: plane-game-nginx
+
+  frontend:
+    container_name: plane-game-frontend
+
   backend:
+    container_name: plane-game-backend
     # For accessing dump1090 on the host, we need to use host networking
     # or the special host.docker.internal hostname (if available)
     environment:
@@ -15,3 +25,14 @@ services:
     # Add extra_hosts for older Docker versions that don't have host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  redis:
+    container_name: plane-game-redis
+
+# The subnet the Pi's network already has. Changing a network's settings makes Compose
+# recreate it, so keep this as it is.
+networks:
+  plane-game-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

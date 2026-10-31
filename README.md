@@ -1,264 +1,79 @@
 # AeroGuessr
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/tcole333/plane-game-v4/actions/workflows/test.yml/badge.svg)](https://github.com/tcole333/plane-game-v4/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/tcole333/plane-game-v4/branch/main/graph/badge.svg)](https://codecov.io/gh/tcole333/plane-game-v4)
+[![CI](https://github.com/tcole333/aeroguessr/actions/workflows/ci.yml/badge.svg)](https://github.com/tcole333/aeroguessr/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tcole333/aeroguessr?include_prereleases&sort=semver)](https://github.com/tcole333/aeroguessr/releases)
+[![codecov](https://codecov.io/gh/tcole333/aeroguessr/branch/main/graph/badge.svg)](https://codecov.io/gh/tcole333/aeroguessr)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 1. Purpose
+A real-time guessing game played on the planes overhead. An ADS-B receiver tracks the live air traffic around an airport. Players join a room from their phones and, for each flight, guess where it came from or where it's going. The closer the guess, the more points.
 
-AeroGuessr is a real-time flight tracking game where players guess the origin or destination of aircraft overhead using live ADS-B signals. It supports timed solo play and multiplayer rooms, and the live deployment is available at [aeroguessr.com](https://aeroguessr.com).
+![A solo game: planes over eastern Massachusetts on the map, and the departure board beside it with one flight selected](docs/images/aeroguessr-demo.jpg)
 
-See the full [Product Requirements Document](docs/PRD.md).
+Play the maintainer's instance, over Boston Logan, at [aeroguessr.com](https://aeroguessr.com), or run your own on your ADS-B receiver.
 
-## 2. TL;DR Usage
+This is an alpha, so expect rough edges. The self-hosting guide lists the [known limitations](docs/self-hosting.md#known-limitations).
 
-```bash
-# Ensure Docker and Docker Compose are installed
-# Create a .env file from .env.example and fill in values (e.g., OpenSky credentials)
-cp .env.example .env
-# ... edit .env ...
+## How to play
 
-# Start the application stack
-docker compose up --build -d
+- **Create a room** and share its code, and friends join from their phones. Or start a **solo flight**.
+- **The host picks a flight** on the map and starts a round. Everyone guesses the other end of its route: where an arrival came from, or where a departure is going.
+- **Scoring:**
+  - **Distance** mode gives up to 100 points, fewer the farther off the guess is, and none past 1,000 km.
+  - **Exact** mode gives 100 for the right airport.
+  - IATA and ICAO codes both work.
 
-# Access the frontend at http://localhost (or your Pi's IP)
-# Access the backend API docs at http://localhost:8000/docs (or your Pi's IP:PORT)
-```
+## Run it on your own receiver
 
-_(Note: Port mapping might vary based on `docker-compose.yml` configuration)_
+You need:
+- an RTL-SDR and a 1090 MHz antenna, with a feeder that decodes them: PiAware, readsb or ultrafeeder (adsb.im);
+- a 64-bit Raspberry Pi 4 or 5 with 2 GB or more, or any 64-bit Linux machine (x86-64 or arm64);
+- Docker;
+- a FlightAware AeroAPI key for live rounds, because they need each flight's route and AeroAPI is the only route source.
+  - FlightAware's ADS-B feeders get a monthly credit, and the budget settings cap the spend.
+  - Demo mode needs no key.
 
-## 3. Context for LLMs
+AeroGuessr runs next to your feeder, from published images:
+1. Download a release's `compose.yaml` and `.env` template into a directory.
+2. Set your antenna's position and your airport in `.env`.
+3. Run `docker compose up -d`, and open `http://<your machine>:8088/`.
 
-- **Core Functionality:** Real-time flight tracking map game, room-based multiplayer, flight data ingestion from ADS-B.
-- **Backend:** Python 3.12, FastAPI, Redis (cache/state), Pydantic, SQLAlchemy (potentially later). Handles ADS-B ingest, game logic, WebSocket communication. (`backend/`)
-- **Frontend:** React 18, TypeScript, Vite, Zustand (state), Tailwind CSS, Leaflet (map). Displays map, game state, handles user input. (`frontend/`)
-- **Infra:** Docker Compose for local dev/deployment, Nginx for serving frontend static files. (`infra/`)
-- **Data:** Live ADS-B via `dump1090`, enriched with OpenSky API data. Sample data available in `sample_data/`.
-- **Key Docs:** [PRD](docs/PRD.md), [Standards](docs/project-standards.md), [API Schema](docs/api_openapi.yaml), [WS Schema](docs/ws_schema.yaml).
+[docs/self-hosting.md](docs/self-hosting.md) has the commands. It also covers every setting, route data (FlightAware AeroAPI), access from outside your network, updates and troubleshooting.
 
-## 4. Modules
+## Develop
 
-| Folder         | Responsibility                                    | Key Technologies       |
-| -------------- | ------------------------------------------------- | ---------------------- |
-| `backend/`     | API, WebSocket gateway, game logic, ADS-B ingest  | FastAPI, Redis, Python |
-| `frontend/`    | Web user interface, map display, game interaction | React, TS, Leaflet, WS |
-| `infra/`       | Docker setup, deployment scripts, Nginx config    | Docker, Nginx, Bash    |
-| `docs/`        | Project documentation, standards, schemas, ADRs   | Markdown, YAML         |
-| `sample_data/` | Sample ADS-B and airport data for testing         | SBS, JSON              |
-
-## 5. Endpoints / Messages
-
-- **REST API:** Defined in [`docs/api_openapi.yaml`](docs/api_openapi.yaml) (Auto-generated via `make openapi`).
-  - `GET /healthz`: Basic health check.
-  - `POST /api/v0/rooms`: Creates a new game room.
-  - `POST /api/v0/rooms/{code}/join`: Allows a player to join an existing room.
-  - `POST /api/v0/rooms/solo/join`: Creates a personal solo room and returns the connection URL.
-- **WebSocket Messages:** Defined in [`docs/ws_schema.yaml`](docs/ws_schema.yaml).
-
-_(Example usage snippets will be added as endpoints/messages are implemented)_
-
-## 6. Network Development
-
-To make the application accessible from other devices on your network (e.g., testing on mobile devices):
-
-### 6.1 Quick Setup
+You need [uv](https://docs.astral.sh/uv/), Node 22, and Docker for Redis. uv fetches Python 3.12 if it isn't installed. Demo mode makes up its own planes, so it needs no receiver and no API key.
 
 ```bash
-# Start all services in network mode (IP address auto-detected)
-make dev-network
+scripts/worktree-setup.sh   # .venv (uv sync) and frontend/node_modules
+make demo                   # then open the game's URL it prints; Ctrl-C stops
 ```
 
-The command automatically detects your computer's IP address and configures both frontend and backend for network access.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the development setup, the tests, the conventions and the rules every change must keep.
 
-### 6.2 Access from Other Devices
+## Docs
 
-- **Frontend**: `http://YOUR_IP:5173`
-- **Backend API**: `http://YOUR_IP:8000`
-- **API Documentation**: `http://YOUR_IP:8000/docs`
+| Doc | What it covers |
+|---|---|
+| [docs/self-hosting.md](docs/self-hosting.md) | Running it on your own ADS-B receiver with the published images |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, conventions and common tasks |
+| [docs/PRD.md](docs/PRD.md) | What the game does: rooms, rounds, scoring, answer secrecy, requirements |
+| [docs/architecture.md](docs/architecture.md) | How it works: processes, wire contract, game engine, ingest, Redis keys, frontend |
+| [docs/deployment.md](docs/deployment.md) | The aeroguessr.com runbook: the maintainer's Pi, auto-deploy, releases, Cloudflare Tunnel |
+| [tests/README.md](tests/README.md) | Test suites, fixtures and CI |
+| [docs/project-standards.md](docs/project-standards.md) | Coding and documentation conventions |
+| [docs/api_openapi.yaml](docs/api_openapi.yaml), [docs/ws_schema.yaml](docs/ws_schema.yaml) | The generated REST and WebSocket contract |
 
-### 6.3 Individual Service Commands
+Plans and known issues live in [GitHub issues](https://github.com/tcole333/aeroguessr/issues). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
-```bash
-# Start just the frontend for network access
-make frontend-network
+## Credits
 
-# Start just the backend for network access (auto-detects IP)
-make backend-network
-```
+AeroGuessr is built on open data and open services:
+- airports from [OurAirports](https://ourairports.com/data/), in the public domain;
+- the map from [OpenFreeMap](https://openfreemap.org), with [OpenMapTiles](https://openmaptiles.org) and data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors;
+- routes from [FlightAware AeroAPI](https://www.flightaware.com/aeroapi/), with each operator using their own key.
 
-### 6.4 Network Development Notes
-
-- The `dev-network` command automatically detects your IP address and configures both frontend and backend for network access
-- WebSocket connections are properly configured to work across the network
-- Make sure your firewall allows connections on ports 5173 (frontend) and 8000 (backend)
-- If IP auto-detection fails, you can manually set `NETWORK_IP` environment variable before running the command
-
-## 7. Common Tasks
-
-### 7.1 Running Unit Tests
-
-```bash
-poetry run pytest tests/backend -m "not integration"
-```
-
-### 7.2 Running Integration Tests
-
-#### Using the Makefile (Recommended)
-
-```bash
-make integration-test
-```
-
-This command will:
-
-1. Build and start the necessary test services (backend + Redis)
-2. Run integration tests (marked with `@pytest.mark.integration`)
-3. Tear down the test services automatically
-
-#### Manual Approach
-
-If you need more control, you can run the steps individually:
-
-1. Start the test services (backend + Redis):
-
-   ```bash
-   docker compose -f infra/docker-compose.test.yml up -d
-   ```
-
-2. Run integration tests (marked with `@pytest.mark.integration`):
-
-   ```bash
-   docker compose -f infra/docker-compose.test.yml exec backend-test bash -c "cd /app && PYTHONPATH=/app poetry run pytest -q -m integration"
-   ```
-
-3. Tear down the test services:
-
-   ```bash
-   docker compose -f infra/docker-compose.test.yml down
-   ```
-
-Ensure Docker and `docker-compose` are installed.
-
-### 7.3 Replaying Sample ADS-B Data (Offline Mode)
-
-```bash
-# Ensure FAKE_ADSB flag is enabled so backend spawns the generator
-export FAKE_ADSB=1
-# Optional: choose a different capture and/or speed
-export FAKE_ADSB_FILE=sample_data/sbs_parser_fixtures.sbs
-export FAKE_ADSB_SPEED=5  # 5× faster than real-time
-
-# Run the generator in a separate shell (loops until Ctrl-C)
-make sample-replay
-
-# Start the backend as usual (it will connect to localhost:30003)
-poetry run uvicorn backend.app:app --reload
-```
-
-When `FAKE_ADSB=1`, `backend.ingest.main` automatically spins up the sample
-feed even if you don't call `make sample-replay`. The Make target is provided
-for quick manual testing or if you want the generator to run independently.
-
-### 7.4 Testing Details
-
-#### 7.4.1 Unit Tests
-
-- **Location:** `tests/backend/`
-- **Fixtures:** Defined in `tests/backend/conftest.py`:
-  - `fake_redis_instance`: Provides a fresh in-memory FakeRedis for each test.
-  - `redis_client`: Overrides the Redis dependency, flushes data, and injects into the app.
-  - `test_client`: Async HTTP/WebSocket client against the FastAPI `app`.
-- **Run locally:**
-
-```bash
-poetry run pytest tests/backend
-```
-
-- **CI behavior:** Runs non-integration tests with coverage, matching the GitHub Actions command:
-
-```bash
-poetry run pytest --cov=backend \
-  --cov-report=xml --cov-report=term-missing \
-  -m "not integration" tests/
-```
-
-#### 7.4.2 Integration Tests
-
-- **Location:** `tests/integration/`
-- **Marker:** Decorated with `@pytest.mark.integration` in test files.
-- **Requirements:** Docker & Docker Compose
-- **Recommended (Makefile):**
-
-```bash
-make integration-test
-```
-
-- **Manual steps:**
-  1. Start services:
-     ```bash
-     docker compose -f infra/docker-compose.test.yml up -d
-
-````
-  2. Run integration tests:
-     ```bash
-docker compose -f infra/docker-compose.test.yml exec \
-  backend-test bash -c "cd /app && \
-  PYTHONPATH=/app poetry run pytest -q -m integration"
-````
-
-3. Tear down services:
-   ```bash
-   docker compose -f infra/docker-compose.test.yml down
-
-````
-
-#### 7.4.3 CI Pipeline
-- **Definition:** `.github/workflows/test.yml`
-- **Triggers:** Push/PR to `main`, manual dispatch
-- **Key steps:**
-  1. Starts a Redis service container for tests
-  2. Installs dependencies via Poetry
-  3. Runs unit tests (non-integration) with coverage reports
-  4. Uploads coverage to Codecov
-  5. Enforces minimum coverage threshold (50%)
-- **Badges:**
-```markdown
-[![Tests](https://github.com/your-username/plane-game-v4/actions/workflows/test.yml/badge.svg)]
-(https://github.com/your-username/plane-game-v4/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/your-username/plane-game-v4/branch/main/graph/badge.svg)]
-````
-
-### 7.5 Generating Airport Data
-
-The game uses airport coordinate data for distance scoring. The script generates two datasets:
-
-1. **Backend dataset** (`sample_data/airports_min.json`): ~500K airports for comprehensive coverage
-2. **Frontend dataset** (`frontend/src/assets/airports.json`): ~3K major airports for autocomplete (160KB gzipped)
-
-To regenerate airport data:
-
-```bash
-python backend/scripts/populate_airports_data.py
-```
-
-This downloads the latest OurAirports database and creates both files. The frontend dataset includes only airports with:
-- IATA codes (e.g., BOS, JFK, LAX)
-- Scheduled commercial service OR large airport classification
-- Additional metadata: name, city, country
-
-### 7.6 Logging
-
-- **Log Directory:** All application logs are stored in the `logs/` directory
-- **Frontend Logs:** Browser console logs are automatically captured to `logs/frontend.log`
-- **Integration Test Logs:** Test output saved to `logs/integration.log` for debugging failures
-- **Log Rotation:** Logs are automatically rotated to prevent disk space issues (configured via logrotate)
-
-## 8. FAQ & Gotchas
-
-- **Map Tiles:** Uses OpenStreetMap by default. Be mindful of their [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/). Caching is implemented, but high volume may require switching providers (see [PRD §8.1](docs/PRD.md#81-map-tiles)).
-- **OpenSky API:** Requires credentials (`OPENSKY_USERNAME`, `OPENSKY_PASSWORD` in `.env`) for flight data enrichment. Free accounts have rate limits.
-- _(More to be added as development progresses)_
+[NOTICE.md](NOTICE.md) lists every third-party source, font and icon, with its license.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT © 2025 Travis Cole; see [LICENSE](LICENSE). The third-party material [NOTICE.md](NOTICE.md) lists keeps its own license.

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { useStore } from '../../../hooks/useStore';
 import { selectScores, selectHost } from '../../game/selectors';
 import { selectPlayerNickname } from '../../connection/selectors';
@@ -8,15 +7,12 @@ import { HostIndicator } from '../../../components/ui/HostIndicator';
 
 function Confetti(): JSX.Element {
   return (
-    <motion.div
+    <div
       data-testid="confetti"
-      className="pointer-events-none absolute inset-0 flex items-start justify-center"
-      initial={{ opacity: 1 }}
-      animate={{ opacity: 0 }}
-      transition={{ duration: 2 }}
+      className="pointer-events-none absolute inset-0 flex items-start justify-center animate-fade-out motion-reduce:animate-none"
     >
       <span className="text-4xl">🎉</span>
-    </motion.div>
+    </div>
   );
 }
 

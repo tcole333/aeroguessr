@@ -26,7 +26,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-poetry.lock
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -83,9 +82,6 @@ target/
 profile_default/
 ipython_config.py
 
-# pyenv
-.python-version
-
 # PEP 582; used by PDM, PEP 582 proposals
 __pypackages__/
 
@@ -99,7 +95,6 @@ celerybeat.pid
 # Environments
 .env
 .venv
-.env.pi
 env/
 venv/
 ENV/
@@ -130,6 +125,11 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+
+# Pi deploy state (scripts/auto-update.sh)
+.deployed-commit
+.deploy-attempts
+.auto-update.lock
 
 # Node.js
 # Logs
@@ -201,12 +201,10 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+# dotenv files: every .env and .env.* (such as the Pi's old .env.pi), except the templates
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
 # Parcel cache files
 .cache
@@ -225,7 +223,6 @@ dist
 
 # Gatsby cache and generated files
 .cache/
-public
 
 # Angular build output
 dist/
@@ -255,16 +252,10 @@ build/
 .vscode/
 !.vscode/extensions.json
 
-# Project specific
-/sample_data/*.sbs # Ignore large binary sample data if any added later
-/sample_data/*.csv # Ignore large tabular sample data if any added later
-
 # IDE files
 .idea/
 *.swp
 *.swo
-poetry.lock
-.env.example
 
 # Editor directories and files
 .vscode/*
@@ -277,5 +268,8 @@ poetry.lock
 *.sln
 *.sw?
 airports.csv
-sample_data/airports_min.json
 !frontend/src/lib/
+
+# Agent tooling: local preview configs and the Playwright MCP's logs and snapshots
+.claude/launch.json
+.playwright-mcp/

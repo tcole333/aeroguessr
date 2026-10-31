@@ -1,61 +1,17 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Toaster } from 'sonner';
 import { StoreContext, createRootStore } from '../../store/createRootStore';
 import { useWebSocketManager, webSocketClient as client } from '../useWebSocketManager';
-
-class MockSocket {
-  static OPEN = 1;
-  static CLOSED = 3;
-  readyState = 0;
-  onopen: (() => void) | null = null;
-  onmessage: ((e: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  sent: string[] = [];
-  constructor(public url: string) {}
-  send(data: string) { this.sent.push(data); }
-  close() { this.readyState = MockSocket.CLOSED; }
-  triggerOpen() { this.readyState = MockSocket.OPEN; this.onopen?.(); }
-  triggerMessage(data: any) { this.onmessage?.({ data: JSON.stringify(data) }); }
-  triggerClose(code = 1000, reason = 'normal') {
-    this.readyState = MockSocket.CLOSED;
-    this.onclose?.({ code, reason } as any);
-  }
-  addEventListener(event: string, cb: any) {
-    switch (event) {
-      case 'open':
-        this.onopen = cb;
-        break;
-      case 'message':
-        this.onmessage = cb;
-        break;
-      case 'close':
-        this.onclose = cb;
-        break;
-      case 'error':
-        this.onerror = cb;
-        break;
-      default:
-        break;
-    }
-  }
-}
-
-let OriginalWebSocket: any;
-let sockets: MockSocket[] = [];
+import GuessForm from '../../features/game/components/GuessForm';
+import PlaneDetails from '../../features/planes/components/PlaneDetails';
+import { FakeWebSocket } from '../../mocks/fakeWebSocket';
 
 beforeEach(() => {
-  OriginalWebSocket = global.WebSocket;
-  sockets = [];
-  const stub: any = vi.fn((url: string) => {
-    const s = new MockSocket(url);
-    sockets.push(s);
-    return s;
-  });
-  stub.OPEN = 1;
-  stub.CLOSED = 3;
-  vi.stubGlobal('WebSocket', stub);
+  FakeWebSocket.instances = [];
+  vi.stubGlobal('WebSocket', FakeWebSocket);
 });
 
 afterEach(() => {
@@ -75,20 +31,18 @@ describe('useWebSocketManager', () => {
     );
   }
 
-  it('updates connection status and heartbeat', () => {
+  it('updates connection status', () => {
     function Test() {
       useWebSocketManager('ROOM', 'Nick');
       return null;
     }
     render(<Test />, { wrapper: Wrapper });
-    const socket = sockets[0];
+    const socket = FakeWebSocket.latest();
     const store = wrapperStore;
     // connecting immediately
     expect(store.getState().connection.status).toBe('connecting');
-    socket.triggerOpen();
+    socket.serverAccepts();
     expect(store.getState().connection.status).toBe('connected');
-    socket.triggerMessage({ type: 'pong', payload: { seq: Date.now() } });
-    expect(store.getState().connection.lastHeartbeat).not.toBeNull();
   });
 
   it('processes game messages', async () => {
@@ -99,18 +53,18 @@ describe('useWebSocketManager', () => {
     render(<Test />, { wrapper: Wrapper });
 
     await waitFor(() => {
-      expect(sockets.length).toBeGreaterThan(0);
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(0);
     });
 
-    const socket = sockets[0];
+    const socket = FakeWebSocket.latest();
     const store = wrapperStore;
-    socket.triggerOpen();
+    socket.serverAccepts();
 
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'stateSync',
-      payload: { room_meta: null, players: { A: {} } },
+      payload: { room_meta: null, players: { A: { nickname: 'A', score: 3 } } },
     });
-    expect(store.getState().game.players).toEqual({ A: {} });
+    expect(store.getState().game.scores).toEqual({ A: 3 });
 
     const plane = {
       hex_ident: 'a',
@@ -122,8 +76,11 @@ describe('useWebSocketManager', () => {
       alt_v: 0,
       last_update_ts: 1,
       trail: [[0, 0, 0]],
+      first_seen_ts: 1,
+      update_count: 1,
+      route_hint: { guess_direction: null, known_airport: null, eligible: false },
     };
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'delta',
       payload: {
         planes: { updated: [plane] },
@@ -134,13 +91,13 @@ describe('useWebSocketManager', () => {
     expect(store.getState().planes.values.a).toBeDefined();
     expect(store.getState().game.scores.A).toBe(5);
 
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'roundStart',
       payload: { hex: 'a', timeout_s: 30, direction: 'origin', round_number: 2 },
     });
     expect(store.getState().game.roundTimeout).toBe(30);
 
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'roundResult',
       payload: {
         results: [
@@ -167,26 +124,19 @@ describe('useWebSocketManager', () => {
     render(<Test />, { wrapper: Wrapper });
 
     await waitFor(() => {
-      expect(sockets.length).toBeGreaterThan(0);
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(0);
     });
 
-    const socket = sockets[0];
+    const socket = FakeWebSocket.latest();
     const store = wrapperStore;
-    socket.triggerOpen();
+    socket.serverAccepts();
 
     // Trigger playerJoined message
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'playerJoined',
       payload: { nickname: 'NewPlayer' },
     });
 
-    // Check that player was added to players and scores
-    expect(store.getState().game.players['NewPlayer']).toEqual({
-      nickname: 'NewPlayer',
-      score: 0,
-      connected: true,
-      last_seen_ts: expect.any(Number),
-    });
     expect(store.getState().game.scores['NewPlayer']).toBe(0);
   });
 
@@ -198,15 +148,15 @@ describe('useWebSocketManager', () => {
     render(<Test />, { wrapper: Wrapper });
 
     await waitFor(() => {
-      expect(sockets.length).toBeGreaterThan(0);
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(0);
     });
 
-    const socket = sockets[0];
+    const socket = FakeWebSocket.latest();
     const store = wrapperStore;
-    socket.triggerOpen();
+    socket.serverAccepts();
 
     // First add players via stateSync
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'stateSync',
       payload: {
         room_meta: null,
@@ -217,20 +167,15 @@ describe('useWebSocketManager', () => {
       },
     });
 
-    expect(Object.keys(store.getState().game.players)).toHaveLength(2);
-    expect(store.getState().game.scores['Player1']).toBe(50);
+    expect(store.getState().game.scores).toEqual({ Player1: 50, Player2: 30 });
 
     // Trigger playerLeft message
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'playerLeft',
       payload: { nickname: 'Player1' },
     });
 
-    // Check that player was removed
-    expect(store.getState().game.players['Player1']).toBeUndefined();
-    expect(store.getState().game.scores['Player1']).toBeUndefined();
-    expect(store.getState().game.players['Player2']).toBeDefined();
-    expect(Object.keys(store.getState().game.players)).toHaveLength(1);
+    expect(store.getState().game.scores).toEqual({ Player2: 30 });
   });
 
   it('handles newHost message', async () => {
@@ -241,29 +186,147 @@ describe('useWebSocketManager', () => {
     render(<Test />, { wrapper: Wrapper });
 
     await waitFor(() => {
-      expect(sockets.length).toBeGreaterThan(0);
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(0);
     });
 
-    const socket = sockets[0];
+    const socket = FakeWebSocket.latest();
     const store = wrapperStore;
-    socket.triggerOpen();
+    socket.serverAccepts();
 
     // Set initial host
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'stateSync',
       payload: {
-        room_meta: { host_nickname: 'OldHost' },
+        room_meta: { mode: 'Exact', round_timeout_seconds: 30, host_nickname: 'OldHost' },
         players: {}
       },
     });
     expect(store.getState().game.hostNickname).toBe('OldHost');
 
     // Trigger newHost message
-    socket.triggerMessage({
+    socket.serverSends({
       type: 'newHost',
       payload: { nickname: 'NewHost' },
     });
 
     expect(store.getState().game.hostNickname).toBe('NewHost');
+  });
+});
+
+describe('useWebSocketManager server errors', () => {
+  function renderConnected(children?: React.ReactNode) {
+    const store = createRootStore();
+    function Test() {
+      useWebSocketManager('ROOM', 'Nick');
+      return null;
+    }
+    render(
+      <StoreContext.Provider value={store}>
+        <Toaster />
+        <Test />
+        {children}
+      </StoreContext.Provider>,
+    );
+    const socket = FakeWebSocket.latest();
+    act(() => socket.serverAccepts());
+    return { socket, store };
+  }
+
+  function serverError(code: string, message: string) {
+    return { type: 'error', payload: { code, message } };
+  }
+
+  it.each([
+    ['PLANE_DATA_INCOMPLETE_FOR_GUESS', "This flight's origin airport isn't in the game's airport list. Pick another flight."],
+    ['INVALID_PLANE_SELECTION', 'Flight must be departing from or arriving at KBOS.'],
+    ['INVALID_STATE_FOR_ACTION', "The last round just ended. You can start the next one in a few seconds."],
+  ])('shows a %s rejection as a toast with the server message', async (code, message) => {
+    const { socket } = renderConnected();
+
+    socket.serverSends(serverError(code, message));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
+  it('shows one toast when the same error repeats', async () => {
+    const { socket } = renderConnected();
+    const repeated = serverError('INVALID_STATE_FOR_ACTION', 'A round is already in progress.');
+
+    socket.serverSends(repeated);
+    socket.serverSends(repeated);
+    // Toasts render in arrival order, so once this one shows, both repeats have been handled
+    socket.serverSends(serverError('NOT_HOST', 'Only the host can start the round.'));
+    await screen.findByText('Only the host can start the round.');
+
+    expect(screen.getAllByText('A round is already in progress.')).toHaveLength(1);
+  });
+
+  it('shows a generic toast for an error without a payload', async () => {
+    const { socket } = renderConnected();
+
+    socket.serverSends({ type: 'error' });
+
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+  });
+
+  const unknownAirport = "Unknown airport code 'BOS'. Enter an IATA (ORD) or ICAO (KORD) code.";
+
+  it('shows an unknown airport refusal in the guess form and lets the player guess again', async () => {
+    const { socket, store } = renderConnected(<GuessForm />);
+    act(() => {
+      store.getState().ui.toggleRetroMode();
+      store.getState().game.setRoundStart({ hex: 'a', timeout_s: 30, direction: 'origin', round_number: 1 });
+    });
+    await userEvent.type(screen.getByLabelText(/airport guess/i), 'bos');
+    await userEvent.click(screen.getByRole('button', { name: /submit guess/i }));
+
+    act(() => socket.serverSends(serverError('UNKNOWN_AIRPORT_CODE', unknownAirport)));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(unknownAirport);
+    expect(screen.getByRole('button', { name: /submit guess/i })).toBeEnabled();
+  });
+
+  it('does not show an unknown airport refusal as a toast', async () => {
+    const { socket } = renderConnected();
+
+    socket.serverSends(serverError('UNKNOWN_AIRPORT_CODE', unknownAirport));
+    socket.serverSends(serverError('NOT_HOST', 'Only the host can start the round.'));
+    await screen.findByText('Only the host can start the round.');
+
+    expect(screen.queryByText(unknownAirport)).not.toBeInTheDocument();
+  });
+
+  it('starts the round once the server confirms the selection', async () => {
+    const { socket, store } = renderConnected(<PlaneDetails hex="abc123" onClose={() => {}} />);
+    act(() => {
+      store.getState().planes.upsertPlanes([
+        {
+          hex_ident: 'abc123',
+          lat: 42.36,
+          lon: -71.01,
+          alt: 10000,
+          lat_v: 0,
+          lon_v: 0,
+          alt_v: 0,
+          last_update_ts: 1,
+          trail: [],
+          route_hint: { guess_direction: 'destination', known_airport: 'KBOS', eligible: true },
+        },
+      ]);
+      store.setState((s) => {
+        s.game.hostNickname = 'Nick';
+        s.connection.nickname = 'Nick';
+      });
+    });
+    await userEvent.click(screen.getByRole('button', { name: /start round with this flight/i }));
+
+    act(() =>
+      socket.serverSends({
+        type: 'planeSelectedConfirm',
+        payload: { hex: 'abc123', guess_direction: 'destination' },
+      }),
+    );
+
+    expect(socket.sentTypes()).toEqual(['selectPlane', 'startRound']);
   });
 });

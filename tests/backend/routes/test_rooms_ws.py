@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 
-from backend.ingest.main import PlaneState
+from backend.schemas.plane import PlaneState
 from backend.schemas.ws import WSMessage, WSMessageType
 from backend.utils.redis_async import RedisClient
 

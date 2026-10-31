@@ -1,4 +1,4 @@
-import airports from '../assets/airports.json';
+import airports from '@data/airports.json';
 
 interface Airport {
   iata: string;
@@ -26,6 +26,18 @@ export function getAirportByCode(code: string): Airport | null {
   if (!code) return null;
   const upper = code.toUpperCase();
   return byIcao.get(upper) || byIata.get(upper) || null;
+}
+
+/**
+ * Return the error to show for a typed guess code, or null if it can be scored.
+ *
+ * The server scores against the same dataset and rejects unknown codes with
+ * the same message (UNKNOWN_AIRPORT_CODE), so checking here keeps the player
+ * from submitting a guess that would be refused.
+ */
+export function guessCodeError(code: string): string | null {
+  if (getAirportByCode(code)) return null;
+  return `Unknown airport code '${code}'. Enter an IATA (ORD) or ICAO (KORD) code.`;
 }
 
 // Cities with multiple major airports - use IATA code instead of city name

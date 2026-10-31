@@ -1,3 +1,24 @@
+import { z } from 'zod';
+
+const LatLonSchema = z.object({ lat: z.number(), lon: z.number() });
+
+/** GET /api/v0/config: where this install is and how to draw its map (ClientConfig). */
+export const ClientConfigSchema = z.object({
+  center: LatLonSchema,
+  monitored_airport: z.object({
+    icao: z.string(),
+    iata: z.string().nullable(),
+    name: z.string().nullable(),
+    position: LatLonSchema.nullable(),
+  }),
+  max_antenna_range_km: z.number(),
+  map_style_url: z.string(),
+  attributions: z.array(z.string()),
+  version: z.string(),
+});
+
+export type ClientConfig = z.infer<typeof ClientConfigSchema>;
+export type MonitoredAirport = ClientConfig['monitored_airport'];
 
 export interface RoomCreateRequest {
   host_nickname: string;
@@ -33,13 +54,8 @@ async function handleResponse(res: Response): Promise<any> {
   return res.json();
 }
 
-export function resolveApiBaseUrl(
-  envBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL,
-): string {
-  return envBaseUrl || '/api/v0';
-}
-
-const API_BASE_URL = resolveApiBaseUrl();
+// Same origin by default: nginx in production, the Vite proxy in development.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v0';
 
 export async function createRoomAPI(
   params: RoomCreateRequest,
@@ -68,4 +84,10 @@ export async function startSoloGameAPI(
   params: RoomJoinRequest,
 ): Promise<RoomJoinResponse> {
   return joinRoomAPI('solo', params);
+}
+
+/** Rejects when the request fails or the response is not a ClientConfig. */
+export async function fetchClientConfig(): Promise<ClientConfig> {
+  const res = await fetch(`${API_BASE_URL}/config`);
+  return ClientConfigSchema.parse(await handleResponse(res));
 }

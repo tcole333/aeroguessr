@@ -1,202 +1,136 @@
-"""Integration tests for host transfer UI updates."""
+"""Integration tests for host transfer broadcasts."""
 
-import asyncio
-from typing import Any, AsyncGenerator, Dict, Tuple
+from typing import NamedTuple
 
 import httpx
 import pytest
+import pytest_asyncio
+import redis.asyncio as redis
 from httpx_ws import aconnect_ws
 
+from backend.schemas.core import RoomMeta
 
-@pytest.fixture
-async def host_and_player(
-    integration_client: httpx.AsyncClient,
-) -> AsyncGenerator[Tuple[str, str, str, str], None]:
-    """Create a room with host and a joined player."""
-    # Create room as host
+from .ws_helpers import Expected, wait_for_message, wait_for_messages
+
+pytestmark = pytest.mark.integration
+
+HOST = "HostPlayer"
+PLAYER = "NormalPlayer"
+
+
+class HostAndPlayer(NamedTuple):
+    room_code: str
+    host_ws_url: str
+    player_ws_url: str
+
+
+@pytest_asyncio.fixture
+async def host_and_player(integration_client: httpx.AsyncClient) -> HostAndPlayer:
+    """Create a room hosted by HOST that PLAYER has joined over REST."""
     host_response = await integration_client.post(
         "/api/v0/rooms",
-        json={"host_nickname": "HostPlayer", "mode": "Exact", "round_timeout_seconds": 30},
+        json={"host_nickname": HOST, "mode": "Exact", "round_timeout_seconds": 30},
     )
     assert host_response.status_code == 201
     host_data = host_response.json()
     room_code = host_data["room_code"]
-    host_ws_url = host_data["ws_url"]
 
-    # Join room as player
     player_response = await integration_client.post(
-        f"/api/v0/rooms/{room_code}/join",
-        json={"nickname": "NormalPlayer"},
+        f"/api/v0/rooms/{room_code}/join", json={"nickname": PLAYER}
     )
     assert player_response.status_code == 200
-    player_data = player_response.json()
-    player_ws_url = player_data["ws_url"]
-
-    yield room_code, host_ws_url, player_ws_url, "HostPlayer"
+    return HostAndPlayer(room_code, host_data["ws_url"], player_response.json()["ws_url"])
 
 
-@pytest.mark.integration
+async def _read_meta(redis_conn: redis.Redis, room_code: str) -> RoomMeta:
+    meta_json = await redis_conn.get(f"room:{room_code}:meta")
+    assert meta_json is not None, f"room:{room_code}:meta is missing"
+    return RoomMeta.model_validate_json(meta_json)
+
+
 @pytest.mark.asyncio
 async def test_host_transfer_broadcasts_to_all_clients(
-    integration_client: httpx.AsyncClient, host_and_player: Tuple[str, str, str, str]
-):
+    integration_client: httpx.AsyncClient, host_and_player: HostAndPlayer
+) -> None:
     """Test that host transfer is broadcast to all connected clients."""
-    room_code, host_ws_url, player_ws_url, initial_host = host_and_player
+    async with aconnect_ws(host_and_player.host_ws_url, integration_client) as host_ws:
+        await wait_for_message(host_ws, "stateSync")
+        async with aconnect_ws(host_and_player.player_ws_url, integration_client) as player_ws:
+            await wait_for_message(player_ws, "stateSync")
+            await wait_for_message(host_ws, "playerJoined", nickname=PLAYER)
 
-    # Connect both clients
-    async with aconnect_ws(host_ws_url, integration_client) as host_ws:
-        async with aconnect_ws(player_ws_url, integration_client) as player_ws:
-            # Clear initial messages
-            await host_ws.receive_json()  # stateSync
-            await player_ws.receive_json()  # stateSync
-            await host_ws.receive_json()  # playerJoined for player
+            await host_ws.send_json({"type": "transferHost", "payload": {"to_nickname": PLAYER}})
 
-            # Host transfers to player
-            transfer_msg: Dict[str, Any] = {
-                "type": "transferHost",
-                "payload": {"to_nickname": "NormalPlayer"},
-            }
-            await host_ws.send_json(transfer_msg)
-
-            # Both clients should receive newHost message
-            host_received = False
-            player_received = False
-
-            # Check host receives newHost
-            msg_data = await host_ws.receive_json()
-            if msg_data.get("type") == "newHost":
-                assert msg_data["payload"]["nickname"] == "NormalPlayer"
-                host_received = True
-
-            # Check player receives newHost
-            msg_data = await player_ws.receive_json()
-            if msg_data.get("type") == "newHost":
-                assert msg_data["payload"]["nickname"] == "NormalPlayer"
-                player_received = True
-
-            assert host_received and player_received
+            await wait_for_message(host_ws, "newHost", nickname=PLAYER)
+            await wait_for_message(player_ws, "newHost", nickname=PLAYER)
 
 
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_host_leaves_room_transfers_host(
-    integration_client: httpx.AsyncClient, host_and_player: Tuple[str, str, str, str]
-):
+    integration_client: httpx.AsyncClient, host_and_player: HostAndPlayer
+) -> None:
     """Test that host leaving automatically transfers host role."""
-    room_code, host_ws_url, player_ws_url, initial_host = host_and_player
+    async with aconnect_ws(host_and_player.host_ws_url, integration_client) as host_ws:
+        await wait_for_message(host_ws, "stateSync")
+        async with aconnect_ws(host_and_player.player_ws_url, integration_client) as player_ws:
+            await wait_for_message(player_ws, "stateSync")
+            await wait_for_message(host_ws, "playerJoined", nickname=PLAYER)
 
-    # Connect both clients
-    async with aconnect_ws(host_ws_url, integration_client) as host_ws:
-        async with aconnect_ws(player_ws_url, integration_client) as player_ws:
-            # Clear initial messages
-            await host_ws.receive_json()  # stateSync
-            await player_ws.receive_json()  # stateSync
-            await host_ws.receive_json()  # playerJoined
+            await host_ws.send_json({"type": "leave", "payload": {}})
 
-            # Host leaves room
-            leave_msg: Dict[str, Any] = {"type": "leave", "payload": {}}
-            await host_ws.send_json(leave_msg)
-
-            # Player should receive both playerLeft and newHost messages
-            player_left_received = False
-            new_host_received = False
-
-            # Receive messages (order may vary)
-            for _ in range(2):
-                msg_data = await player_ws.receive_json()
-
-                if msg_data.get("type") == "playerLeft":
-                    assert msg_data["payload"]["nickname"] == "HostPlayer"
-                    player_left_received = True
-                elif msg_data.get("type") == "newHost":
-                    assert msg_data["payload"]["nickname"] == "NormalPlayer"
-                    new_host_received = True
-
-            assert player_left_received and new_host_received
+            # Both broadcasts follow the host's departure, so collect them in one wait.
+            await wait_for_messages(
+                player_ws,
+                Expected("playerLeft", {"nickname": HOST}),
+                Expected("newHost", {"nickname": PLAYER}),
+            )
 
 
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_multiple_players_host_transfer_updates(
-    integration_client: httpx.AsyncClient, host_and_player: Tuple[str, str, str, str]
-):
+    integration_client: httpx.AsyncClient, host_and_player: HostAndPlayer
+) -> None:
     """Test host transfer updates with multiple players in room."""
-    room_code, host_ws_url, player1_ws_url, initial_host = host_and_player
-
-    # Add a third player
     player2_response = await integration_client.post(
-        f"/api/v0/rooms/{room_code}/join",
-        json={"nickname": "Player2"},
+        f"/api/v0/rooms/{host_and_player.room_code}/join", json={"nickname": "Player2"}
     )
     assert player2_response.status_code == 200
-    player2_data = player2_response.json()
-    player2_ws_url = player2_data["ws_url"]
+    player2_ws_url = player2_response.json()["ws_url"]
 
-    # Connect all clients
-    async with aconnect_ws(host_ws_url, integration_client) as host_ws:
-        async with aconnect_ws(player1_ws_url, integration_client) as player1_ws:
+    async with aconnect_ws(host_and_player.host_ws_url, integration_client) as host_ws:
+        await wait_for_message(host_ws, "stateSync")
+        async with aconnect_ws(host_and_player.player_ws_url, integration_client) as player1_ws:
+            await wait_for_message(player1_ws, "stateSync")
+            await wait_for_message(host_ws, "playerJoined", nickname=PLAYER)
             async with aconnect_ws(player2_ws_url, integration_client) as player2_ws:
-                # Clear initial messages
-                await asyncio.gather(
-                    host_ws.receive_json(),  # stateSync
-                    player1_ws.receive_json(),  # stateSync
-                    player2_ws.receive_json(),  # stateSync
+                await wait_for_message(player2_ws, "stateSync")
+                await wait_for_message(host_ws, "playerJoined", nickname="Player2")
+                await wait_for_message(player1_ws, "playerJoined", nickname="Player2")
+
+                await host_ws.send_json(
+                    {"type": "transferHost", "payload": {"to_nickname": "Player2"}}
                 )
 
-                # Clear playerJoined messages
-                await host_ws.receive_json()  # playerJoined for player1
-                await host_ws.receive_json()  # playerJoined for player2
-                await player1_ws.receive_json()  # playerJoined for player2
-
-                # Host transfers to Player2
-                transfer_msg: Dict[str, Any] = {
-                    "type": "transferHost",
-                    "payload": {"to_nickname": "Player2"},
-                }
-                await host_ws.send_json(transfer_msg)
-
-                # All three clients should receive newHost message
-                received_count = 0
-
-                # Check all clients receive the message
-                for ws in [host_ws, player1_ws, player2_ws]:
-                    msg_data = await ws.receive_json()
-                    if msg_data.get("type") == "newHost":
-                        assert msg_data["payload"]["nickname"] == "Player2"
-                        received_count += 1
-
-                assert received_count == 3
+                for ws in (host_ws, player1_ws, player2_ws):
+                    await wait_for_message(ws, "newHost", nickname="Player2")
 
 
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_host_state_persists_after_transfer(
-    integration_client: httpx.AsyncClient, host_and_player: Tuple[str, str, str, str]
-):
+    integration_client: httpx.AsyncClient,
+    host_and_player: HostAndPlayer,
+    real_redis: redis.Redis,
+) -> None:
     """Test that host state persists in Redis after transfer."""
-    room_code, host_ws_url, player_ws_url, initial_host = host_and_player
+    async with aconnect_ws(host_and_player.host_ws_url, integration_client) as host_ws:
+        await wait_for_message(host_ws, "stateSync")
+        async with aconnect_ws(host_and_player.player_ws_url, integration_client) as player_ws:
+            await wait_for_message(player_ws, "stateSync")
+            await wait_for_message(host_ws, "playerJoined", nickname=PLAYER)
 
-    # Connect both clients
-    async with aconnect_ws(host_ws_url, integration_client) as host_ws:
-        async with aconnect_ws(player_ws_url, integration_client) as player_ws:
-            # Clear initial messages
-            await host_ws.receive_json()  # stateSync
-            await player_ws.receive_json()  # stateSync
-            await host_ws.receive_json()  # playerJoined
+            await host_ws.send_json({"type": "transferHost", "payload": {"to_nickname": PLAYER}})
+            await wait_for_message(player_ws, "newHost", nickname=PLAYER)
 
-            # Transfer host
-            transfer_msg: Dict[str, Any] = {
-                "type": "transferHost",
-                "payload": {"to_nickname": "NormalPlayer"},
-            }
-            await host_ws.send_json(transfer_msg)
+            meta = await _read_meta(real_redis, host_and_player.room_code)
 
-            # Wait for newHost messages
-            await host_ws.receive_json()
-            await player_ws.receive_json()
-
-            # Verify room state via API
-            room_response = await integration_client.get(f"/api/v0/rooms/{room_code}")
-            assert room_response.status_code == 200
-            room_data = room_response.json()
-            assert room_data["host_nickname"] == "NormalPlayer"
+    assert meta.host_nickname == PLAYER

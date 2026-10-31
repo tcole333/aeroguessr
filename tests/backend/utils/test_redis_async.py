@@ -28,6 +28,12 @@ def mock_redis_pool(monkeypatch: MonkeyPatch) -> ConnectionPool:
     return fake_pool
 
 
+async def test_ping(mock_redis_pool: ConnectionPool) -> None:
+    """Ping returns True when the Redis server is reachable."""
+    client = RedisClient()
+    assert await client.ping() is True
+
+
 async def test_set_json_no_expiry(mock_redis_pool: ConnectionPool) -> None:
     """Test setting a JSON value without expiry."""
     client = RedisClient()

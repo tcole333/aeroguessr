@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRootStore } from "../../../store/createRootStore";
+import { selectRevealedAnswer } from "../selectors";
 import type {
   FullRoomState,
   DeltaPayload,
+  PlaneState,
   RoundStartPayload,
   RoundResultPayload,
 } from "../../common/types";
@@ -11,14 +13,13 @@ describe("gameSlice", () => {
   it("hydrates and applies delta", () => {
     const store = createRootStore();
     const sync: FullRoomState = {
-      room_meta: { host_nickname: 'Host', is_solo: false, code: 'ABCD' },
+      room_meta: { host_nickname: 'Host', is_solo: false },
       players: { A: { score: 5 } },
     };
     store.getState().game.hydrate(sync);
-    expect(store.getState().game.players).toEqual({ A: { score: 5 } });
+    expect(store.getState().game.scores).toEqual({ A: 5 });
     expect(store.getState().game.hostNickname).toBe('Host');
     expect(store.getState().game.isSolo).toBe(false);
-    expect(store.getState().game.roomCode).toBe('ABCD');
 
     const delta: DeltaPayload = {
       scores: { A: 10 },
@@ -62,48 +63,21 @@ describe("gameSlice", () => {
     store.getState().game.setSelectedPlane('abc');
     expect(store.getState().game.selectedPlaneHex).toBe('abc');
 
-    store.getState().connection.setNickname('Me');
+    store.getState().connection.setConnectionDetails({ roomCode: 'ABCD', wsUrl: 'ws://x', nickname: 'Me' });
     store.getState().game.leaveRoom();
-    expect(store.getState().game.players).toEqual({});
+    expect(store.getState().game.scores).toEqual({});
     expect(store.getState().connection.nickname).toBeNull();
   });
 
   it("handles player join and leave", () => {
     const store = createRootStore();
 
-    // Add first player
     store.getState().game.addPlayer('Player1');
-    expect(store.getState().game.players['Player1']).toEqual({
-      nickname: 'Player1',
-      score: 0,
-      connected: true,
-      last_seen_ts: expect.any(Number),
-    });
-    expect(store.getState().game.scores['Player1']).toBe(0);
-
-    // Add second player
     store.getState().game.addPlayer('Player2');
-    expect(store.getState().game.players['Player2']).toEqual({
-      nickname: 'Player2',
-      score: 0,
-      connected: true,
-      last_seen_ts: expect.any(Number),
-    });
-    expect(store.getState().game.scores['Player2']).toBe(0);
+    expect(store.getState().game.scores).toEqual({ Player1: 0, Player2: 0 });
 
-    // Both players should exist
-    expect(Object.keys(store.getState().game.players)).toHaveLength(2);
-    expect(Object.keys(store.getState().game.scores)).toHaveLength(2);
-
-    // Remove first player
     store.getState().game.removePlayer('Player1');
-    expect(store.getState().game.players['Player1']).toBeUndefined();
-    expect(store.getState().game.scores['Player1']).toBeUndefined();
-
-    // Second player should still exist
-    expect(store.getState().game.players['Player2']).toBeDefined();
-    expect(store.getState().game.scores['Player2']).toBe(0);
-    expect(Object.keys(store.getState().game.players)).toHaveLength(1);
+    expect(store.getState().game.scores).toEqual({ Player2: 0 });
   });
 
   it("handles host updates from newHost message", () => {
@@ -120,5 +94,130 @@ describe("gameSlice", () => {
     // Clear host
     store.getState().game.setHostNickname(null);
     expect(store.getState().game.hostNickname).toBeNull();
+  });
+
+  describe("revealed answers", () => {
+    const roundStart: RoundStartPayload = {
+      hex: "abc",
+      timeout_s: 30,
+      direction: "destination",
+      round_number: 1,
+    };
+    const resultFor = (hex?: string): RoundResultPayload => ({
+      hex,
+      results: [
+        {
+          nickname: "A",
+          guess: "JFK",
+          correct_code: "KJFK",
+          score_awarded: 100,
+          current_total_score: 100,
+        },
+      ],
+      next_host_nickname: null,
+    });
+
+    const arrivingPlane = (hex: string): PlaneState => ({
+      hex_ident: hex,
+      lat: 42.36,
+      lon: -71.0,
+      alt: 5000,
+      lat_v: 0,
+      lon_v: 0,
+      alt_v: 0,
+      last_update_ts: 1,
+      trail: [],
+      route_hint: { guess_direction: "origin", known_airport: "KBOS", eligible: true },
+    });
+
+    it("remembers the answer a round result reveals for its plane and round end", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundStart(roundStart);
+      store.getState().game.setRoundResult(resultFor("abc"));
+
+      expect(selectRevealedAnswer("abc")(store.getState())).toEqual({
+        code: "KJFK",
+        direction: "destination",
+      });
+    });
+
+    it("takes the round end from the plane's hint for a client that joined mid-round", () => {
+      const store = createRootStore();
+      store.getState().planes.upsertPlanes([arrivingPlane("abc")]);
+      store.getState().game.setRoundResult(resultFor("abc"));
+
+      expect(selectRevealedAnswer("abc")(store.getState())).toEqual({
+        code: "KJFK",
+        direction: "origin",
+      });
+    });
+
+    it("reveals nothing when the round end is unknown", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundResult(resultFor("abc"));
+
+      expect(store.getState().game.revealedAnswers).toEqual({});
+    });
+
+    it("reveals nothing for a result that names no plane", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundResult(resultFor(undefined));
+
+      expect(store.getState().game.revealedAnswers).toEqual({});
+    });
+
+    it("forgets a plane's answer when a new round starts on it", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundStart(roundStart);
+      store.getState().game.setRoundResult(resultFor("abc"));
+      store.getState().game.setRoundStart(roundStart);
+
+      expect(selectRevealedAnswer("abc")(store.getState())).toBeNull();
+    });
+
+    it("forgets a plane's answer when the plane is removed", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundStart(roundStart);
+      store.getState().game.setRoundResult(resultFor("abc"));
+      store.getState().planes.removePlanes(["abc"]);
+
+      expect(selectRevealedAnswer("abc")(store.getState())).toBeNull();
+    });
+
+    it("forgets every answer on leaving the room", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundStart(roundStart);
+      store.getState().game.setRoundResult(resultFor("abc"));
+      store.getState().game.leaveRoom();
+
+      expect(store.getState().game.revealedAnswers).toEqual({});
+    });
+  });
+
+  describe("guess rejection", () => {
+    const roundStart: RoundStartPayload = {
+      hex: "abc",
+      timeout_s: 30,
+      direction: "origin",
+      round_number: 1,
+    };
+    const refusal = "Unknown airport code 'XQX'. Enter an IATA (ORD) or ICAO (KORD) code.";
+
+    it("forgets a refused guess when the next round starts", () => {
+      const store = createRootStore();
+      store.getState().game.setGuessRejection(refusal);
+      store.getState().game.setRoundStart(roundStart);
+
+      expect(store.getState().game.guessRejection).toBeNull();
+    });
+
+    it("forgets a refused guess when the round ends", () => {
+      const store = createRootStore();
+      store.getState().game.setRoundStart(roundStart);
+      store.getState().game.setGuessRejection(refusal);
+      store.getState().game.setRoundResult({ results: [], next_host_nickname: null });
+
+      expect(store.getState().game.guessRejection).toBeNull();
+    });
   });
 });

@@ -1,13 +1,33 @@
 import logging
 import time
 import uuid
+from collections.abc import Callable
+from enum import StrEnum
 from typing import Dict
 
+from redis.asyncio.client import Pipeline
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
+from redis.exceptions import WatchError
+
 from backend.schemas.core import Player, RoomMeta, ScoringMode
-from backend.schemas.game import RoundData, SoloSelectionContext
+from backend.schemas.game import PlayerGuess, RoundData, RoundStateEnum, SoloSelectionContext
+from backend.utils.airport_db import resolve_airport
 from backend.utils.redis_async import RedisClient
 
 logger = logging.getLogger(__name__)
+
+ROUND_TTL_SECONDS = 3600
+
+
+class GuessOutcome(StrEnum):
+    """Result of trying to record a player's guess."""
+
+    RECORDED = "recorded"
+    NO_ROUND = "no_round"
+    NOT_ACCEPTING = "not_accepting"
+    ALREADY_GUESSED = "already_guessed"
+    UNKNOWN_AIRPORT = "unknown_airport"
 
 
 async def get_player(redis: RedisClient, room_code: str, nickname: str) -> Player | None:
@@ -39,9 +59,11 @@ async def add_player(redis: RedisClient, room_code: str, player: Player) -> Play
     players_key = f"room:{room_code}:players"
     room_ttl = 3600  # 1 hour
 
-    # Store player data using the wrapper method
-    await redis.hset_model(players_key, player.nickname, player)
-    await redis.expire(players_key, room_ttl)
+    # One transaction, so the hash never exists without its TTL, even if this task is cancelled.
+    async with await redis.get_connection() as conn, conn.pipeline(transaction=True) as pipe:
+        pipe.hset(players_key, player.nickname, player.model_dump_json())
+        pipe.expire(players_key, room_ttl)
+        await pipe.execute()
     return player
 
 
@@ -63,63 +85,118 @@ async def create_solo_room_instance(
     return solo_code, meta
 
 
+async def _execute_watched(pipe: Pipeline) -> None:
+    """Execute a WATCHed transaction; a WatchError from it means a watched key changed.
+
+    While a key is watched, redis-py also turns a lost connection or a reply timeout into a
+    WatchError, raised while handling that error (a changed key's is raised ``from None``).
+    EXEC may already have run then, and retrying could apply the write twice, so the
+    connection error is raised instead and the caller's retry loop lets it through.
+    """
+    try:
+        await pipe.execute()
+    except WatchError as e:
+        lost = e.__context__
+        if not e.__suppress_context__ and isinstance(
+            lost, (RedisConnectionError, RedisTimeoutError)
+        ):
+            raise lost from None
+        raise
+
+
+async def _update_player(
+    redis: RedisClient, room_code: str, nickname: str, change: Callable[[Player], None]
+) -> Player | None:
+    """Apply ``change`` to a stored player and return the player as stored.
+
+    The read-change-write runs under WATCH/MULTI on the players hash and retries when another
+    writer changes the hash in between. The write only lands on the hash it read, so it cannot
+    recreate a hash that was deleted or expired (it would have no TTL, and production Redis
+    never evicts it), bring back a removed player, or overwrite a concurrent change.
+
+    Returns None, without writing, if the player is not in the room or cannot be parsed.
+    """
+    players_key = f"room:{room_code}:players"
+    async with await redis.get_connection() as conn, conn.pipeline(transaction=True) as pipe:
+        while True:
+            try:
+                await pipe.watch(players_key)
+                player_json = await pipe.hget(players_key, nickname)
+                if player_json is None:
+                    return None
+                try:
+                    player = Player.model_validate_json(player_json)
+                except ValueError as e:
+                    logger.error(f"Error deserializing player '{nickname}' in {players_key}: {e}")
+                    return None
+
+                change(player)
+                pipe.multi()
+                pipe.hset(players_key, nickname, player.model_dump_json())
+                await _execute_watched(pipe)
+                return player
+            except WatchError:
+                logger.debug(
+                    "Players of room %s changed while updating %s; retrying.", room_code, nickname
+                )
+
+
 async def update_player_status(
     redis: RedisClient, room_code: str, nickname: str, connected: bool
 ) -> Player | None:
-    """Adds score_change to a player's score and returns the updated player."""
-    players_key = f"room:{room_code}:players"
-    player = await redis.hget_model(players_key, nickname, Player)
-    if player:
+    """Sets a player's connection status and returns the updated player."""
+
+    def set_status(player: Player) -> None:
         player.connected = connected
         player.last_seen_ts = time.time()
-        try:
-            await redis.hset_model(players_key, nickname, player)
-            logger.debug(
-                f"Updated player '{nickname}' status in room '{room_code}' "
-                f"to connected={connected}."
-            )
-            return player
-        except Exception as e:
-            logger.error(
-                f"Failed to update status for player '{nickname}' in room '{room_code}': {e}",
-                exc_info=True,
-            )
-            raise  # Re-raise to signal failure
-    else:
+
+    try:
+        player = await _update_player(redis, room_code, nickname, set_status)
+    except Exception as e:
+        logger.error(
+            f"Failed to update status for player '{nickname}' in room '{room_code}': {e}",
+            exc_info=True,
+        )
+        raise  # Re-raise to signal failure
+    if player is None:
         logger.warning(
             f"Attempted to update status for non-existent player '{nickname}' "
             f"in room '{room_code}'."
         )
         return None
+    logger.debug(
+        f"Updated player '{nickname}' status in room '{room_code}' to connected={connected}."
+    )
+    return player
 
 
 async def update_player_score(
     redis: RedisClient, room_code: str, nickname: str, score_change: int
 ) -> Player | None:
     """Adds score_change to a player's score and returns the updated player."""
-    players_key = f"room:{room_code}:players"
-    player = await redis.hget_model(players_key, nickname, Player)
-    if player:
+
+    def add_score(player: Player) -> None:
         player.score += score_change
         player.last_seen_ts = time.time()  # Update activity timestamp
-        try:
-            await redis.hset_model(players_key, nickname, player)
-            logger.info(
-                f"Updated player '{nickname}' score by {score_change} to "
-                f"{player.score} in room '{room_code}'."
-            )
-            return player
-        except Exception as e:
-            logger.error(
-                f"Failed to update score for player '{nickname}' in room '{room_code}': {e}",
-                exc_info=True,
-            )
-            raise  # Re-raise
-    else:
+
+    try:
+        player = await _update_player(redis, room_code, nickname, add_score)
+    except Exception as e:
+        logger.error(
+            f"Failed to update score for player '{nickname}' in room '{room_code}': {e}",
+            exc_info=True,
+        )
+        raise  # Re-raise
+    if player is None:
         logger.warning(
             f"Attempted to update score for non-existent player '{nickname}' in room '{room_code}'."
         )
         return None
+    logger.info(
+        f"Updated player '{nickname}' score by {score_change} to "
+        f"{player.score} in room '{room_code}'."
+    )
+    return player
 
 
 async def get_all_players(redis: RedisClient, room_code: str) -> Dict[str, Player]:
@@ -134,27 +211,6 @@ async def get_all_players(redis: RedisClient, room_code: str) -> Dict[str, Playe
     """
     players_key = f"room:{room_code}:players"
     return await redis.hgetall_models(players_key, Player)
-
-
-async def remove_player(redis: RedisClient, room_code: str, nickname: str) -> bool:
-    """Remove a player from the room's player hash. Returns True if deleted."""
-    players_key = f"room:{room_code}:players"
-    try:
-        deleted_count = await redis.hdel(players_key, nickname)
-        if deleted_count > 0:
-            logger.info(f"Removed player '{nickname}' from room '{room_code}'.")
-            return True
-        else:
-            logger.warning(
-                f"Attempted to remove non-existent player '{nickname}' from room '{room_code}'."
-            )
-            return False
-    except Exception as e:
-        logger.error(
-            f"Failed to remove player '{nickname}' from room '{room_code}': {e}",
-            exc_info=True,
-        )
-        raise  # Re-raise
 
 
 # --- Solo Selection Context Helpers --- #
@@ -182,8 +238,6 @@ async def clear_solo_player_selection_context(redis: RedisClient, room_code: str
 # --- Room Metadata Helpers --- #
 
 
-# TODO: Add functions for managing room metadata (get_room_meta, set_room_meta)
-# Example:
 async def get_room_meta(redis: RedisClient, room_code: str) -> RoomMeta | None:
     """Retrieve the RoomMeta data for a given room code."""
     meta_key = f"room:{room_code}:meta"
@@ -247,7 +301,6 @@ async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundDa
     Overwrites existing round data.
     """
     round_key = f"room:{room_code}:round"
-    room_ttl_seconds = 3600  # Consider getting this from config or RoomMeta
     try:
         logger.info(
             f"SETTING ROUND DATA for key {round_key}. Current round data object (Python): "
@@ -257,7 +310,7 @@ async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundDa
             f"SETTING ROUND DATA for key {round_key}. Current round data object (JSON Str): "
             f"{round_data.model_dump_json(indent=2)}"
         )
-        success = await redis.set_json(round_key, round_data, expire_seconds=room_ttl_seconds)
+        success = await redis.set_json(round_key, round_data, expire_seconds=ROUND_TTL_SECONDS)
         logger.info(f"Redis SET command for {round_key} returned: {success}")
         if success:
             logger.debug(f"Set round data for room '{room_code}' to state {round_data.state}")
@@ -267,6 +320,45 @@ async def set_round_data(redis: RedisClient, room_code: str, round_data: RoundDa
     except Exception as e:
         logger.error(f"Failed to set round data for room '{room_code}': {e}", exc_info=True)
         raise
+
+
+async def record_guess(
+    redis: RedisClient, room_code: str, guess: PlayerGuess
+) -> tuple[GuessOutcome, RoundData | None]:
+    """Add ``guess`` to the room's round without losing guesses written concurrently.
+
+    The read-check-write runs under WATCH/MULTI on the round key and retries when another
+    writer changes the round in between, so two players guessing at the same moment both
+    end up in the stored round.
+
+    Returns the outcome and the round as stored after this call (``None`` if the room has
+    no round). A guess is only recorded while the round accepts guesses, the player has
+    not guessed yet, and the code is in the airport dataset. The round-state and duplicate
+    checks come first, so their outcomes take precedence over ``UNKNOWN_AIRPORT``.
+    """
+    round_key = f"room:{room_code}:round"
+    async with await redis.get_connection() as conn, conn.pipeline(transaction=True) as pipe:
+        while True:
+            try:
+                await pipe.watch(round_key)
+                round_json = await pipe.get(round_key)
+                if round_json is None:
+                    return GuessOutcome.NO_ROUND, None
+                round_data = RoundData.model_validate_json(round_json)
+                if round_data.state != RoundStateEnum.ACCEPTING_GUESSES:
+                    return GuessOutcome.NOT_ACCEPTING, round_data
+                if guess.nickname in round_data.guesses:
+                    return GuessOutcome.ALREADY_GUESSED, round_data
+                if resolve_airport(guess.guess) is None:
+                    return GuessOutcome.UNKNOWN_AIRPORT, round_data
+
+                round_data.guesses = {**round_data.guesses, guess.nickname: guess}
+                pipe.multi()
+                pipe.set(round_key, round_data.model_dump_json(), ex=ROUND_TTL_SECONDS)
+                await _execute_watched(pipe)
+                return GuessOutcome.RECORDED, round_data
+            except WatchError:
+                logger.debug("Round %s changed while recording a guess; retrying.", room_code)
 
 
 async def initialize_round_data(redis: RedisClient, room_code: str) -> RoundData:
@@ -282,9 +374,6 @@ async def initialize_round_data(redis: RedisClient, room_code: str) -> RoundData
     new_round_data = RoundData()  # Creates with default WAITING_FOR_SELECTION state
     await set_round_data(redis, room_code, new_round_data)
     return new_round_data
-
-
-# TODO: Add functions for managing round state (get_round_data, set_round_data)
 
 
 async def delete_room(redis: RedisClient, room_code: str) -> None:

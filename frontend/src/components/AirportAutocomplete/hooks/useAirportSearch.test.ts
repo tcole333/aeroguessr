@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAirportSearch } from './useAirportSearch';
 
 // Mock the airport data
-vi.mock('../../../assets/airports.json', () => ({
+vi.mock('@data/airports.json', () => ({
   default: [
     {
       iata: 'BOS',

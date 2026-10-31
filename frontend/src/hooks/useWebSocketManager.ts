@@ -1,12 +1,36 @@
 import { useEffect } from 'react';
 import debug from 'debug';
+import { toast } from 'sonner';
 import { useStore } from './useStore';
 import { createWebSocketClient } from '../lib/WebSocketClient';
-import type { InboundMessage } from '../../types/ws';
+import type { ErrorPayload, InboundMessage } from '../../types/ws';
 
 const log = debug('plane:ws:manager');
 
 const client = createWebSocketClient();
+
+const FALLBACK_ERROR_MESSAGE = 'Something went wrong. Please try again.';
+
+/**
+ * Shows a server rejection, so a refused action no longer fails silently. The server
+ * records no guess it refuses for an unknown airport, so the guess forms show that one
+ * inline and let the player send another; every other rejection is a toast. The text
+ * comes from the server, which keeps answer airports out of every message before
+ * roundResult.
+ */
+function showServerError(
+  payload: ErrorPayload | undefined,
+  setGuessRejection: (message: string) => void,
+): void {
+  const message = payload?.message || FALLBACK_ERROR_MESSAGE;
+  log('server error', payload?.code, message);
+  if (payload?.code === 'UNKNOWN_AIRPORT_CODE') {
+    setGuessRejection(message);
+    return;
+  }
+  // One id per error folds repeats (e.g. a double click) into a single toast
+  toast.error(message, { id: `${payload?.code ?? 'error'}:${message}` });
+}
 
 interface SliceActions {
   hydrate: (state: any) => void;
@@ -14,30 +38,16 @@ interface SliceActions {
   setRoundStart: (p: any) => void;
   setRoundResult: (p: any) => void;
   setSelectedPlane: (hex: string | null) => void;
-  setGuessDirection: (direction: string | null) => void;
   setHostNickname: (nick: string | null) => void;
+  setGuessRejection: (message: string | null) => void;
   addPlayer: (nickname: string) => void;
   removePlayer: (nickname: string) => void;
   upsertPlanes: (p: any[]) => void;
   removePlanes: (ids: string[]) => void;
   setExpandedPlane: (hex: string | null) => void;
-  setActivePanel: (panel: 'planes' | 'leaderboard' | 'settings') => void;
 }
 
-function handleInbound(
-  msg: InboundMessage,
-  updateLatency: (latency: number) => void,
-  setLastHeartbeat: (ts: number | null) => void,
-  actions: SliceActions,
-): void {
-  if (msg.type === 'pong') {
-    setLastHeartbeat(Date.now());
-    if (msg.payload?.seq) {
-      updateLatency(Date.now() - msg.payload.seq);
-    }
-    return;
-  }
-
+function handleInbound(msg: InboundMessage, actions: SliceActions): void {
   switch (msg.type) {
     case 'stateSync':
       actions.hydrate(msg.payload);
@@ -49,7 +59,6 @@ function handleInbound(
           actions.upsertPlanes(planes.updated);
         }
         if (planes?.removed && planes.removed.length > 0) {
-          log('removing planes %O', planes.removed);
           actions.removePlanes(planes.removed);
         }
         actions.applyDelta(msg.payload);
@@ -63,7 +72,7 @@ function handleInbound(
           actions.setExpandedPlane(msg.payload.hex);
         }
       } catch (error) {
-        log('roundStart handling failed %O', error);
+        console.error('[WS] Error handling roundStart:', error);
       }
       break;
     case 'roundResult':
@@ -72,28 +81,25 @@ function handleInbound(
     case 'playerJoined':
       if (msg.payload?.nickname) {
         actions.addPlayer(msg.payload.nickname);
-        log('player joined %s', msg.payload.nickname);
       }
       break;
     case 'playerLeft':
       if (msg.payload?.nickname) {
         actions.removePlayer(msg.payload.nickname);
-        log('player left %s', msg.payload.nickname);
       }
       break;
     case 'newHost':
       if (msg.payload?.nickname) {
         actions.setHostNickname(msg.payload.nickname);
-        log('new host %s', msg.payload.nickname);
       }
       break;
     case 'planeSelectedConfirm':
       if (msg.payload?.hex) {
         actions.setSelectedPlane(msg.payload.hex);
-        if (msg.payload.guess_direction) {
-          actions.setGuessDirection(msg.payload.guess_direction);
-        }
       }
+      break;
+    case 'error':
+      showServerError(msg.payload, actions.setGuessRejection);
       break;
     default:
       // no-op for unhandled types
@@ -107,15 +113,13 @@ export function useWebSocketManager(
 ): void {
   const setStatus = useStore((s) => s.connection.setStatus);
   const setError = useStore((s) => s.connection.setError);
-  const updateLatency = useStore((s) => s.connection.updateLatency);
-  const setLastHeartbeat = useStore((s) => s.connection.setLastHeartbeat);
   const hydrate = useStore((s) => s.game.hydrate);
   const applyDelta = useStore((s) => s.game.applyDelta);
   const setRoundStart = useStore((s) => s.game.setRoundStart);
   const setRoundResult = useStore((s) => s.game.setRoundResult);
   const setSelectedPlane = useStore((s) => s.game.setSelectedPlane);
-  const setGuessDirection = useStore((s) => s.game.setGuessDirection);
   const setHostNickname = useStore((s) => s.game.setHostNickname);
+  const setGuessRejection = useStore((s) => s.game.setGuessRejection);
   const addPlayer = useStore((s) => s.game.addPlayer);
   const removePlayer = useStore((s) => s.game.removePlayer);
   const upsertPlanes = useStore((s) => s.planes.upsertPlanes);
@@ -123,37 +127,33 @@ export function useWebSocketManager(
   const clearPlanes = useStore((s) => s.planes.clear);
   const wsUrl = useStore((s) => s.connection.wsUrl);
   const setExpandedPlane = useStore((s) => s.ui.setExpandedPlane);
-  const setActivePanel = useStore((s) => s.ui.setActivePanel);
   const isRejoinAttempt = useStore((s) => s.connection.isRejoinAttempt);
   const setIsRejoinAttempt = useStore((s) => s.connection.setIsRejoinAttempt);
   const clearConnectionDetails = useStore((s) => s.connection.clearConnectionDetails);
   const setCurrentView = useStore((s) => s.ui.setCurrentView);
 
   useEffect(() => {
-    const actions = {
-      hydrate,
-      applyDelta,
-      setRoundStart,
-      setRoundResult,
-      setSelectedPlane,
-      setGuessDirection,
-      setHostNickname,
-      addPlayer,
-      removePlayer,
-      upsertPlanes,
-      removePlanes,
-      setExpandedPlane,
-      setActivePanel,
-    };
-    const offMsg = client.subscribe((m) =>
-      handleInbound(m, updateLatency, setLastHeartbeat, actions),
-    );
+  const actions = {
+    hydrate,
+    applyDelta,
+    setRoundStart,
+    setRoundResult,
+    setSelectedPlane,
+    setHostNickname,
+    setGuessRejection,
+    addPlayer,
+    removePlayer,
+    upsertPlanes,
+    removePlanes,
+    setExpandedPlane,
+  };
+    const offMsg = client.subscribe((m) => handleInbound(m, actions));
     const offConn = client.on('connected', () => {
       setStatus('connected');
       // Clear rejoin attempt flag on successful connection
       if (isRejoinAttempt) {
         setIsRejoinAttempt(false);
-        log('rejoined room successfully');
+        log('rejoined room');
       }
     });
     const offDisc = client.on('disconnected', () => setStatus('reconnecting'));
@@ -164,7 +164,7 @@ export function useWebSocketManager(
 
       // Handle rejoin failures
       if (isRejoinAttempt) {
-        log('rejoin failed, redirecting home');
+        log('rejoin failed; back to home');
         setIsRejoinAttempt(false);
         clearConnectionDetails();
         setCurrentView('home');
@@ -180,21 +180,18 @@ export function useWebSocketManager(
   }, [
     setStatus,
     setError,
-    updateLatency,
-    setLastHeartbeat,
     hydrate,
     applyDelta,
     setRoundStart,
     setRoundResult,
     setSelectedPlane,
-    setGuessDirection,
     setHostNickname,
+    setGuessRejection,
     addPlayer,
     removePlayer,
     upsertPlanes,
     removePlanes,
     setExpandedPlane,
-    setActivePanel,
     isRejoinAttempt,
     setIsRejoinAttempt,
     clearConnectionDetails,

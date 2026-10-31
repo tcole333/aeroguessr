@@ -1,10 +1,13 @@
 import { useStore } from '../../../hooks/useStore';
 import { selectDarkMode, selectRetroMode } from '../../ui/selectors';
+import { selectServerVersion } from '../../config/selectors';
 import { webSocketClient } from '../../../hooks/useWebSocketManager';
 
 export default function SettingsPanelContent(): JSX.Element {
   const darkMode = useStore(selectDarkMode);
   const retroMode = useStore(selectRetroMode);
+  // For bug reports: the version this install runs, from the client config
+  const version = useStore(selectServerVersion);
   const toggleDarkMode = useStore((s) => s.ui.toggleDarkMode);
   const toggleRetroMode = useStore((s) => s.ui.toggleRetroMode);
   const leaveRoom = useStore((s) => s.game.leaveRoom);
@@ -89,6 +92,12 @@ export default function SettingsPanelContent(): JSX.Element {
         >
           Leave Gate
         </button>
+
+        {version && (
+          <p className="text-center font-display text-xs tracking-wider text-retro-text-muted">
+            AeroGuessr {version}
+          </p>
+        )}
       </div>
     );
   }
@@ -146,6 +155,10 @@ export default function SettingsPanelContent(): JSX.Element {
       >
         Leave Room
       </button>
+
+      {version && (
+        <p className="text-center text-xs text-gray-500 dark:text-gray-400">AeroGuessr {version}</p>
+      )}
     </div>
   );
 }

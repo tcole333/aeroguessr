@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.ingest.main import PlaneState
 from backend.schemas.game import RoundData
+from backend.schemas.plane import PlaneState
 from backend.services.plane_filter import PlaneFilter
 
 

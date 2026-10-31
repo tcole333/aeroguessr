@@ -1,119 +1,42 @@
 """Main ADS-B ingest loop.
 
 Connects to TCP source, parses messages, smooths data, and stores in Redis.
+Routes are resolved from an in-memory airport board, so handling a message
+never makes a network call; the board refresher (started alongside the
+reader) is the only part of the ingest that may spend AeroAPI credits.
 """
 
 import asyncio
 import importlib
 import logging
-import os
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
-from pydantic import BaseModel, Field
 
-from backend.ingest.enrichment import (
-    EnrichedData,
-    RouteData,
-    fetch_aeroapi_route,
-    fetch_opensky_data,
-)
-from backend.ingest.enrichment_v2 import fetch_route_data_v2
+from backend.ingest.airport_board import Route, RouteLookup
+from backend.ingest.board_refresher import build_route_source
+from backend.ingest.enrichment_config import EnrichmentConfig
 from backend.ingest.parser import RawMessage, parse_sbs_message
 from backend.ingest.smoother_enu import PositionSmootherENU
+from backend.schemas.plane import PlaneState
+from backend.services.ingest_heartbeat import start_heartbeat
+from backend.settings import get_settings
+from backend.utils.logging_config import configure_logging
 from backend.utils.redis_async import RedisClient
 
-# --- Configuration ---
-# ADSB_HOST defaults to 127.0.0.1 to be explicit for the main connection loop.
-# If FAKE_ADSB=1, the internal generator also uses 127.0.0.1.
-ADSB_HOST = os.getenv("ADSB_HOST", "127.0.0.1")
-ADSB_PORT = int(os.getenv("ADSB_PORT", 30003))
-KALMAN_PROCESS_NOISE = float(os.getenv("KALMAN_PROCESS_NOISE", 0.5))
-KALMAN_MEASUREMENT_NOISE = float(os.getenv("KALMAN_MEASUREMENT_NOISE", 10.0))
-CENTER_LAT = float(os.getenv("CENTER_LAT", "0.0"))
-CENTER_LON = float(os.getenv("CENTER_LON", "0.0"))
-PLANE_TTL_SECONDS = int(os.getenv("PLANE_TTL_SECONDS", 300))
+# --- Configuration (backend/settings.py) ---
+# With FAKE_ADSB=1 the internal generator listens on 127.0.0.1:ADSB_PORT.
+ADSB_HOST = get_settings().adsb_host
+ADSB_PORT = get_settings().adsb_port
+# Origin of the smoother's local ENU frame, and where FAKE_ADSB's synthetic planes fly.
+CENTER_LAT = get_settings().center_lat
+CENTER_LON = get_settings().center_lon
+PLANE_TTL_SECONDS = get_settings().plane_ttl_seconds
 RECONNECT_DELAY = 5  # Seconds to wait before retrying connection
-ENRICHMENT_V2_ENABLED = os.getenv("ENRICHMENT_V2_ENABLED", "1") == "1"  # Default to enabled
-
-# Backoff schedule for enrichment retries: aggressive early, then back off
-# [0, 1, 3, 10, 30, 60] seconds between attempts
-ENRICHMENT_BACKOFF = [0, 1, 3, 10, 30, 60]
-MAX_ENRICHMENT_ATTEMPTS = len(ENRICHMENT_BACKOFF)
 
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)
-
-
-# --- Data Structures ---
-class PlaneState(BaseModel):
-    """Represents the smoothed state of an aircraft stored in Redis.
-
-    Includes core position/velocity, a capped trail, and cached enrichment data.
-    """
-
-    hex_ident: str = Field(..., description="Aircraft ICAO hex identifier.")
-    lat: float = Field(..., description="Smoothed latitude.")
-    lon: float = Field(..., description="Smoothed longitude.")
-    alt: float = Field(..., description="Smoothed altitude in feet.")
-    lat_v: float = Field(..., description="Smoothed latitude velocity.")
-    lon_v: float = Field(..., description="Smoothed longitude velocity.")
-    alt_v: float = Field(..., description="Smoothed altitude velocity (fpm).")
-    last_update_ts: float = Field(..., description="Timestamp of the last update.")
-    trail: List[Tuple[float, float, float]] = Field(
-        default_factory=list,
-        description="List of recent (lat, lon, alt) tuples, capped at 10.",
-    )
-    callsign: Optional[str] = Field(None, description="Aircraft callsign (cached).")
-    origin_country: Optional[str] = Field(
-        None, description="Origin country based on ICAO24 (cached)."
-    )
-    category: Optional[int] = Field(None, description="Aircraft category code (cached).")
-    # Raw ADS-B track (heading from aircraft broadcast)
-    track: Optional[float] = Field(
-        None, description="Aircraft track/heading in degrees from ADS-B."
-    )
-    # AeroAPI Enrichment fields (cached)
-    origin: Optional[str] = Field(None, description="Origin airport ICAO (cached).")
-    destination: Optional[str] = Field(None, description="Destination airport ICAO (cached).")
-    operator: Optional[str] = Field(None, description="Airline/operator name (cached).")
-    # Signal quality tracking
-    first_seen_ts: float = Field(
-        default_factory=lambda: time.time(), description="Timestamp when plane was first detected."
-    )
-    update_count: int = Field(
-        default=1, description="Number of position updates received for this plane."
-    )
-    # Enrichment retry tracking
-    enrichment_attempts: int = Field(default=0, description="Number of enrichment attempts made.")
-    last_enrichment_ts: Optional[float] = Field(
-        default=None, description="Timestamp of last enrichment attempt."
-    )
-
-
-def should_retry_enrichment(state: PlaneState, current_time: float) -> bool:
-    """Check if we should retry enrichment based on backoff schedule.
-
-    Args:
-        state: Current plane state with enrichment tracking fields.
-        current_time: Current timestamp.
-
-    Returns:
-        True if enrichment should be retried, False otherwise.
-    """
-    if state.enrichment_attempts >= MAX_ENRICHMENT_ATTEMPTS:
-        return False  # Given up after max attempts
-
-    if state.last_enrichment_ts is None:
-        return True  # Never tried
-
-    # Get backoff delay for current attempt number
-    backoff_index = min(state.enrichment_attempts, len(ENRICHMENT_BACKOFF) - 1)
-    backoff_seconds = ENRICHMENT_BACKOFF[backoff_index]
-    time_since_last = current_time - state.last_enrichment_ts
-
-    return time_since_last >= backoff_seconds
 
 
 # Runtime state (in-memory)
@@ -123,9 +46,43 @@ callsign_cache: Dict[str, str] = {}  # hex_ident -> callsign
 track_cache: Dict[str, float] = {}  # hex_ident -> track (degrees)
 
 
+def _resolve_route(
+    routes: RouteLookup,
+    callsign: Optional[str],
+    now: float,
+    existing_state: Optional[PlaneState],
+) -> Optional[Route]:
+    """The board's route for this callsign, else the route already stored for it.
+
+    Keeping the stored route means a plane does not lose it when its board row
+    ages out while it is still in range. A new callsign never inherits one.
+    """
+    if callsign and callsign.strip():
+        route = routes.lookup(callsign.strip(), now)
+        if route is not None:
+            return route
+    if (
+        existing_state is not None
+        and existing_state.callsign == callsign
+        and (existing_state.origin or existing_state.destination)
+    ):
+        return Route(
+            origin_icao=existing_state.origin,
+            destination_icao=existing_state.destination,
+            operator=existing_state.operator,
+        )
+    return None
+
+
 # --- Main Ingest Logic ---
-async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
-    """Process a parsed RawMessage: enrich, update smoother, store in Redis."""
+async def handle_message(
+    msg: RawMessage, redis_client: RedisClient, *, routes: RouteLookup
+) -> None:
+    """Process a parsed RawMessage: update smoother, resolve route, store in Redis.
+
+    Routes come from ``routes``, an in-memory board, so this never makes a
+    network call no matter how many planes or messages arrive.
+    """
     # Handle MSG,1 (callsign only) messages - cache the callsign even without position
     if msg.callsign and msg.callsign.strip():
         callsign = msg.callsign.strip()
@@ -136,30 +93,6 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     if msg.track is not None:
         track_cache[msg.hex_ident] = msg.track
         logger.debug(f"Cached track for {msg.hex_ident}: {msg.track}°")
-
-    # Trigger enrichment immediately when callsign arrives for planes missing route data
-    if msg.callsign and msg.callsign.strip() and ENRICHMENT_V2_ENABLED:
-        callsign = msg.callsign.strip()
-        redis_key = f"plane:{msg.hex_ident}"
-        existing_state = await redis_client.get_model(redis_key, PlaneState)
-        if existing_state and existing_state.origin is None and existing_state.destination is None:
-            logger.info(f"Callsign {callsign} arrived for {msg.hex_ident} - triggering enrichment")
-            route_data = await fetch_route_data_v2(msg.hex_ident, redis_client, callsign=callsign)
-            if route_data and (route_data.origin_icao or route_data.destination_icao):
-                # Update the plane state with new route data
-                existing_state.origin = route_data.origin_icao
-                existing_state.destination = route_data.destination_icao
-                existing_state.operator = route_data.operator
-                existing_state.callsign = callsign
-                existing_state.enrichment_attempts = existing_state.enrichment_attempts + 1
-                existing_state.last_enrichment_ts = time.time()
-                await redis_client.set_json(
-                    redis_key, existing_state, expire_seconds=PLANE_TTL_SECONDS
-                )
-                logger.info(
-                    f"Enrichment SUCCESS on callsign arrival: {msg.hex_ident}/{callsign} "
-                    f"→ {route_data.origin_icao} → {route_data.destination_icao}"
-                )
 
     if not msg.latitude or not msg.longitude or not msg.altitude:
         return  # Skip messages without position (but callsign was cached above)
@@ -184,21 +117,10 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
     # Try to get existing state first using get_model utility
     existing_state: Optional[PlaneState] = await redis_client.get_model(redis_key, PlaneState)
 
-    # === BEGIN ADDED LOGGING FOR EXISTING STATE ===
-    if existing_state:
-        logger.info(
-            f"INGEST_MAIN: Loaded existing_state for {hex_ident} - Origin: "
-            f"{existing_state.origin}, Destination: {existing_state.destination}, "
-            f"Callsign: {existing_state.callsign}"
-        )
-    # === END ADDED LOGGING ===
-
     smoother = active_smoothers.get(hex_ident)
-    enriched_data: Optional[EnrichedData] = None
-    route_data: Optional[RouteData] = None
 
     if smoother is None:
-        logger.info(f"Creating new smoother for {hex_ident}.")
+        logger.debug(f"Creating new smoother for {hex_ident}.")
         smoother = PositionSmootherENU(
             initial_pos_deg_ft=measurement_tuple,
             origin_ll=(CENTER_LAT, CENTER_LON),
@@ -207,17 +129,6 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         last_timestamps[hex_ident] = current_time
         smoothed_state_vector = smoother.state
         current_trail = [(measurement[0], measurement[1], measurement[2])]
-        logger.info(f"Fetching enrichment data for new plane {hex_ident}.")
-        # Skip OpenSky API calls when V2 enrichment is enabled to avoid rate limiting
-        if not ENRICHMENT_V2_ENABLED:
-            enriched_data = await fetch_opensky_data(hex_ident, redis_client)
-        # Use new enrichment system if enabled
-        # Use cached callsign if not present in current message (MSG,1 arrives before position)
-        callsign = msg.callsign or callsign_cache.get(hex_ident)
-        if ENRICHMENT_V2_ENABLED:
-            route_data = await fetch_route_data_v2(hex_ident, redis_client, callsign=callsign)
-        else:
-            route_data = await fetch_aeroapi_route(hex_ident, redis_client)
     else:
         last_time = last_timestamps.get(hex_ident, current_time)
         dt = current_time - last_time
@@ -235,7 +146,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             del active_smoothers[hex_ident]
             del last_timestamps[hex_ident]
             # Recursive call to create new smoother
-            await handle_message(msg, redis_client)
+            await handle_message(msg, redis_client, routes=routes)
             return
 
         # Cap maximum prediction time to prevent divergence
@@ -283,7 +194,6 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             smoother.update(measurement_tuple)
             smoothed_state_vector = smoother.state
             last_timestamps[hex_ident] = current_time
-            # logger.debug(f"Updated smoother for {hex_ident}. dt={dt:.2f}s")
 
             # Manage the trail
             current_trail = existing_state.trail if existing_state else []
@@ -297,74 +207,11 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             if len(current_trail) > 10:
                 current_trail.pop(0)  # Remove the oldest point
 
-            # === BEGIN ADDED LOGGING BEFORE CARRY OVER ===
-            if existing_state:
-                logger.info(
-                    f"INGEST_MAIN (Carry Over): Existing state for {hex_ident} before "
-                    f"constructing enrichment - Origin: {existing_state.origin}, Dest: "
-                    f"{existing_state.destination}"
-                )
-            else:
+            if not existing_state:
                 logger.warning(
                     f"INGEST_MAIN: Smoother exists for {hex_ident} but no Redis state found. "
                     f"Possible Redis expiration or data corruption."
                 )
-            # === END ADDED LOGGING BEFORE CARRY OVER ===
-            # Carry over existing enrichment data if available
-            if existing_state:
-                enriched_data = EnrichedData(
-                    callsign=existing_state.callsign,
-                    origin_country=existing_state.origin_country,
-                    category=existing_state.category,
-                )
-                route_data = RouteData(
-                    origin_icao=existing_state.origin,
-                    destination_icao=existing_state.destination,
-                    operator=existing_state.operator,
-                )
-
-                # Check if we should retry enrichment using backoff schedule
-                if (
-                    existing_state.origin is None
-                    and existing_state.destination is None
-                    and should_retry_enrichment(existing_state, current_time)
-                    and ENRICHMENT_V2_ENABLED
-                ):
-                    current_callsign = msg.callsign or callsign_cache.get(hex_ident)
-                    attempt_num = existing_state.enrichment_attempts + 1
-                    logger.debug(
-                        f"Retry enrichment attempt {attempt_num}/{MAX_ENRICHMENT_ATTEMPTS} "
-                        f"for {hex_ident} (callsign: {current_callsign})"
-                    )
-                    route_data = await fetch_route_data_v2(
-                        hex_ident, redis_client, callsign=current_callsign
-                    )
-                    # Track this attempt - will be saved when PlaneState is stored below
-                    # Note: enrichment_attempts and last_enrichment_ts will be updated
-                    # in the PlaneState constructor at the end of this function
-                    if route_data and (route_data.origin_icao or route_data.destination_icao):
-                        logger.info(
-                            f"Enrichment retry SUCCESS for {hex_ident}/{current_callsign} "
-                            f"(attempt {attempt_num}): "
-                            f"{route_data.origin_icao} → {route_data.destination_icao}"
-                        )
-            else:
-                # Redis state expired, re-fetch enrichment data
-                logger.info(
-                    f"Re-fetching enrichment data for {hex_ident} due to missing Redis state."
-                )
-                # Skip OpenSky API calls when V2 enrichment is enabled to avoid rate limiting
-                if not ENRICHMENT_V2_ENABLED:
-                    enriched_data = await fetch_opensky_data(hex_ident, redis_client)
-                # Use new enrichment system if enabled
-                # Use cached callsign if not present in current message
-                callsign = msg.callsign or callsign_cache.get(hex_ident)
-                if ENRICHMENT_V2_ENABLED:
-                    route_data = await fetch_route_data_v2(
-                        hex_ident, redis_client, callsign=callsign
-                    )
-                else:
-                    route_data = await fetch_aeroapi_route(hex_ident, redis_client)
 
         except np.linalg.LinAlgError as e:
             logger.error(f"Kalman filter numerical instability for {hex_ident}: {e}")
@@ -400,7 +247,7 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
             f"{velocity_magnitude:.6f} deg/s -> {max_velocity_deg_per_sec:.6f} deg/s"
         )
 
-    # Prepare data for Redis, including the updated trail and enrichment data
+    # Prepare data for Redis, including the updated trail and route
     # Handle signal quality tracking
     if existing_state:
         # Existing plane: increment update count, preserve first_seen_ts
@@ -411,33 +258,9 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         first_seen_ts = current_time
         update_count = 1
 
-    # Handle enrichment attempt tracking
-    # We attempted enrichment if:
-    # 1. New plane (smoother is None at start) - initial enrichment
-    # 2. Existing plane with retry conditions met (checked via should_retry_enrichment)
-    if existing_state:
-        # Check if we attempted enrichment this cycle
-        did_attempt_enrichment = (
-            existing_state.origin is None
-            and existing_state.destination is None
-            and should_retry_enrichment(existing_state, current_time)
-            and ENRICHMENT_V2_ENABLED
-        )
-        if did_attempt_enrichment:
-            enrichment_attempts = existing_state.enrichment_attempts + 1
-            last_enrichment_ts = current_time
-        else:
-            enrichment_attempts = existing_state.enrichment_attempts
-            last_enrichment_ts = existing_state.last_enrichment_ts
-    else:
-        # New plane - this is attempt 1
-        enrichment_attempts = 1
-        last_enrichment_ts = current_time
-
-    # Determine callsign from: enriched_data > msg.callsign > cache > existing state
+    # Determine callsign from: msg.callsign > cache > existing state
     resolved_callsign = (
-        (enriched_data.callsign if enriched_data else None)
-        or msg.callsign
+        msg.callsign
         or callsign_cache.get(hex_ident)
         or (existing_state.callsign if existing_state else None)
     )
@@ -448,6 +271,8 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         or track_cache.get(hex_ident)
         or (existing_state.track if existing_state else None)
     )
+
+    route = _resolve_route(routes, resolved_callsign, current_time, existing_state)
 
     plane_data = PlaneState(
         hex_ident=hex_ident,
@@ -460,44 +285,34 @@ async def handle_message(msg: RawMessage, redis_client: RedisClient) -> None:
         last_update_ts=current_time,
         trail=current_trail,
         callsign=resolved_callsign,
-        origin_country=enriched_data.origin_country if enriched_data else None,
-        category=enriched_data.category if enriched_data else None,
         track=resolved_track,
-        origin=route_data.origin_icao if route_data else None,
-        destination=route_data.destination_icao if route_data else None,
-        operator=route_data.operator if route_data else None,
+        origin=route.origin_icao if route else None,
+        destination=route.destination_icao if route else None,
+        operator=route.operator if route else None,
         first_seen_ts=first_seen_ts,
         update_count=update_count,
-        enrichment_attempts=enrichment_attempts,
-        last_enrichment_ts=last_enrichment_ts,
     )
-
-    # === BEGIN RE-ADDED LOGGING ===
-    if existing_state is None:  # This implies it's a new plane
-        logger.info(
-            f"INGEST_MAIN: Storing NEW PlaneState to Redis for {hex_ident}: "
-            f"{plane_data.model_dump_json(indent=2)}"
-        )
-    else:  # This is for an existing plane update
-        logger.debug(
-            f"INGEST_MAIN: Storing UPDATED PlaneState to Redis for {hex_ident}: "
-            f"{plane_data.model_dump_json(indent=2)}"
-        )
-    # === END RE-ADDED LOGGING ===
+    logger.debug("Storing PlaneState for %s: %s", hex_ident, plane_data)
 
     # Store in Redis
     try:
         await redis_client.set_json(redis_key, plane_data, expire_seconds=PLANE_TTL_SECONDS)
-        # logger.debug(f"Stored {redis_key} in Redis. TTL={PLANE_TTL_SECONDS}s")
     except Exception as e:
         logger.error(f"Failed to store {redis_key} in Redis: {e}")
+
+
+def _log_refresher_exit(task: asyncio.Task) -> None:
+    if not task.cancelled() and task.exception() is not None:
+        logger.error("AeroAPI board refresher stopped", exc_info=task.exception())
 
 
 async def run_ingest_loop() -> None:
     """Connect to ADS-B source and process messages indefinitely."""
     redis_client = RedisClient()
+    settings = get_settings()
+    config = EnrichmentConfig.from_env(settings.enrichment_environ())
     logger.info("Ingest loop starting. Connecting to Redis...")
-    logger.info(f"Enrichment V2 system enabled: {ENRICHMENT_V2_ENABLED}")
+    config.log_summary()
     # Test Redis connection early
     try:
         conn = await redis_client.get_connection()
@@ -507,15 +322,18 @@ async def run_ingest_loop() -> None:
         logger.error(f"Failed to connect to Redis: {e}. Exiting.")
         return
 
+    # /readyz relies on this heartbeat to know ingest is alive and on its feed.
+    feed_status = start_heartbeat(redis_client)
+
     host_to_connect = ADSB_HOST
     port_to_connect = ADSB_PORT
     server_task = None  # Define server_task in this scope
 
-    if os.getenv("FAKE_ADSB") == "1":
-        sample_path = os.getenv("FAKE_ADSB_FILE", "sample_data/sbs_parser_fixtures.sbs")
+    if config.fake_adsb:
+        sample_path = settings.fake_adsb_file
         # Explicitly use 127.0.0.1 for the internal generator and connection
         internal_gen_host = "127.0.0.1"
-        internal_gen_port = ADSB_PORT  # Use the configured port from .env
+        internal_gen_port = ADSB_PORT
 
         logger.info(
             "FAKE_ADSB=1: Starting internal sample generator from '%s' on %s:%s.",
@@ -536,7 +354,9 @@ async def run_ingest_loop() -> None:
                 host=internal_gen_host,
                 port=internal_gen_port,
                 loop_forever=True,
-                speed=float(os.getenv("FAKE_ADSB_SPEED", "1.0")),
+                speed=settings.fake_adsb_speed,
+                plane_count=settings.syn_plane_count,
+                center=(CENTER_LAT, CENTER_LON),
             )
         )
 
@@ -603,11 +423,17 @@ async def run_ingest_loop() -> None:
             # host_to_connect and port_to_connect are already set to ADSB_HOST/ADSB_PORT
             # by default
 
+    routes, board_refresher = build_route_source(config, redis_client)
+    if board_refresher is not None:
+        refresher_task = asyncio.create_task(board_refresher.run_forever(), name="board-refresher")
+        refresher_task.add_done_callback(_log_refresher_exit)
+
     while True:
         try:
             logger.info(f"Connecting to ADS-B source at {host_to_connect}:{port_to_connect}...")
             reader, writer = await asyncio.open_connection(host_to_connect, port_to_connect)
             logger.info("Connected to ADS-B source.")
+            feed_status.connected = True
 
             while True:
                 try:
@@ -624,7 +450,7 @@ async def run_ingest_loop() -> None:
                     raw_message = parse_sbs_message(line, timestamp)
 
                     if raw_message:
-                        await handle_message(raw_message, redis_client)
+                        await handle_message(raw_message, redis_client, routes=routes)
 
                 except asyncio.IncompleteReadError:
                     logger.warning("Incomplete read from ADS-B source. Connection lost?")
@@ -644,11 +470,13 @@ async def run_ingest_loop() -> None:
         except Exception:
             logger.exception("Unexpected error in ingest connection loop.")
 
+        feed_status.connected = False
         logger.info(f"Waiting {RECONNECT_DELAY} seconds before reconnecting...")
         await asyncio.sleep(RECONNECT_DELAY)
 
 
 if __name__ == "__main__":
+    configure_logging("ingest")
     try:
         asyncio.run(run_ingest_loop())
     except KeyboardInterrupt:

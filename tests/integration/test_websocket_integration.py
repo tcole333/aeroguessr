@@ -1,12 +1,10 @@
-"""
-Integration tests for WebSocket endpoints against a real backend+Redis stack.
-Requires `docker-compose -f infra/docker-compose.test.yml up -d` before running.
-Mark tests with @pytest.mark.integration.
+"""Integration tests for WebSocket endpoints against a live backend and real Redis.
+
+See tests/README.md for how to start the backend these tests talk to.
 """
 
 import asyncio
 import json
-import logging
 import time
 
 import pytest
@@ -15,19 +13,41 @@ from fastapi import status
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 
-from backend.ingest.main import PlaneState
 from backend.schemas.core import ScoringMode
 from backend.schemas.game import PlayerGuess, RoundData, RoundStateEnum
-from backend.schemas.ws import (
-    GuessPayload,
-    SelectPlanePayload,
-    WSMessage,
-    WSMessageType,
-)
+from backend.schemas.ws import GuessPayload, SelectPlanePayload, WSMessage
+
+from .planes import seed_plane
+from .ws_helpers import Expected, wait_for_message, wait_for_messages
 
 pytestmark = pytest.mark.integration
 
-logger = logging.getLogger(__name__)
+STORED_GUESS_TIMEOUT_SECONDS = 2.0
+
+
+async def _wait_for_stored_guess(
+    redis_conn: redis.Redis, room_code: str, nickname: str
+) -> RoundData:
+    """Poll the room's round data until ``nickname``'s guess is stored."""
+    deadline = time.monotonic() + STORED_GUESS_TIMEOUT_SECONDS
+    round_data: RoundData | None = None
+    while time.monotonic() < deadline:
+        round_json = await redis_conn.get(f"room:{room_code}:round")
+        if round_json is not None:
+            round_data = RoundData(**json.loads(round_json))
+            if nickname in round_data.guesses:
+                return round_data
+        await asyncio.sleep(0.05)
+    pytest.fail(
+        f"{nickname}'s guess was not stored within {STORED_GUESS_TIMEOUT_SECONDS}s. "
+        f"Last round data: {round_data}"
+    )
+
+
+async def _read_round(redis_conn: redis.Redis, room_code: str) -> RoundData:
+    round_json = await redis_conn.get(f"room:{room_code}:round")
+    assert round_json is not None, f"room:{room_code}:round is missing"
+    return RoundData(**json.loads(round_json))
 
 
 @pytest.mark.asyncio
@@ -35,7 +55,6 @@ async def test_websocket_connect_and_state_sync_integration(
     integration_client: AsyncClient,
 ) -> None:
     """Verify WebSocket stateSync comes through on a real server."""
-    # Create a room
     payload = {
         "host_nickname": "int_host",
         "mode": ScoringMode.DISTANCE.value,
@@ -43,35 +62,21 @@ async def test_websocket_connect_and_state_sync_integration(
     }
     resp = await integration_client.post("/api/v0/rooms", json=payload)
     assert resp.status_code == status.HTTP_201_CREATED
-    data = resp.json()
-    # Correctly construct the full WS path including the router prefix
-    room_code = data["room_code"]
-    host_nickname = payload["host_nickname"]
-    ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nickname}"
+    room_code = resp.json()["room_code"]
+    ws_path = f"/api/v0/rooms/ws/{room_code}/int_host"
 
-    # Use the path with aconnect_ws, letting the client handle the base URL
     async with aconnect_ws(ws_path, client=integration_client) as ws:
-        msg_raw = await ws.receive_json()
-        msg = WSMessage(**msg_raw)
-        assert msg.type == "stateSync"
-        state_payload = msg.payload
-        # Host should be alone and connected
-        assert isinstance(state_payload, dict), "Payload is not a dictionary"
-        assert state_payload.get("room_meta", {}).get("host_nickname") == "int_host", (
-            "Incorrect host nickname in stateSync payload"
-        )
-        assert isinstance(state_payload.get("players"), dict), (
-            "Players is not a dictionary in stateSync payload"
-        )
-        assert len(state_payload.get("players", {})) == 1, (
-            "Incorrect number of players in stateSync payload"
-        )
+        state_payload = (await wait_for_message(ws, "stateSync"))["payload"]
+
+    # Host should be alone and connected
+    assert state_payload["room_meta"]["host_nickname"] == "int_host"
+    assert isinstance(state_payload["players"], dict)
+    assert len(state_payload["players"]) == 1
 
 
 @pytest.mark.asyncio
 async def test_websocket_player_join_broadcast_integration(integration_client: AsyncClient) -> None:
     """Verify playerJoined broadcast on a real server."""
-    # Host creates room
     resp = await integration_client.post(
         "/api/v0/rooms",
         json={
@@ -81,49 +86,32 @@ async def test_websocket_player_join_broadcast_integration(integration_client: A
         },
     )
     assert resp.status_code == status.HTTP_201_CREATED
-    data = resp.json()
-    # ws_host = data["ws_url"].replace("http://", "ws://", 1)
+    room_code = resp.json()["room_code"]
 
-    # Joiner joins via HTTP
-    room_code = data["room_code"]
     joiner_nickname = "join2"
     resp2 = await integration_client.post(
         f"/api/v0/rooms/{room_code}/join", json={"nickname": joiner_nickname}
     )
     assert resp2.status_code == status.HTTP_200_OK
-    # Construct the correct paths
-    host_nickname = "host2"
-    ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nickname}"
+    ws_host_path = f"/api/v0/rooms/ws/{room_code}/host2"
     ws_join_path = f"/api/v0/rooms/ws/{room_code}/{joiner_nickname}"
 
-    # Connect host and consume stateSync
     async with aconnect_ws(ws_host_path, client=integration_client) as ws_h:
-        await ws_h.receive_json()  # Consume host's stateSync
-        # Connect joiner to trigger broadcast
+        await wait_for_message(ws_h, "stateSync")
         async with aconnect_ws(ws_join_path, client=integration_client) as ws_j:
-            await ws_j.receive_json()  # Consume joiner's stateSync
+            await wait_for_message(ws_j, "stateSync")
 
-            # Host should receive playerJoined broadcast *after* joiner connects
-            br = await ws_h.receive_json()
-            msg = WSMessage(**br)
-            assert msg.type == "playerJoined"
-            payload_join = msg.payload
-            assert isinstance(payload_join, dict), "playerJoined payload is not a dictionary"
-            assert payload_join.get("nickname") == joiner_nickname, (
-                "Incorrect nickname in playerJoined payload"
-            )
+            # Host receives playerJoined for the joiner once the joiner connects
+            await wait_for_message(ws_h, "playerJoined", nickname=joiner_nickname)
 
 
 @pytest.mark.asyncio
 async def test_websocket_host_select_plane_integration(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Verify host can select a plane and round data is updated in Redis."""
-    # --- Setup --- #
     host_nick = "host_sel"
-    room_code = None
-
-    # Create room
+    plane_hex = "a1b2c3"
     resp = await integration_client.post(
         "/api/v0/rooms",
         json={
@@ -133,408 +121,173 @@ async def test_websocket_host_select_plane_integration(
         },
     )
     assert resp.status_code == status.HTTP_201_CREATED
-    data = resp.json()
-    room_code = data["room_code"]
+    room_code = resp.json()["room_code"]
     ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KJFK")
 
-    # Add dummy plane data to Redis for the plane to be selected
-    plane_hex = "a1b2c3"
-    plane_key = f"plane:{plane_hex}"
-    # Create a valid PlaneState model and dump it to JSON
-    dummy_plane_model = PlaneState(
-        hex_ident=plane_hex,
-        lat=0.0,
-        lon=0.0,
-        alt=10000,
-        lat_v=0,
-        lon_v=0,
-        alt_v=0,
-        last_update_ts=time.time(),
-        trail=[],
-        origin="BOS",
-        destination="JFK",  # Ensure all required fields are present
-        callsign=None,
-        origin_country=None,
-        category=None,  # Explicitly None for optionals if not set
-    )
-    await integration_redis.set(plane_key, dummy_plane_model.model_dump_json(), ex=60)
-
-    # --- Test --- #
     async with aconnect_ws(ws_path, client=integration_client) as ws_host:
-        await ws_host.receive_json()  # Consume host's stateSync
+        await wait_for_message(ws_host, "stateSync")
 
-        # Host sends selectPlane message
-        select_payload = SelectPlanePayload(hex=plane_hex)
-        select_message = WSMessage(type="selectPlane", payload=select_payload.model_dump())
+        select_message = WSMessage(
+            type="selectPlane", payload=SelectPlanePayload(hex=plane_hex).model_dump()
+        )
         await ws_host.send_json(select_message.model_dump())
 
-        # Consume the planeSelectedConfirm message
-        confirm_msg_raw = await ws_host.receive_json()
-        confirm_msg = WSMessage(**confirm_msg_raw)
-        assert confirm_msg.type == WSMessageType.PLANE_SELECTED_CONFIRM.value
-        payload = confirm_msg.payload
-        assert isinstance(payload, dict)
-        assert payload.get("hex") == plane_hex
-        assert payload.get("origin") == "BOS"  # As set in dummy_plane_model
-        assert payload.get("destination") == "JFK"  # As set in dummy_plane_model
-        # Based on monitored_airport_icao = "KBOS" (default) and plane origin="BOS", dest="JFK",
-        # guess_direction should be "destination".
-        assert payload.get("guess_direction") == "destination"
+        # The server confirms after it has stored the selection in Redis.
+        confirm = (await wait_for_message(ws_host, "planeSelectedConfirm"))["payload"]
 
-        await asyncio.sleep(0.1)  # Let server process selection (keep a small sleep just in case)
+        round_data = await _read_round(real_redis, room_code)
 
-        # Check RoundData in Redis
-        round_data_key = f"room:{room_code}:round"
-        round_data_json = await integration_redis.get(round_data_key)
-        assert round_data_json is not None
-        round_data = RoundData(**json.loads(round_data_json))
+    # The flight departs the monitored airport (KBOS by default), so players guess its
+    # destination. The host is a player too, so the confirm names no airport.
+    assert confirm == {"hex": plane_hex, "guess_direction": "destination"}
 
-        assert (
-            round_data.state == RoundStateEnum.WAITING_FOR_SELECTION
-        )  # State shouldn't change yet
-        assert round_data.selected_plane_hex == plane_hex
-        # Verify placeholder logic was applied
-        # If origin is BOS and dest is JFK, and MONITORED_AIRPORT_ICAO is KBOS (default),
-        # then guess_direction is "destination" and correct_airport_code is "JFK".
-        assert round_data.correct_airport_code == "JFK"
-        assert round_data.guess_direction == "destination"
-
-    # --- Cleanup (optional, Redis keys have TTL) --- #
-    if room_code:
-        await integration_redis.delete(f"room:{room_code}:meta")
-        await integration_redis.delete(f"room:{room_code}:players")
-        await integration_redis.delete(f"room:{room_code}:round")
-    await integration_redis.delete(plane_key)
+    assert round_data.state == RoundStateEnum.WAITING_FOR_SELECTION  # Not started yet
+    assert round_data.selected_plane_hex == plane_hex
+    assert round_data.correct_airport_code == "KJFK"
+    assert round_data.guess_direction == "destination"
 
 
 @pytest.mark.asyncio
 async def test_websocket_host_start_round_integration(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Verify host can start a round and roundStart is broadcast."""
-    # --- Setup --- #
     host_nick = "host_start"
-    plane_hex = "d4e5f6"  # Dummy hex
-    timeout = 15
-    room_code = None
-
-    # Create room
+    plane_hex = "d4e5f6"
     resp = await integration_client.post(
         "/api/v0/rooms",
         json={
             "host_nickname": host_nick,
             "mode": ScoringMode.EXACT.value,
-            "round_timeout_seconds": timeout,
-        },
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    data = resp.json()
-    room_code = data["room_code"]
-    ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
-
-    # Add dummy plane data using set + JSON
-    plane_key = f"plane:{plane_hex}"
-    dummy_plane = PlaneState(
-        hex_ident=plane_hex,
-        lat=42.0,
-        lon=0.0,
-        alt=20000,
-        lat_v=0,
-        lon_v=0,
-        alt_v=0,
-        last_update_ts=time.time(),
-        trail=[],
-        origin="KBOS",  # Provide origin
-        destination="KJFK",  # Provide destination
-        callsign=None,  # Explicitly None for optionals
-        origin_country=None,
-        category=None,
-    )
-    await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
-
-    # --- Test --- #
-    async with aconnect_ws(ws_path, client=integration_client) as ws_host:
-        await ws_host.receive_json()  # Consume stateSync
-
-        # 1. Host selects plane
-        select_payload = SelectPlanePayload(hex=plane_hex)
-        select_message = WSMessage(type="selectPlane", payload=select_payload.model_dump())
-        await ws_host.send_json(select_message.model_dump())
-
-        # Consume the planeSelectedConfirm message
-        confirm_msg_raw = await ws_host.receive_json()
-        confirm_msg = WSMessage(**confirm_msg_raw)
-        assert confirm_msg.type == WSMessageType.PLANE_SELECTED_CONFIRM.value
-        # Optionally, validate payload of confirm_msg if needed
-
-        await asyncio.sleep(0.1)  # Let server process selection (keep a small sleep just in case)
-
-        # 2. Host starts round
-        start_message = WSMessage(type="startRound", payload={})
-        await ws_host.send_json(start_message.model_dump())
-
-        # --- Verification --- #
-        # Ignore any incidental 'delta' messages that may arrive first.
-        while True:
-            msg_raw = await ws_host.receive_json()
-            msg = WSMessage(**msg_raw)
-            if msg.type != "delta":
-                if msg.type == "error":  # Log if it's an error
-                    logger.error(
-                        f"test_websocket_host_start_round_integration received ERROR: {msg_raw}"
-                    )
-                break
-        assert (
-            msg.type == WSMessageType.ROUND_START.value
-        )  # Assert the non-delta message is "roundStart"
-
-        # Verify Redis state
-        round_data_key = f"room:{room_code}:round"
-        round_data_json = await integration_redis.get(round_data_key)
-        assert round_data_json is not None
-        round_data = RoundData(**json.loads(round_data_json))
-        assert round_data.state == RoundStateEnum.ACCEPTING_GUESSES
-        assert round_data.round_number == 1
-        assert round_data.round_start_time is not None
-
-    # --- Cleanup --- #
-    if room_code:
-        await integration_redis.delete(f"room:{room_code}:meta")
-        await integration_redis.delete(f"room:{room_code}:players")
-        await integration_redis.delete(f"room:{room_code}:round")
-    await integration_redis.delete(plane_key)
-
-
-@pytest.mark.asyncio
-async def test_websocket_player_guess_integration(
-    integration_client: AsyncClient, integration_redis: redis.Redis
-) -> None:
-    """Verify a player can submit a guess and it's stored."""
-    # --- Setup --- #
-    host_nick = "host_guess"
-    player_nick = "player_guess"
-    plane_hex = "a7b8c9"
-    guess_code = "LHR"
-    timeout = 10  # Changed from 5 to 10 to meet schema constraint (ge=10)
-    room_code = None
-
-    # Create room with host
-    resp_host = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.DISTANCE.value,
-            "round_timeout_seconds": timeout,
-        },
-    )
-    assert resp_host.status_code == status.HTTP_201_CREATED
-    room_code = resp_host.json()["room_code"]
-    ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
-
-    # Player joins
-    resp_player = await integration_client.post(
-        f"/api/v0/rooms/{room_code}/join", json={"nickname": player_nick}
-    )
-    assert resp_player.status_code == status.HTTP_200_OK
-    ws_player_path = f"/api/v0/rooms/ws/{room_code}/{player_nick}"
-
-    # Add dummy plane data using set + JSON
-    plane_key = f"plane:{plane_hex}"
-    dummy_plane = PlaneState(
-        hex_ident=plane_hex,
-        lat=51.0,
-        lon=0.0,
-        alt=15000,
-        lat_v=0,
-        lon_v=0,
-        alt_v=0,
-        last_update_ts=time.time(),
-        trail=[],
-        origin="EGLL",  # Example origin
-        destination="KJFK",  # Example destination
-        callsign=None,  # Explicitly None for optionals
-        origin_country=None,
-        category=None,
-    )
-    await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
-
-    # --- Test --- #
-    async with (
-        aconnect_ws(ws_host_path, client=integration_client) as ws_host,
-        aconnect_ws(ws_player_path, client=integration_client) as ws_player,
-    ):
-        # Consume initial messages (stateSync for both, playerJoined for host)
-        await ws_host.receive_json()  # Host stateSync
-        await ws_player.receive_json()  # Player stateSync
-        await ws_host.receive_json()  # Host playerJoined (for player)
-
-        # Host selects plane
-        select_payload = SelectPlanePayload(hex=plane_hex)
-        select_message = WSMessage(type="selectPlane", payload=select_payload.model_dump())
-        await ws_host.send_json(select_message.model_dump())
-        await asyncio.sleep(0.1)
-
-        # Host starts round
-        start_message = WSMessage(type="startRound", payload={})
-        await ws_host.send_json(start_message.model_dump())
-
-        # Consume roundStart for both players
-        await ws_host.receive_json()
-        await ws_player.receive_json()
-
-        # Player sends guess
-        guess_payload = GuessPayload(airport_code=guess_code)
-        guess_message = WSMessage(type="guess", payload=guess_payload.model_dump())
-        logger.info(f"[TEST DEBUG] Sending guess message: {guess_message.model_dump()}")
-        await ws_player.send_json(guess_message.model_dump())
-
-        # <<< ADD SLEEP HERE >>>
-        await asyncio.sleep(0.2)  # Give server time to process the guess
-
-        # --- Verification --- #
-        # Check Redis IMMEDIATELY after sending guess (and short sleep)
-        round_data_key = f"room:{room_code}:round"
-        round_data_json_before_sleep = await integration_redis.get(round_data_key)
-        logger.info(f"[TEST DEBUG] Redis data before sleep: {round_data_json_before_sleep}")
-
-        await asyncio.sleep(0.5)  # Wait a bit longer
-
-        # Check Redis again after sleep
-        round_data_json_after_sleep = await integration_redis.get(round_data_key)
-        logger.info(
-            f"[TEST DEBUG] Redis data after sleep for key {round_data_key}: "
-            f"{round_data_json_after_sleep}"
-        )  # Log raw JSON
-        assert round_data_json_after_sleep is not None, "Round data missing after sleep"
-        round_data = RoundData(**json.loads(round_data_json_after_sleep))
-
-        assert round_data.state == RoundStateEnum.ACCEPTING_GUESSES
-        logger.info(f" Round data: {round_data}")
-        logger.info(f" Player_nick: {player_nick}")
-        logger.info(f" Round data.guesses: {round_data.guesses}")
-        assert player_nick in round_data.guesses
-        stored_guess = round_data.guesses[player_nick]
-        assert isinstance(
-            stored_guess, PlayerGuess
-        )  # Ensure it was deserialized correctly if needed
-        assert stored_guess.guess == guess_code
-        assert stored_guess.nickname == player_nick
-
-    # --- Cleanup --- #
-    if room_code:
-        await integration_redis.delete(f"room:{room_code}:meta")
-        await integration_redis.delete(f"room:{room_code}:players")
-        await integration_redis.delete(f"room:{room_code}:round")
-    await integration_redis.delete(plane_key)
-
-
-@pytest.mark.asyncio
-async def test_websocket_host_skip_round_integration(
-    integration_client: AsyncClient, integration_redis: redis.Redis
-) -> None:
-    """Verify host can skip a round and state resets."""
-
-    host_nick = "host_skip"
-    plane_hex = "abcd12"
-    timeout = 10
-
-    resp = await integration_client.post(
-        "/api/v0/rooms",
-        json={
-            "host_nickname": host_nick,
-            "mode": ScoringMode.EXACT.value,
-            "round_timeout_seconds": timeout,
+            "round_timeout_seconds": 15,
         },
     )
     assert resp.status_code == status.HTTP_201_CREATED
     room_code = resp.json()["room_code"]
     ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
-
-    plane_key = f"plane:{plane_hex}"
-    dummy_plane = PlaneState(
-        hex_ident=plane_hex,
-        lat=0.0,
-        lon=0.0,
-        alt=10000,
-        lat_v=0,
-        lon_v=0,
-        alt_v=0,
-        last_update_ts=time.time(),
-        trail=[],
-        origin="KBOS",
-        destination="KJFK",
-        callsign=None,
-        origin_country=None,
-        category=None,
-    )
-    await integration_redis.set(plane_key, dummy_plane.model_dump_json(), ex=60)
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KJFK")
 
     async with aconnect_ws(ws_path, client=integration_client) as ws_host:
-        await ws_host.receive_json()  # stateSync
+        await wait_for_message(ws_host, "stateSync")
 
         await ws_host.send_json(
             WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
         )
-        await ws_host.receive_json()  # planeSelectedConfirm
+        await wait_for_message(ws_host, "planeSelectedConfirm", hex=plane_hex)
 
         await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
+        await wait_for_message(ws_host, "roundStart")
 
-        # Consume roundStart
-        while True:
-            msg_raw = await ws_host.receive_json()
-            msg = WSMessage(**msg_raw)
-            if msg.type != "delta":
-                break
+        round_data = await _read_round(real_redis, room_code)
 
-        assert msg.type == WSMessageType.ROUND_START.value
-
-        await ws_host.send_json(WSMessage(type="skipRound", payload={}).model_dump())
-
-        # Expect delta with round reset
-        skip_msg = WSMessage(**await ws_host.receive_json())
-        assert skip_msg.type == WSMessageType.DELTA.value
-        assert (
-            skip_msg.payload.get("round", {}).get("state")
-            == RoundStateEnum.WAITING_FOR_SELECTION.value
-        )
-
-    rd_json = await integration_redis.get(f"room:{room_code}:round")
-    assert rd_json is not None
-    rd = RoundData(**json.loads(rd_json))
-    assert rd.state == RoundStateEnum.WAITING_FOR_SELECTION
-    assert rd.selected_plane_hex is None
-
-    # Cleanup
-    await integration_redis.delete(f"room:{room_code}:meta")
-    await integration_redis.delete(f"room:{room_code}:players")
-    await integration_redis.delete(f"room:{room_code}:round")
-    await integration_redis.delete(plane_key)
+    assert round_data.state == RoundStateEnum.ACCEPTING_GUESSES
+    assert round_data.round_number == 1
+    assert round_data.round_start_time is not None
 
 
 @pytest.mark.asyncio
-async def test_moved_websocket_claim_host_still_connected_simplified(
-    integration_client: AsyncClient,
+async def test_websocket_player_guess_integration(
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
-    """Test claiming host fails if the original host is still connected (MOVED & SIMPLIFIED)."""
-    host_nick = f"CHM_{int(time.time())}"
+    """Verify a player can submit a guess and it's stored."""
+    host_nick = "host_guess"
+    player_nick = "player_guess"
+    plane_hex = "a7b8c9"
+    guess_code = "LHR"
+    resp_host = await integration_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": host_nick,
+            "mode": ScoringMode.DISTANCE.value,
+            "round_timeout_seconds": 10,  # Minimum allowed by the schema
+        },
+    )
+    assert resp_host.status_code == status.HTTP_201_CREATED
+    room_code = resp_host.json()["room_code"]
+    resp_player = await integration_client.post(
+        f"/api/v0/rooms/{room_code}/join", json={"nickname": player_nick}
+    )
+    assert resp_player.status_code == status.HTTP_200_OK
+    ws_host_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
+    ws_player_path = f"/api/v0/rooms/ws/{room_code}/{player_nick}"
+    await seed_plane(real_redis, plane_hex, origin="EGLL", destination="KBOS")
 
-    # 1. Setup - Just try the create call
-    create_payload = {
-        "host_nickname": host_nick,
-        "mode": "Distance",  # Use correct capitalized enum value
-        "round_timeout_seconds": 10,
-    }
-    logger.info(f"Attempting simplified create room call (MOVED) with payload: {create_payload}")
-    try:
-        create_resp = await integration_client.post("/api/v0/rooms", json=create_payload)
-        logger.info(
-            f"Simplified create room call (MOVED) completed with status: {create_resp.status_code}"
+    async with (
+        aconnect_ws(ws_host_path, client=integration_client) as ws_host,
+        aconnect_ws(ws_player_path, client=integration_client) as ws_player,
+    ):
+        await wait_for_messages(
+            ws_host, Expected("stateSync"), Expected("playerJoined", {"nickname": player_nick})
         )
-        create_resp.raise_for_status()
-        logger.info("Simplified create room call (MOVED) SUCCEEDED.")
-        # room_code = create_resp.json()["room_code"]
-    except Exception as e:
-        logger.error(f"Simplified create room call (MOVED) FAILED: {e}")
-        pytest.fail(f"Simplified create room call (MOVED) FAILED: {e}")
+        await wait_for_message(ws_player, "stateSync")
 
-    # --- All subsequent logic removed for simplification --- #
+        await ws_host.send_json(
+            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
+        )
+        await wait_for_message(ws_host, "planeSelectedConfirm", hex=plane_hex)
+        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
+        await wait_for_message(ws_host, "roundStart")
+        await wait_for_message(ws_player, "roundStart")
+
+        guess_message = WSMessage(
+            type="guess", payload=GuessPayload(airport_code=guess_code).model_dump()
+        )
+        await ws_player.send_json(guess_message.model_dump())
+
+        round_data = await _wait_for_stored_guess(real_redis, room_code, player_nick)
+
+    # The host has not guessed, so the round keeps accepting guesses.
+    assert round_data.state == RoundStateEnum.ACCEPTING_GUESSES
+    stored_guess = round_data.guesses[player_nick]
+    assert isinstance(stored_guess, PlayerGuess)
+    assert stored_guess.guess == guess_code
+    assert stored_guess.nickname == player_nick
+
+
+@pytest.mark.asyncio
+async def test_websocket_host_skip_round_integration(
+    integration_client: AsyncClient, real_redis: redis.Redis
+) -> None:
+    """Verify host can skip a round and state resets."""
+    host_nick = "host_skip"
+    plane_hex = "abcd12"
+    resp = await integration_client.post(
+        "/api/v0/rooms",
+        json={
+            "host_nickname": host_nick,
+            "mode": ScoringMode.EXACT.value,
+            "round_timeout_seconds": 10,
+        },
+    )
+    assert resp.status_code == status.HTTP_201_CREATED
+    room_code = resp.json()["room_code"]
+    ws_path = f"/api/v0/rooms/ws/{room_code}/{host_nick}"
+    await seed_plane(real_redis, plane_hex, origin="KBOS", destination="KJFK")
+
+    async with aconnect_ws(ws_path, client=integration_client) as ws_host:
+        await wait_for_message(ws_host, "stateSync")
+
+        await ws_host.send_json(
+            WSMessage(type="selectPlane", payload={"hex": plane_hex}).model_dump()
+        )
+        await wait_for_message(ws_host, "planeSelectedConfirm", hex=plane_hex)
+
+        await ws_host.send_json(WSMessage(type="startRound", payload={}).model_dump())
+        await wait_for_message(ws_host, "roundStart")
+
+        await ws_host.send_json(WSMessage(type="skipRound", payload={}).model_dump())
+
+        # Plane deltas also arrive every second; wait for the one that resets the round.
+        await wait_for_message(
+            ws_host,
+            "delta",
+            where=lambda frame: (
+                frame["payload"].get("round", {}).get("state")
+                == RoundStateEnum.WAITING_FOR_SELECTION.value
+            ),
+        )
+
+    round_data = await _read_round(real_redis, room_code)
+    assert round_data.state == RoundStateEnum.WAITING_FOR_SELECTION
+    assert round_data.selected_plane_hex is None

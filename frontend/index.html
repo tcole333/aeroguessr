@@ -2,13 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- Chrome on phones ranks icons by their sizes and puts unsized ones last, so "any"
+         keeps it on the SVG. The ICO is for browsers without SVG favicons. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Plane Guessing Game - A real-time flight tracking multiplayer game"
+      content="AeroGuessr: a real-time guessing game played on the planes overhead"
     />
-    <title>Plane Guessing Game</title>
+    <title>AeroGuessr</title>
   </head>
   <body>
     <div id="root"></div>

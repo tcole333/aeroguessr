@@ -1,4 +1,4 @@
-# Log rotation configuration for Plane Game (Development)
+# Log rotation configuration for AeroGuessr (Development)
 # Place this file in /etc/logrotate.d/ on the deployment server
 
 /home/pi/plane-game-v4/logs/*.log {

@@ -6,11 +6,12 @@ Run via `make ws-schema`.
 from __future__ import annotations
 
 import importlib
+import logging
 from pathlib import Path
 from typing import Any, Dict, Type
+
 import yaml  # PyYAML
 from pydantic import BaseModel
-import logging
 
 logger = logging.getLogger(__name__)
 # Path to output YAML
@@ -22,7 +23,7 @@ ws_module = importlib.import_module("backend.schemas.ws")
 # Map message type strings to payload model classes. Update as new types are added.
 MESSAGE_PAYLOAD_MAP: Dict[str, Type[BaseModel]] = {
     "stateSync": ws_module.FullRoomState,
-    "delta": getattr(ws_module, "DeltaPayload", None),
+    "delta": ws_module.DeltaPayload,
     "roundStart": ws_module.RoundStartPayload,
     "roundResult": ws_module.RoundResultPayload,
     "playerJoined": ws_module.PlayerJoinedPayload,
@@ -34,23 +35,23 @@ MESSAGE_PAYLOAD_MAP: Dict[str, Type[BaseModel]] = {
     "guess": ws_module.GuessPayload,
     "selectPlane": ws_module.SelectPlanePayload,
     "startRound": ws_module.StartRoundPayload,
-    "skipRound": getattr(ws_module, "SkipRoundPayload", None),
+    "skipRound": ws_module.SkipRoundPayload,
     "transferHost": ws_module.TransferHostPayload,
     "claimHost": ws_module.ClaimHostPayload,
     "leave": ws_module.LeavePayload,
-    "planeSelectedConfirm": getattr(ws_module, "PlaneSelectedConfirmPayload", None),
+    "planeSelectedConfirm": ws_module.PlaneSelectedConfirmPayload,
 }
 
-# Remove None entries (if optional classes missing)
-# ruff: noqa
-MESSAGE_PAYLOAD_MAP = {
-    k: v
-    for k, v in MESSAGE_PAYLOAD_MAP.items()
-    if v is not None  # type: ignore[arg-type]
-}
+# A message type missing here would vanish from the schema, and CI's drift check would
+# still pass, so the map must name exactly the WSMessageType values.
+mismatched = {t.value for t in ws_module.WSMessageType} ^ MESSAGE_PAYLOAD_MAP.keys()
+if mismatched:
+    raise SystemExit(
+        f"MESSAGE_PAYLOAD_MAP and WSMessageType disagree on: {', '.join(sorted(mismatched))}"
+    )
 
-# Build $defs with JSON Schema for each unique model
-unique_models = {cls for cls in MESSAGE_PAYLOAD_MAP.values()}
+# Build $defs with JSON Schema for each unique model, sorted so the output is stable
+unique_models = sorted(set(MESSAGE_PAYLOAD_MAP.values()), key=lambda cls: cls.__name__)
 
 defs: Dict[str, Any] = {}
 for model_cls in unique_models:
@@ -63,7 +64,7 @@ for msg_type, model_cls in MESSAGE_PAYLOAD_MAP.items():
     messages[msg_type] = {"payload": {"$ref": f"#/$defs/{model_cls.__name__}"}}
 
 schema_doc = {
-    "title": "Plane Game WebSocket Schema",
+    "title": "AeroGuessr WebSocket Schema",
     "version": 1,
     "messages": messages,
     "$defs": defs,

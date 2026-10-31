@@ -1,21 +1,12 @@
 import time  # Needed for timestamp in WSMessage
 from enum import Enum  # Import Enum
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
-# Attempt to import core schemas, handle potential circularity if needed later
-try:
-    from .core import Player, RoomMeta
-    from .game import RoundResultDetail
-    from .ingest import PlaneState
-except ImportError:
-    # Placeholder if core.py isn't available or for type checking contexts
-    # This might indicate a need to restructure schemas later
-    Player = Dict  # type: ignore
-    RoomMeta = Dict  # type: ignore
-    PlaneState = Dict  # type: ignore
-
+from backend.schemas.core import Player, RoomMeta
+from backend.schemas.game import RoundResultDetail
+from backend.schemas.plane import GuessDirection, PublicPlaneState
 
 # --- Error Codes Enum --- #
 
@@ -53,6 +44,7 @@ class ErrorCode(str, Enum):
     ALREADY_GUESSED = "ALREADY_GUESSED"
     INVALID_ACTION_IN_SOLO_MODE = "INVALID_ACTION_IN_SOLO_MODE"
     PLANE_DATA_INCOMPLETE_FOR_GUESS = "PLANE_DATA_INCOMPLETE_FOR_GUESS"
+    UNKNOWN_AIRPORT_CODE = "UNKNOWN_AIRPORT_CODE"  # Guess is not in the airport dataset
 
 
 # --- Base Message & Common Payloads --- #
@@ -96,18 +88,17 @@ class FullRoomState(BaseModel):
     class Config:
         """Pydantic configuration."""
 
-        # Add example based on actual or placeholder types
         json_schema_extra = {
             "example": {
-                "room_meta": {  # Example RoomMeta structure
+                "room_meta": {
                     "mode": "Distance",
                     "round_timeout_seconds": 45,
                     "host_nickname": "HostHarry",
+                    "is_solo": False,
                     "created_ts": 1678886400.0,
-                }
-                if isinstance(RoomMeta, type)
-                else None,
-                "players": {  # Example Players structure
+                    "host_disconnected_ts": None,
+                },
+                "players": {
                     "HostHarry": {
                         "nickname": "HostHarry",
                         "score": 100,
@@ -120,9 +111,7 @@ class FullRoomState(BaseModel):
                         "connected": True,
                         "last_seen_ts": 1678886402.0,
                     },
-                }
-                if isinstance(Player, type)
-                else {},
+                },
             }
         }
 
@@ -179,10 +168,19 @@ class SkipRoundPayload(BaseModel):
     pass
 
 
+# Every IATA/ICAO code in data/airports.json is 3-8 characters (IATA is 3, most
+# ICAO idents are 4, the longest is 8); anything outside that can't be a guess.
+GuessAirportCode = Annotated[
+    str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=3, max_length=8)
+]
+
+
 class GuessPayload(BaseModel):
     """Payload for the player guess message."""
 
-    airport_code: str = Field(..., description="Player's guessed airport IATA/ICAO code.")
+    airport_code: GuessAirportCode = Field(
+        ..., description="Player's guessed airport IATA/ICAO code (trimmed and uppercased)."
+    )
 
     class Config:
         json_schema_extra = {"example": {"airport_code": "JFK"}}
@@ -217,10 +215,18 @@ class RoundResultPayload(BaseModel):
         default=None,
         description="Nickname of the player who will host the next round (if changed).",
     )
+    hex: Optional[str] = Field(
+        default=None,
+        description=(
+            "ICAO24 hex code of the plane this round was about. With results[].correct_code "
+            "this is the only message that reveals the plane's answer airport."
+        ),
+    )
 
     class Config:
         json_schema_extra = {
             "example": {
+                "hex": "a1b2c3",
                 "results": [
                     {
                         "nickname": "Player1",
@@ -275,24 +281,15 @@ class LeavePayload(BaseModel):
 
 
 class PlaneSelectedConfirmPayload(BaseModel):
-    """Payload sent to host confirming successful plane selection."""
+    """Payload confirming a plane selection to its host or solo player; it names no airport."""
 
     hex: str = Field(..., description="ICAO24 hex code of the selected plane.")
-    origin: str = Field(..., description="Origin airport ICAO code.")
-    destination: str = Field(..., description="Destination airport ICAO code.")
-    guess_direction: str = Field(
+    guess_direction: GuessDirection = Field(
         ..., description="Which airport players will guess ('origin' or 'destination')."
     )
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "hex": "a1b2c3",
-                "origin": "KBOS",
-                "destination": "KJFK",
-                "guess_direction": "destination",
-            }
-        }
+        json_schema_extra = {"example": {"hex": "a1b2c3", "guess_direction": "destination"}}
 
 
 class ErrorPayload(BaseModel):
@@ -311,12 +308,6 @@ class ErrorPayload(BaseModel):
 
 
 # --- Delta Update Payload --- #
-# Import PlaneState here specifically for DeltaPayload
-# This might warrant restructuring if schemas grow significantly
-try:
-    from backend.ingest.main import PlaneState
-except ImportError:
-    PlaneState = Dict  # type: ignore
 
 
 class RoundDelta(BaseModel):
@@ -329,13 +320,12 @@ class RoundDelta(BaseModel):
 class DeltaPayload(BaseModel):
     """Payload for the server delta message, containing state changes."""
 
-    planes: Optional[Dict[str, List[PlaneState | str]]] = Field(  # type: ignore
+    planes: Optional[Dict[str, List[PublicPlaneState | str]]] = Field(
         default=None,
         description=(
-            "Changes in plane states. 'updated' contains full PlaneState objects, "
+            "Changes in plane states. 'updated' contains PublicPlaneState objects, "
             "'removed' contains hex IDs."
         ),
-        # Example: { "updated": [PlaneState, ...], "removed": ["hex1", "hex2"] }
     )
     scores: Optional[Dict[str, int]] = Field(
         default=None, description="Updated scores for players {nickname: new_total_score}."
@@ -357,16 +347,19 @@ class DeltaPayload(BaseModel):
                             "alt": 5000,
                             "lat_v": 0.01,
                             "lon_v": -0.01,
-                            "alt_v": 10.0,
-                            "last_update_ts": time.time() * 1000,
+                            "alt_v": -700.0,
+                            "last_update_ts": 1700000000000.0,
                             "trail": [[42.359, -71.049, 4990]],
                             "callsign": "UAL123",
-                            "origin_country": "USA",
-                            "category": 2,
-                            "origin": "KBOS",
-                            "destination": "KJFK",
                             "operator": "United",
-                        }  # Example PlaneState
+                            "first_seen_ts": 1700000000.0,
+                            "update_count": 12,
+                            "route_hint": {
+                                "guess_direction": "destination",
+                                "known_airport": "KBOS",
+                                "eligible": True,
+                            },
+                        }
                     ],
                     "removed": ["d4e5f6"],
                 },
@@ -375,12 +368,6 @@ class DeltaPayload(BaseModel):
             }
         }
 
-
-# --- Wrapper Message --- #
-
-# Example of creating ping/pong messages:
-# ping_msg = WSMessage(type="ping", payload=PingPongPayload(seq=1))
-# pong_msg = WSMessage(type="pong", payload=PingPongPayload(seq=1))
 
 # --- Message Type Enum --- #
 

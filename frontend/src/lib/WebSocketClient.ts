@@ -42,25 +42,10 @@ export interface WebSocketClient {
   destroy(): void;
 }
 
-export function resolveWsBaseUrl({
-  envBaseUrl,
-  browserOrigin,
-}: {
-  envBaseUrl?: string;
-  browserOrigin?: string;
-} = {}): string {
-  return envBaseUrl || browserOrigin || '';
-}
-
+// Same origin by default; connect() turns http(s) into ws(s). The backend's ws_url, when given,
+// takes precedence.
 const getWsBaseUrl = () =>
-  resolveWsBaseUrl({
-    envBaseUrl:
-      (typeof import.meta !== 'undefined' &&
-        ((import.meta as any).env?.VITE_WS_BASE_URL as string | undefined)) ||
-      undefined,
-    browserOrigin:
-      typeof window !== 'undefined' ? window.location.origin : undefined,
-  });
+  import.meta.env.VITE_WS_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 export function createWebSocketClient(
   baseUrl: string = getWsBaseUrl(),
@@ -159,7 +144,7 @@ export function createWebSocketClient(
           url = parsedUrl.toString();
         }
       } catch (err) {
-        log('failed to normalize override URL %O', err);
+        console.warn('[WS] Failed to normalize override URL:', err);
       }
     }
 
@@ -179,17 +164,17 @@ export function createWebSocketClient(
 
     lastUrl = url;
 
-    log('connecting %s', url);
+    log('connecting to', url);
     socket = new WebSocket(url);
     socket.addEventListener('open', () => {
-      log('connected %s', url);
+      log('connected to', url);
       emitter.emit('connected', undefined);
       reconnectDelay = 500;
       flushQueue();
     });
     socket.addEventListener('message', (e) => handleMessage(e.data));
     socket.addEventListener('close', (ev) => {
-      log('disconnected %s code=%d reason=%s', url, ev.code, ev.reason);
+      log('disconnected from', url, 'code', ev.code, 'reason', ev.reason);
       emitter.emit('disconnected', undefined);
 
       // Only reconnect if this wasn't an intentional close
@@ -201,7 +186,7 @@ export function createWebSocketClient(
       }
     });
     socket.addEventListener('error', (e) => {
-      log('socket error on %s %O', url, e);
+      console.error(`[WS] Error on ${url}:`, e);
       emitter.emit('error', e as any);
     });
     heartbeat = setInterval(() => {

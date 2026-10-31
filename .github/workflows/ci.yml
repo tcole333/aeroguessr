@@ -1,0 +1,324 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  # Every pull request, whatever its base, so a PR stacked on another PR's branch gets CI too.
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Keep in step with the uv that backend/Dockerfile and infra/Dockerfile.test copy in.
+  UV_VERSION: "0.13.6"
+  # Every uv sync and uv run installs exactly uv.lock, and fails if pyproject.toml changed
+  # without it.
+  UV_LOCKED: "1"
+
+jobs:
+  ruff:
+    name: Ruff (lint + format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Ruff (the version pyproject.toml pins and pre-commit runs)
+        run: pip install ruff==0.12.2
+      - name: Ruff check
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check --diff .
+
+  pre-commit:
+    name: File checks, shellcheck and actionlint (pre-commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # shellcheck-py puts a pinned shellcheck on PATH, where actionlint finds it and checks
+      # each workflow's run: scripts with the same version as the shellcheck hook.
+      - name: Install pre-commit and shellcheck
+        run: pip install pre-commit==4.5.1 shellcheck-py==0.11.0.1
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          # The exact Python install: hook environments built for another patch release fail
+          # pre-commit's health check, and an exact key hit never saves a rebuilt cache.
+          key: pre-commit-${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      # The hooks no other job runs. Skipped: ruff (the ruff job); ESLint, the typecheck and
+      # both test suites (the frontend and backend jobs); Prettier, not enforced yet (#204 P6);
+      # gitleaks, which reads only staged changes (the gitleaks job scans the commits).
+      - name: Run the hooks
+        env:
+          SKIP: ruff,ruff-format,prettier-frontend,eslint-frontend,frontend-type-check,frontend-tests,run-backend-unit-tests,gitleaks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  gitleaks:
+    name: No secrets in the files or new commits (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the commit scan needs the base commit as well as the new ones
+      - name: Install gitleaks (same version as pre-commit, checksum-verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # --redact keeps a secret's value out of the log in both scans.
+      - name: Scan the checked-out files
+        run: gitleaks dir . --redact --verbose --no-banner
+      # Only this pull request's or push's own commits, so a secret added and removed again
+      # within them still fails. Older history holds an old leaked key (#204 P12), which the
+      # public repo (#191) leaves out. --diff-merges=first-parent also scans what a merge
+      # commit adds, such as a conflict resolution; plain git log -p shows merges no diff.
+      - name: Scan the new commits
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          if [ -n "$PR_HEAD" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$PUSH_AFTER"
+          else
+            echo "::notice::The push's previous head is not in this clone (a force push?), so only the files were scanned."
+            exit 0
+          fi
+          # gitleaks reports "no leaks found" when git log fails, so check the range first.
+          if ! git rev-list --count "$range" > /dev/null; then
+            echo "::error::Cannot list the commits in $range."
+            exit 1
+          fi
+          gitleaks git . --redact --verbose --no-banner --log-opts="--diff-merges=first-parent $range"
+
+  skip-guard:
+    name: Skipped tests reference an issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # it.skip, test.skip, describe.skip, pytest.mark.skip, pytest.skip( and the like need
+      # an issue number (#123) on the same line; see the script's docstring for the forms.
+      # Vitest itself refuses .only when CI is set.
+      - name: Fail on a skipped test without an issue reference
+        run: python scripts/check_test_skips.py
+
+  backend-unit:
+    name: Backend unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # The latest 3.12 patch release, as in the image. uv finds it first on PATH; the
+      # runner's own python3.12 is many patch releases behind.
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Run unit tests with coverage
+        run: >-
+          uv run pytest -m "not integration" tests/
+          --cov=backend --cov-report=xml --cov-report=term-missing --cov-fail-under=50
+      # Codecov must never fail CI: pull requests from forks get no CODECOV_TOKEN, and the action's
+      # setup steps can fail as well as the upload. The slug follows the repository it runs in.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          files: coverage.xml
+          flags: unit
+
+  backend-integration:
+    name: Backend integration tests (live backend + Redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    # The backend and the tests share one dedicated Redis database: the tests seed planes and
+    # read room state directly, and the real-Redis fixture flushes it around every test (and
+    # refuses db 0). No ingest service runs; the ingest tests run the ingest for a few seconds
+    # each, in demo mode with no key or against a mocked AeroAPI with a dummy key, so nothing
+    # calls the paid enrichment APIs and this job references no API keys.
+    env:
+      REDIS_URL: redis://localhost:6379/1
+      TEST_REDIS_URL: redis://localhost:6379/1
+      INTEGRATION_BASE_URL: http://127.0.0.1:8000
+      HOST_DISCONNECT_CLAIM_WINDOW_SECONDS: "2"
+    steps:
+      - uses: actions/checkout@v7
+      # The latest 3.12 patch release, as in the image. uv finds it first on PATH; the
+      # runner's own python3.12 is many patch releases behind.
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      # Most integration tests drive this separate backend process, so it runs under coverage
+      # and is stopped with SIGINT (a graceful uvicorn shutdown) so it writes its data file.
+      # The venv's coverage binary is called directly so the saved PID is the server itself.
+      - name: Start backend under coverage
+        run: |
+          nohup .venv/bin/coverage run --parallel-mode --source=backend \
+            -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 > backend.log 2>&1 &
+          echo $! > backend.pid
+          for _ in $(seq 1 30); do
+            if curl -s -o /dev/null "$INTEGRATION_BASE_URL/healthz"; then
+              echo "Backend is answering."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend did not answer /healthz within 30s."
+          cat backend.log
+          exit 1
+      - name: Run integration tests
+        run: COVERAGE_FILE=.coverage.pytest uv run pytest -m integration -v tests/ --cov=backend --cov-report=
+      - name: Stop backend and combine coverage
+        run: |
+          PID="$(cat backend.pid)"
+          kill -INT "$PID"
+          for _ in $(seq 1 30); do
+            kill -0 "$PID" 2>/dev/null || break
+            sleep 1
+          done
+          uv run coverage combine
+          uv run coverage xml -o coverage-integration.xml
+          uv run coverage report | tail -1
+      # Non-blocking for the same reason as the unit upload.
+      - name: Upload integration coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          files: coverage-integration.xml
+          flags: integration
+      - name: Upload backend log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-log
+          path: backend.log
+
+  frontend:
+    name: Frontend (lint, typecheck, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Typecheck (app and Vite config)
+        run: npm run typecheck
+      - name: Vitest
+        run: npm run test:ci
+      # tsc -b plus vite build: the type check the production image skips to keep Pi builds fast.
+      - name: Build
+        run: npm run build
+
+  schema-drift:
+    name: Generated schemas match the code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # The latest 3.12 patch release, as in the image. uv finds it first on PATH; the
+      # runner's own python3.12 is many patch releases behind.
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install backend dependencies
+        run: uv sync
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      # The two steps of docs/project-standards.md 3.3, in order: backend YAML, then the
+      # frontend types built from it. Both are deterministic, so any diff means a stale commit.
+      - name: Regenerate the API and WebSocket schemas and types
+        run: make openapi && make ws-schema && (cd frontend && npm run gen:schema)
+      # git status, not git diff, so a generated file missing from the commit counts too.
+      - name: Fail if the committed schemas or types are stale
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            git diff
+            echo "::error::Committed schemas or types are stale. Run make openapi && make ws-schema && (cd frontend && npm run gen:schema) and commit the result."
+            exit 1
+          fi
+
+  docker-images:
+    name: Docker images (build only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOCKER_BUILDKIT: "1"
+    steps:
+      - uses: actions/checkout@v7
+      # The same build definitions the Pi deploys from (repo-root context and the root
+      # .dockerignore), so a broken Dockerfile fails here instead of in auto-deploy.
+      # The images stay on the runner; nothing is pushed.
+      - name: Build backend and frontend images
+        run: docker compose -f infra/docker-compose.yml build backend frontend

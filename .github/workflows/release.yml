@@ -1,0 +1,206 @@
+name: Release images
+
+# Builds the backend and frontend images for linux/amd64 and linux/arm64, the images
+# selfhost/compose.yaml runs. Pull requests build linux/amd64 only, the runner's own
+# architecture, because emulating arm64 under QEMU is most of the run time; tags and manual
+# runs build both. A v* tag publishes them to GHCR, tagged with the version and
+# latest, and then creates the GitHub release. Every other run only builds, as a dry run: pull
+# requests that change what goes into an image, and manual runs from a branch. A manual run
+# from a v* tag publishes it again.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - .dockerignore
+      - .python-version
+      - backend/Dockerfile
+      - backend/entrypoint.sh
+      - backend/supervisord.conf
+      - frontend/Dockerfile
+      - frontend/nginx/**
+      - frontend/package.json
+      - frontend/package-lock.json
+      - uv.lock
+      - pyproject.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') }}
+  PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+
+jobs:
+  image:
+    name: ${{ matrix.image }} image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            description: AeroGuessr API and ADS-B ingest
+          - image: frontend
+            description: AeroGuessr web app; its nginx also proxies the API
+    steps:
+      - uses: actions/checkout@v7
+
+      # Everything that names the release must agree with the tag: the backend and frontend
+      # versions, the version selfhost/.env.example pins, and the guide's quickstart.
+      # tests/deploy/test_release_version.py checks the same in CI, which is advisory.
+      - name: Check the tag matches every version in the repo
+        if: env.PUBLISH == 'true'
+        run: |
+          python3 - <<'PY'
+          import json, os, re, sys, tomllib
+
+          def first(pattern, path):
+              match = re.search(pattern, open(path).read(), re.M)
+              return match.group(1) if match else None
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not re.fullmatch(r"v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?", tag):
+              print(f"::error::{tag} is not a v-prefixed semver tag such as v1.2.3 or v1.2.3-alpha.1")
+              sys.exit(1)
+          versions = {
+              "pyproject.toml": tomllib.load(open("pyproject.toml", "rb"))["project"]["version"],
+              "frontend/package.json": json.load(open("frontend/package.json"))["version"],
+              "selfhost/.env.example": first(r"^AEROGUESSR_VERSION=(\S+)$", "selfhost/.env.example"),
+              "docs/self-hosting.md": first(r"^VERSION=(\S+)", "docs/self-hosting.md"),
+          }
+          wrong = {path: version for path, version in versions.items() if version != tag[1:]}
+          for path, version in wrong.items():
+              print(f"::error file={path}::{path} names {version}, but the tag is {tag}")
+          sys.exit(1 if wrong else 0)
+          PY
+
+      # GitHub's free arm64 runners are for public repositories only, so arm64 is emulated.
+      # Only the backend needs it for long: the frontend bundle builds on the runner's own
+      # platform (FROM --platform=$BUILDPLATFORM in frontend/Dockerfile). Pull requests build
+      # amd64 only and need no emulation.
+      - if: github.event_name != 'pull_request'
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Its nginx serves every page of aeroguessr.com, so start it and check it before anything
+      # is pushed: it serves the page, and answers the backend's routes with 502 (there is no
+      # backend here) instead of failing to start.
+      - name: Build the frontend image for the smoke test
+        if: matrix.image == 'frontend'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: frontend/Dockerfile
+          platforms: linux/amd64
+          load: true
+          provenance: false
+          tags: aeroguessr-frontend:smoke
+          cache-from: type=gha,scope=frontend
+
+      - name: Smoke-test the frontend image
+        if: matrix.image == 'frontend'
+        run: |
+          docker run --detach --name smoke --publish 8080:80 aeroguessr-frontend:smoke
+          for _ in $(seq 1 30); do
+            curl --silent --output /dev/null http://localhost:8080/ && break
+            sleep 1
+          done
+          page=$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:8080/)
+          readyz=$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:8080/readyz)
+          docker logs smoke
+          echo "page: $page, /readyz: $readyz"
+          [ "$page" = 200 ] && [ "$readyz" = 502 ]
+
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Labels include org.opencontainers.image.source, the repository this runs in, which
+      # links the package to it. GHCR reads a multi-arch image's metadata from its index, so
+      # the same values go on the index as annotations.
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/aeroguessr-${{ matrix.image }}
+          # latest follows the newest tag pushed, pre-releases included, since every alpha is
+          # one. A manual re-run of an older tag leaves it alone. selfhost/compose.yaml pins a
+          # version, so nothing depends on latest. The pr tag only names dry-run builds.
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ env.PUBLISH == 'true' && github.event_name == 'push' }}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=aeroguessr-${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+          annotations: |
+            org.opencontainers.image.title=aeroguessr-${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+
+      - name: Build, and push on a release tag
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.image }}/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # The version the game reports: the image's version tag (0.1.0-alpha.1 for the tag
+          # v0.1.0-alpha.1, pr-123 for a dry run), so the image tagged latest still names its
+          # release. Only the backend reads it; the frontend shows the backend's version.
+          build-args: BUILD_VERSION=${{ steps.meta.outputs.version }}
+          # Supply-chain attestations: a full provenance record and an SBOM per platform. Explicit,
+          # so they don't change shape when the repository goes public.
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # Runs only once both images are pushed, so a half-published release is never announced:
+  # re-run the failed image job, and this job follows.
+  release:
+    name: GitHub release
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create the release, unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$GITHUB_REF_NAME already has a release."
+            exit 0
+          fi
+          prerelease=()
+          case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --generate-notes "${prerelease[@]}"

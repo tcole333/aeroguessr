@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { selectRoomCode } from '../../features/connection/connectionSlice';
+import { selectRoomCode } from '../../features/connection/selectors';
 import { useStore } from '../../hooks/useStore';
 import { selectRetroMode } from '../../features/ui/selectors';
+import { selectIsSoloRoom } from '../../features/game/selectors';
 
 interface RoomCodeDisplayProps {
   className?: string;
@@ -10,10 +11,11 @@ interface RoomCodeDisplayProps {
 export const RoomCodeDisplay: React.FC<RoomCodeDisplayProps> = ({ className = '' }) => {
   const roomCode = useStore(selectRoomCode);
   const retroMode = useStore(selectRetroMode);
+  const isSolo = useStore(selectIsSoloRoom);
   const [copied, setCopied] = useState(false);
 
-  if (!roomCode || roomCode === 'solo') {
-    return null; // Don't show for solo mode or when no room code
+  if (!roomCode || isSolo) {
+    return null; // A solo room has no code to share
   }
 
   const handleCopy = async () => {

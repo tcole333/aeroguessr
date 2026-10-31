@@ -1,3 +1,7 @@
+# `uv run pre-commit install` sets up both git hooks. The two test suites run on `git push` (and
+# in CI); every other hook runs on every commit.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
 repos:
   # Standard hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -9,17 +13,37 @@ repos:
       - id: check-json
       - id: check-toml
       - id: check-added-large-files
-        args: ['--maxkb=1024'] # Increased limit for files like package-lock.json
+        # --enforce-all checks every file it is given, not only new ones, so CI's --all-files
+        # run covers the whole tree
+        args: ['--maxkb=1024', '--enforce-all'] # Increased limit for files like package-lock.json
       - id: check-merge-conflict
+        # Without it the hook checks only during a merge or rebase, so never in CI
+        args: ['--assume-in-merge']
       - id: debug-statements
+
+  # Secrets in staged changes. CI's gitleaks job scans each pull request's commits.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1 # Same version as the gitleaks job in ci.yml
+    hooks:
+      - id: gitleaks
+
+  # Shell scripts and GitHub Actions workflows
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
 
   # Ruff (Python Linter & Formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.2 # Match the version used in poetry
+    rev: v0.12.2 # The ruff pyproject.toml pins (uv.lock) and the CI ruff job installs
     hooks:
       # Run the linter.
       - id: ruff
-        args: [--fix]  # Auto-fix issues without failing
+        args: [--fix]  # Fix what ruff can; anything left, such as ERA001, fails the commit
       # Run the formatter.
       - id: ruff-format
         args: []  # This will auto-format files
@@ -33,7 +57,7 @@ repos:
         args:
           - -c
           - |
-            set -e; set -x;
+            set -e;
             cd frontend || exit 1;
             files_to_format=();
             for arg in "$@"; do
@@ -57,7 +81,7 @@ repos:
         args:
           - -c
           - |
-            set -e; set -x;
+            set -e;
             cd frontend || exit 1;
             files_to_lint=();
             for arg in "$@"; do
@@ -79,19 +103,20 @@ repos:
         name: Frontend TypeScript type check
         entry: bash -c 'cd frontend && npm run typecheck'
         language: system
-        files: \.(ts|tsx)$
+        files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: frontend-tests
         name: Run frontend tests
-        entry: bash -c 'set -e; set -x; cd frontend && npm run test:ci'
+        entry: bash -c 'cd frontend && npm run test:ci'
         language: system
         files: ^frontend/.*\.(ts|tsx)$
+        stages: [pre-push]
         pass_filenames: false
 
       - id: run-backend-unit-tests
         name: Run backend unit tests
-        entry: poetry run pytest tests/backend -m "not integration"
+        entry: uv run pytest tests/backend -m "not integration"
         language: system
-        stages: [pre-commit]
+        stages: [pre-push]
         pass_filenames: false

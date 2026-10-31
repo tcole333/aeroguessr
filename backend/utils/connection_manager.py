@@ -17,18 +17,15 @@ class ConnectionState:
     websocket: WebSocket
     last_pong_received_ts: float = field(default_factory=time.time)
     missed_pings_count: int = 0
-    # Optionally add: outstanding_ping_seq: Optional[int] = None
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections and room-specific locks."""
+    """Manages active WebSocket connections."""
 
     def __init__(self) -> None:
         """Initializes the connection manager."""
-        # Structure: {room_code: {nickname: ConnectionState}}
+        # Keyed by room code, then by nickname.
         self.active_connections: Dict[str, Dict[str, ConnectionState]] = defaultdict(dict)
-        # Lock management for room state modifications (e.g., guesses)
-        self.room_locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self.active_tasks: Set[asyncio.Task] = set()
         logger.info("ConnectionManager initialized.")
 
@@ -56,17 +53,10 @@ class ConnectionManager:
             nickname: The nickname of the player leaving.
         """
         if room_code in self.active_connections and nickname in self.active_connections[room_code]:
-            # Optional: Log connection details before removal if needed
-            # connection_state = self.active_connections[room_code][nickname]
-            # logger.debug(f"Disconnecting state: {connection_state}")
             del self.active_connections[room_code][nickname]
             # Clean up room if empty
             if not self.active_connections[room_code]:
                 del self.active_connections[room_code]
-                # Clean up lock if room becomes empty
-                if room_code in self.room_locks:
-                    del self.room_locks[room_code]
-                    logger.debug(f"Cleaned up lock for empty room '{room_code}'.")
             logger.info(f"Player '{nickname}' disconnected from room '{room_code}'.")
         else:
             logger.warning(
@@ -80,11 +70,6 @@ class ConnectionManager:
     def get_room_connections(self, room_code: str) -> Dict[str, ConnectionState]:
         """Returns the dictionary of connection states for a specific room."""
         return self.active_connections.get(room_code, {})
-
-    def get_room_lock(self, room_code: str) -> asyncio.Lock:
-        """Returns the asyncio.Lock associated with the given room code."""
-        # defaultdict ensures lock is created on first access for a room
-        return self.room_locks[room_code]
 
     def record_pong(self, room_code: str, nickname: str) -> bool:
         """

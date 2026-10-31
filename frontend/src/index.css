@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts for warm UI text and labels */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Share+Tech+Mono&display=swap");
-
 /* ========================================
    RETRO AIRPORT TERMINAL FONT FACES
    ======================================== */
@@ -92,9 +89,7 @@
     --retro-bg: 245 240 225;
     --retro-panel: 250 247 240;
     --retro-panel-dark: 232 224 200;
-    --retro-panel-elevated: 250 247 240;
     --retro-border: 212 202 168;
-    --retro-border-strong: 196 184 152;
     --retro-ink: 45 42 36;
     --retro-text: 90 84 72;
     --retro-text-muted: 138 132 120;
@@ -102,14 +97,11 @@
     --retro-primary: 187 104 48;
     --retro-primary-bright: 212 132 74;
     --retro-primary-dark: 139 90 43;
-    --retro-secondary: 138 132 120;
-    --retro-muted: 160 152 136;
     --retro-accent: 196 92 74;
     --retro-success: 74 138 122;
     --retro-brass: 139 90 43;
     --retro-led-primary: 154 80 32;
     --retro-led-bright: 187 104 48;
-    --retro-led-muted: 122 96 80;
     --retro-map-ocean: 158 197 212;
     --retro-map-ocean-light: 200 216 222;
     --retro-map-land: 221 208 176;
@@ -120,8 +112,6 @@
     --retro-sage: 128 144 118;
     --retro-forest: 74 90 72;
     --shadow-sm: 0 1px 3px rgba(45, 42, 36, 0.06);
-    --shadow-md: 0 2px 8px rgba(45, 42, 36, 0.08);
-    --shadow-lg: 0 4px 16px rgba(45, 42, 36, 0.1);
   }
 
   .retro {
@@ -143,9 +133,9 @@
   }
 
   /* ========================================
-     RETRO MAP: DARK AMBER RADAR STYLE
-     Using CartoDB Dark Matter as base
-     Transformed to amber/gold roads on dark background
+     RETRO MAP: VINTAGE CHART STYLE
+     OpenFreeMap vector basemap showing only its place names, warmed by a
+     chart filter; RetroMapAnnotations labels the monitored airport
      ======================================== */
 
   /* 1. Container base - dark charcoal (not pure black) to reduce eye strain */
@@ -154,8 +144,8 @@
     background-color: rgb(var(--retro-map-ocean));
   }
 
-  /* 2. Base tiles: warm vintage chart treatment */
-  .retro .retro-map-base-layer {
+  /* 2. Basemap: warm vintage chart treatment */
+  .retro .leaflet-gl-layer {
     filter: saturate(1.2) sepia(0.1) contrast(0.95) brightness(1.03);
   }
 
@@ -228,6 +218,13 @@
 
   .retro .retro-map-label--secondary {
     color: rgb(var(--retro-map-label-muted));
+  }
+
+  /* A long airport name would run off a phone's map; the code alone is enough there */
+  @media (max-width: 767px) {
+    .retro .retro-map-label--secondary {
+      display: none;
+    }
   }
 
   .retro .retro-map-label-dot {
@@ -332,110 +329,6 @@
 
 /* Component styles */
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2
-           text-sm font-medium transition-colors focus:outline-none
-           disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700
-           dark:bg-primary-700 dark:hover:bg-primary-800;
-  }
-
-  .btn-secondary {
-    @apply btn bg-secondary-200 text-secondary-900 hover:bg-secondary-300
-           dark:bg-secondary-700 dark:text-white dark:hover:bg-secondary-600;
-  }
-
-  .card {
-    @apply overflow-hidden rounded-lg bg-white shadow-md dark:bg-secondary-800;
-  }
-
-  .input {
-    @apply w-full rounded-md border border-secondary-300 bg-white px-3
-           py-2 text-secondary-900 focus:outline-none focus:ring-2
-           focus:ring-primary-500 dark:border-secondary-600 dark:bg-secondary-700 dark:text-white;
-  }
-
-  /* ======================================
-     RETRO THEME COMPONENTS
-     ====================================== */
-
-  /* Retro mechanical button - sharp corners, industrial feel */
-  .retro .btn {
-    @apply rounded border border-retro-border bg-retro-panel
-           font-semibold uppercase tracking-wider text-retro-text
-           transition-all duration-150;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .retro .btn:hover:not(:disabled) {
-    @apply border-retro-primary bg-retro-panel-dark text-retro-ink;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .retro .btn:active:not(:disabled) {
-    @apply translate-y-px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .retro .btn-primary {
-    @apply border-0 bg-retro-primary text-retro-panel;
-  }
-
-  .retro .btn-primary:hover:not(:disabled) {
-    @apply bg-retro-primary-bright text-retro-panel;
-  }
-
-  .retro .btn-secondary {
-    @apply border-2 border-retro-primary bg-transparent text-retro-primary;
-  }
-
-  .retro .btn-secondary:hover:not(:disabled) {
-    @apply border-retro-primary-bright bg-retro-bg text-retro-primary-dark;
-  }
-
-  /* Retro card/panel - no rounded corners, industrial frame */
-  .retro .card {
-    @apply rounded border border-retro-border bg-retro-panel shadow-none;
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Retro input - dark inset, LED-style text */
-  .retro .input {
-    @apply rounded border border-retro-border bg-retro-panel
-           text-center font-splitflap uppercase tracking-widest
-           text-retro-led;
-    box-shadow: inset 0 1px 2px rgba(45, 42, 36, 0.12);
-  }
-
-  .retro .input:focus {
-    @apply border-retro-primary ring-0;
-    box-shadow:
-      inset 0 1px 2px rgba(45, 42, 36, 0.12),
-      0 0 8px rgba(187, 104, 48, 0.2);
-  }
-
-  .retro .input::placeholder {
-    @apply font-display normal-case tracking-normal text-retro-text-light;
-  }
-
-  /* Split-flap display - NUMBERS ONLY (scores, altitudes, coordinates) */
-  .retro .splitflap-text {
-    @apply font-splitflap font-bold tracking-widest text-retro-led;
-  }
-
-  /* Clean monospace - TEXT LABELS (DEPARTURES, FLIGHT, etc.) */
-  .retro .retro-label {
-    @apply font-display uppercase tracking-wider text-retro-text-muted;
-  }
-
-  /* Retro tab/button text - clean and readable */
-  .retro .retro-text {
-    @apply uppercase tracking-wider text-retro-text;
-  }
-
   /* Departure row styling */
   .retro .departure-row {
     @apply border-b border-retro-border bg-retro-bg transition-colors;
@@ -443,19 +336,6 @@
 
   .retro .departure-row:hover {
     @apply bg-retro-panel-dark;
-  }
-
-  /* Status indicators */
-  .retro .status-active {
-    @apply animate-glow-pulse text-retro-success;
-  }
-
-  .retro .status-selected {
-    @apply border-l-4 border-retro-primary bg-retro-panel;
-  }
-
-  .retro .status-used {
-    @apply border-l-4 border-retro-border opacity-50;
   }
 
   /* Brass corner decorations */
@@ -484,38 +364,5 @@
     right: -1px;
     border-left: none;
     border-top: none;
-  }
-
-  /* Retro toggle switch */
-  .retro .toggle-track {
-    @apply h-6 w-12 rounded border border-retro-border bg-retro-panel-dark;
-  }
-
-  .retro .toggle-knob {
-    @apply h-5 w-5 rounded bg-retro-border transition-transform;
-  }
-
-  .retro .toggle-track.active {
-    @apply border-retro-primary;
-  }
-
-  .retro .toggle-track.active .toggle-knob {
-    @apply translate-x-6 bg-retro-primary;
-  }
-}
-
-/* Utilities */
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Mobile touch scroll improvements */
-  .overscroll-contain {
-    overscroll-behavior: contain;
-  }
-
-  .touch-pan-y {
-    touch-action: pan-y;
   }
 }

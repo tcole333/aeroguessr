@@ -1,47 +1,64 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+# syntax=docker/dockerfile:1
+# Backend image: supervisord runs the API (uvicorn) and the ADS-B ingest.
+# The build context is the repo root (see infra/docker-compose.yml), so the
+# root .dockerignore applies.
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+FROM python:3.12-slim AS base
 
-# Set the working directory in the container
+# --- Dependencies: uv installs the locked runtime dependencies into /app/.venv ---
+FROM base AS deps
+
+# Keep in step with the uv in ci.yml and infra/Dockerfile.test.
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /bin/uv
+
+# Copy files out of the cache mount instead of hard-linking across filesystems. Never
+# download a Python: the venv must use this image's, which the runtime stage shares.
+ENV UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never
+
 WORKDIR /app
 
-# Install system dependencies including supervisor
+# The cache mount keeps uv's downloads between builds without baking them into a
+# layer, so a lockfile change re-installs from local wheels. --locked installs uv.lock
+# as it is but fails if pyproject.toml changed without it: a stale lock stops the Pi's
+# deploy, with the old containers still serving, instead of shipping an image that
+# lacks a dependency.
+COPY pyproject.toml uv.lock .python-version ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
+
+# --- Runtime: no uv, no test or lint tools ---
+FROM base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Dependency Installation (Choose one method) ---
+COPY --from=deps /app/.venv ./.venv
 
-# Method 1: Using requirements.txt (if not using Poetry)
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir --upgrade pip
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# Method 2: Using Poetry (preferred for this project based on task list)
-# Install Poetry and project dependencies
-COPY pyproject.toml poetry.lock* ./
-RUN pip install poetry \
-    && poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-root
-
-# --- Application Code ---
-
-# Copy backend code and configs
 COPY backend/ ./backend/
+# Airport dataset used for scoring; the API refuses to start without it
+COPY data/ ./data/
+# FAKE_ADSB mode imports sample_data.adsb_generator
 COPY sample_data/ ./sample_data/
 COPY backend/supervisord.conf /app/supervisord.conf
-COPY backend/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY --chmod=755 backend/entrypoint.sh /app/entrypoint.sh
+# Its version is the one the game reports when no BUILD_VERSION is set (backend/version.py)
+COPY pyproject.toml ./
 
-# --- Port Exposure ---
+# The version the game reports. The release workflow passes the release version (the git tag
+# without its v), so an image pulled as latest still names its release. Last, so a new version
+# reuses every layer above.
+ARG BUILD_VERSION=
+ENV BUILD_VERSION=${BUILD_VERSION}
 
-# Expose the port the app runs on
 EXPOSE 8000
 
-# --- Run Command ---
-
-# Use the entrypoint script to start both API and ingest services via supervisor
+# The entrypoint starts the API and ingest under supervisord
 CMD ["/app/entrypoint.sh"]

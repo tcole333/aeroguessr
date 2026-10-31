@@ -1,7 +1,6 @@
 # ruff: noqa: D101, D103
 """Integration tests verifying plane `delta` broadcasts.
 
-These tests implement *Priority 3* from ``docs/backend_testing_plan.md``.
 We manipulate Redis plane keys and ensure the backend broadcasts the
 expected ``delta`` WebSocket messages (``updated`` / ``removed``).  The
 backend broadcast task runs at 1 s intervals, so generous timeouts are
@@ -21,9 +20,11 @@ from fastapi import status
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 
-from backend.ingest.main import PlaneState
 from backend.schemas.core import ScoringMode
+from backend.schemas.plane import PlaneState, PublicPlaneState
 from backend.schemas.ws import DeltaPayload, PingPongPayload, WSMessage
+
+from .ws_helpers import wait_for_message
 
 pytestmark = pytest.mark.integration
 logger = logging.getLogger(__name__)
@@ -34,18 +35,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _extract_updated_hexes(updated_list: List[PlaneState | Dict[str, Any]]) -> Set[str]:
+def _extract_updated_hexes(updated_list: List[PublicPlaneState | Dict[str, Any]]) -> Set[str]:
     """Extract ``hex_ident`` strings from the ``updated`` list.
 
-        ``broadcast_plane_updates`` serialises ``PlaneState`` objects, so on
+    ``broadcast_plane_updates`` serialises ``PublicPlaneState`` objects, so on
     the wire we receive dicts.  Pydantic will coerce them back to
-    ``PlaneState`` if we use ``DeltaPayload``, but they can also appear as
+    ``PublicPlaneState`` if we use ``DeltaPayload``, but they can also appear as
     raw dicts in the ``msg.payload`` JSON.  This helper supports both.
     """
 
     hexes: Set[str] = set()
     for item in updated_list:
-        if isinstance(item, PlaneState):
+        if isinstance(item, PublicPlaneState):
             hexes.add(item.hex_ident)
         elif isinstance(item, dict):
             # Fallback – assume key exists.
@@ -56,8 +57,7 @@ def _extract_updated_hexes(updated_list: List[PlaneState | Dict[str, Any]]) -> S
 
 
 async def _await_delta(
-    # ruff: noqa
-    ws: Any,  # httpx_ws.AsyncWebSocketSession (kept generic)
+    ws: Any,  # noqa: ANN401 - an httpx_ws.AsyncWebSocketSession, kept generic
     *,
     expected_updated: Optional[Set[str]] = None,
     expected_removed: Optional[Set[str]] = None,
@@ -116,14 +116,13 @@ async def _await_delta(
 
 @pytest.mark.asyncio
 async def test_delta_broadcast_sequence(
-    integration_client: AsyncClient, integration_redis: redis.Redis
+    integration_client: AsyncClient, real_redis: redis.Redis
 ) -> None:
     """Full add→update→remove flow for two dummy planes."""
 
     host_nick = "host_delta"
     plane_a = "abc123"
     plane_b = "def456"
-    room_code: Optional[str] = None
 
     # ------------------------------------------------------------------
     # 1. Host creates room via REST.
@@ -148,7 +147,7 @@ async def test_delta_broadcast_sequence(
     # 2. Connect host WebSocket and consume initial stateSync.
     # ------------------------------------------------------------------
     async with aconnect_ws(ws_path, client=integration_client) as ws:
-        await ws.receive_json()  # stateSync
+        await wait_for_message(ws, "stateSync")
 
         # ----------------------------------------------------------------
         # 3. Scenario 1 – add two new planes.
@@ -176,11 +175,8 @@ async def test_delta_broadcast_sequence(
             last_update_ts=now,
             trail=[],
         )
-        await integration_redis.set(key_a, dummy_a.model_dump_json(), ex=60)
-        await integration_redis.set(key_b, dummy_b.model_dump_json(), ex=60)
-
-        # Allow broadcast loop to pick up changes (broadcast interval = 1s)
-        await asyncio.sleep(1.2)
+        await real_redis.set(key_a, dummy_a.model_dump_json(), ex=60)
+        await real_redis.set(key_b, dummy_b.model_dump_json(), ex=60)
 
         await _await_delta(ws, expected_updated={plane_a, plane_b}, timeout=12.0)
 
@@ -188,7 +184,7 @@ async def test_delta_broadcast_sequence(
         # 4. Scenario 2 – modify altitude of plane A.
         # ----------------------------------------------------------------
         updated_a = dummy_a.model_copy(update={"alt": 25000, "last_update_ts": time.time()})
-        await integration_redis.set(key_a, updated_a.model_dump_json(), ex=60)
+        await real_redis.set(key_a, updated_a.model_dump_json(), ex=60)
 
         payload2 = await _await_delta(ws, expected_updated={plane_a}, timeout=12.0)
         # Ensure only A is in updated list.
@@ -198,15 +194,5 @@ async def test_delta_broadcast_sequence(
         # ----------------------------------------------------------------
         # 5. Scenario 3 – remove plane B.
         # ----------------------------------------------------------------
-        await integration_redis.delete(key_b)
+        await real_redis.delete(key_b)
         await _await_delta(ws, expected_removed={plane_b}, timeout=12.0)
-
-    # ------------------------------------------------------------------
-    # Cleanup (keys have TTL, but remove explicitly to speed up tests).
-    # ------------------------------------------------------------------
-    if room_code:
-        await integration_redis.delete(f"room:{room_code}:meta")
-        await integration_redis.delete(f"room:{room_code}:players")
-        await integration_redis.delete(f"room:{room_code}:round")
-    await integration_redis.delete(key_a)
-    await integration_redis.delete(key_b)

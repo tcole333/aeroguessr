@@ -33,6 +33,8 @@ export const createPlanesSlice: StateCreator<
     set((state) => {
       hexIds.forEach((id) => {
         delete state.planes.values[id];
+        // A plane seen again may be on another leg, with a different answer
+        delete state.game.revealedAnswers[id];
       });
     }),
   clear: () =>

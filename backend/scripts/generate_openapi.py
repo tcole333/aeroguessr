@@ -22,20 +22,12 @@ def generate_openapi_spec() -> None:
     # Get the OpenAPI schema as a dictionary
     openapi_schema = app.openapi()
 
-    # Convert Python dictionary to YAML format
-    try:
-        yaml_schema = yaml.dump(openapi_schema, sort_keys=False, allow_unicode=True)
-    except Exception as e:
-        logger.error(f"Error converting schema to YAML: {e}")
-        return
-
-    # Write the YAML schema to the file
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(yaml_schema)
-        logger.info(f"✅ OpenAPI spec successfully written to: {output_path}")
-    except IOError as e:
-        logger.error(f"Error writing OpenAPI spec to file {output_path}: {e}")
+    # Errors propagate, so `make openapi` fails instead of leaving the committed spec in
+    # place for CI's drift check to pass against.
+    yaml_schema = yaml.dump(openapi_schema, sort_keys=False, allow_unicode=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(yaml_schema)
+    logger.info(f"✅ OpenAPI spec successfully written to: {output_path}")
 
 
 if __name__ == "__main__":

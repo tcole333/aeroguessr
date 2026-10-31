@@ -4,28 +4,20 @@
 
 import "@testing-library/jest-dom";
 import { beforeAll, afterAll, afterEach } from "vitest";
-import "whatwg-fetch";
-import { enableMapSet } from "immer";
 import { server } from "./src/mocks/server";
 
-// Enable Immer MapSet plugin for tests
-enableMapSet();
+// jsdom does no layout, so it leaves out scrollIntoView, which AirportAutocomplete calls
+// when an option becomes active
+Element.prototype.scrollIntoView = () => {};
 
 // Setup MSW server before tests
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
-// Reset handlers after each test
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  // The store persists the session here, so a test's room would reach the next test's store
+  localStorage.clear();
+});
 
 // Close server after all tests
 afterAll(() => server.close());
-
-// Mock console.error to fail tests on prop-type errors
-const originalConsoleError = console.error;
-console.error = (...args: any[]) => {
-  // Fail tests if there's a prop-type error
-  if (args[0]?.includes?.("Warning: Failed prop type")) {
-    throw new Error(args[0]);
-  }
-  originalConsoleError(...args);
-};

@@ -44,7 +44,7 @@ describe('ScoreModeIndicator', () => {
 
   it('should show user score when nickname exists', () => {
     store.setState((s) => { s.game.scoringMode = 'Exact'; });
-    store.getState().connection.setNickname('TestPlayer');
+    store.getState().connection.setConnectionDetails({ roomCode: 'ABCD', wsUrl: 'ws://x', nickname: 'TestPlayer' });
     store.getState().game.applyDelta({ scores: { TestPlayer: 150 } });
 
     renderWithStore(<ScoreModeIndicator />);
@@ -55,7 +55,7 @@ describe('ScoreModeIndicator', () => {
 
   it('should show zero score for new player', () => {
     store.setState((s) => { s.game.scoringMode = 'Exact'; });
-    store.getState().connection.setNickname('NewPlayer');
+    store.getState().connection.setConnectionDetails({ roomCode: 'ABCD', wsUrl: 'ws://x', nickname: 'NewPlayer' });
 
     renderWithStore(<ScoreModeIndicator />);
 

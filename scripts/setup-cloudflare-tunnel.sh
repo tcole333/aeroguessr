@@ -168,9 +168,9 @@ start_tunnel() {
     echo "🚀 Starting Cloudflare tunnel..."
 
     # Check if Docker is running the app
-    if ! docker compose -f /home/pi/plane-game-v4/infra/docker-compose.yml ps | grep -q "Up"; then
-        echo "⚠️  Warning: Plane game Docker containers are not running"
-        echo "Run: cd /home/pi/plane-game-v4 && docker compose -f infra/docker-compose.yml up -d"
+    if ! docker compose -f /home/pi/plane-game-v4/infra/docker-compose.yml -f /home/pi/plane-game-v4/infra/docker-compose.pi.yml ps | grep -q "Up"; then
+        echo "⚠️  Warning: AeroGuessr Docker containers are not running"
+        echo "Run: cd /home/pi/plane-game-v4 && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d"
     fi
 
     # Start the service
@@ -221,7 +221,7 @@ main() {
     echo "- Stop tunnel: sudo systemctl stop ${SERVICE_NAME}"
     echo ""
     echo "Note: Make sure your Docker containers are running:"
-    echo "cd /home/pi/plane-game-v4 && docker compose -f infra/docker-compose.yml up -d"
+    echo "cd /home/pi/plane-game-v4 && docker compose -f infra/docker-compose.yml -f infra/docker-compose.pi.yml up -d"
 }
 
 # Run main function

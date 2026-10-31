@@ -1,8 +1,5 @@
 import { useEffect, useRef } from 'react';
-import debug from 'debug';
 import { useStore } from './useStore';
-
-const log = debug('plane:auto-rejoin');
 
 /**
  * Custom hook that handles automatic rejoin logic on app startup.
@@ -28,8 +25,6 @@ export function useAutoRejoin(): void {
     const shouldRejoin = hasConnectionData && currentView === 'game';
 
     if (shouldRejoin) {
-      log('attempting rejoin room=%s nickname=%s', roomCode, nickname);
-
       // Set the rejoin flag so other components know this is an automatic rejoin
       setIsRejoinAttempt(true);
 
@@ -39,7 +34,6 @@ export function useAutoRejoin(): void {
     } else if (hasConnectionData && currentView === 'home') {
       // If we have connection data but we're on the home page, clear it
       // This can happen if the user manually navigated away
-      log('clearing stale connection data');
       clearConnectionDetails();
     }
   }, [

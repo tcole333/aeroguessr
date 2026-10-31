@@ -1,57 +1,106 @@
-"""Airport coordinates lookup util.
+"""Airport lookup backed by the committed dataset at ``data/airports.json``.
 
-Loads a minimal JSON dataset (IATA/ICAO ➔ lat/lon) once and provides fast lookup
-for scoring and autocomplete.
+The same file feeds the frontend autocomplete, so every airport a player can
+pick is one the backend can score. Each airport is indexed by both its IATA
+and its ICAO code; two codes refer to the same airport exactly when they
+resolve to the same record.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Tuple
+from types import MappingProxyType
+from typing import Mapping, Tuple
 
-DATA_PATH = Path(__file__).resolve().parents[2] / "sample_data" / "airports_min.json"
-
-# Minimal built-in dataset used if the JSON file is missing. This keeps tests
-# self-contained while still allowing a larger dataset to be supplied at
-# runtime via ``sample_data/airports_min.json``.
-# Includes both IATA and ICAO codes for common airports.
-_FALLBACK_DATA: dict[str, Coords] = {
-    # IATA codes
-    "BOS": (42.3656, -71.0096),  # Boston Logan
-    "JFK": (40.6413, -73.7781),  # JFK New York
-    "PVD": (41.7234, -71.4381),  # Providence
-    "FAR": (46.9207, -96.8163),  # Fargo
-    "LAX": (33.9425, -118.4081),  # Los Angeles
-    # ICAO codes (same coordinates as IATA)
-    "KBOS": (42.3656, -71.0096),  # Boston Logan
-    "KJFK": (40.6413, -73.7781),  # JFK New York
-    "KPVD": (41.7234, -71.4381),  # Providence
-    "KFAR": (46.9207, -96.8163),  # Fargo
-    "KLAX": (33.9425, -118.4081),  # Los Angeles
-}
+DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "airports.json"
 
 Coords = Tuple[float, float]
 
 
-@lru_cache(maxsize=1)
-def _load() -> dict[str, Coords]:
-    """Load airport coordinate mapping with a small built-in fallback."""
-    if not DATA_PATH.exists():
-        return _FALLBACK_DATA
-    with DATA_PATH.open() as fh:
-        raw = json.load(fh)
-    mapping: dict[str, Coords] = {}
-    for rec in raw:
-        lat, lon = rec["lat"], rec["lon"]
-        for code_key in ("iata", "icao"):
-            code = rec.get(code_key)
-            if code:
-                mapping[code.upper()] = (lat, lon)
-    return mapping
+@dataclass(frozen=True)
+class Airport:
+    """One airport record from the dataset."""
+
+    icao: str
+    iata: str | None
+    name: str
+    municipality: str
+    country: str
+    lat: float
+    lon: float
+
+    @property
+    def coords(self) -> Coords:
+        """Return ``(lat, lon)``."""
+        return (self.lat, self.lon)
 
 
-def get_coords(code: str) -> Coords | None:
-    """Return (lat, lon) for IATA/ICAO code or None."""
-    return _load().get(code.upper())
+def normalize_code(code: str) -> str:
+    """Return ``code`` trimmed and uppercased, the form the index is keyed by."""
+    return code.strip().upper()
+
+
+@lru_cache(maxsize=None)
+def _load_index(path: Path) -> Mapping[str, Airport]:
+    with path.open(encoding="utf-8") as fh:
+        records = json.load(fh)
+
+    index: dict[str, Airport] = {}
+    for record in records:
+        airport = Airport(
+            icao=normalize_code(record["icao"]),
+            iata=normalize_code(record["iata"]) if record.get("iata") else None,
+            name=record.get("name") or "",
+            municipality=record.get("municipality") or "",
+            country=record.get("country") or "",
+            lat=float(record["lat"]),
+            lon=float(record["lon"]),
+        )
+        for code in (airport.icao, airport.iata):
+            if code is None:
+                continue
+            existing = index.get(code)
+            if existing is not None and existing != airport:
+                raise ValueError(
+                    f"Airport code '{code}' in {path} maps to both "
+                    f"{existing.icao} and {airport.icao}"
+                )
+            index[code] = airport
+    return MappingProxyType(index)
+
+
+def load_airports(path: Path | None = None) -> Mapping[str, Airport]:
+    """Return the airport index keyed by IATA and ICAO code.
+
+    Reads :data:`DATA_PATH` (looked up at call time) unless ``path`` is given.
+
+    Raises:
+        FileNotFoundError: The dataset file is missing.
+        ValueError: One code maps to two different airports.
+    """
+    return _load_index(path or DATA_PATH)
+
+
+def resolve_airport(code: str | None) -> Airport | None:
+    """Return the airport for an IATA or ICAO code, ignoring case and spaces."""
+    if not code:
+        return None
+    return load_airports().get(normalize_code(code))
+
+
+def same_airport(code_a: str | None, code_b: str | None) -> bool:
+    """Return True when two codes name the same airport.
+
+    Codes in the dataset compare by airport, so ``BOS`` equals ``KBOS``; codes
+    missing from it only match themselves (ignoring case and spaces).
+    """
+    if not code_a or not code_b:
+        return False
+    airport_a = resolve_airport(code_a)
+    airport_b = resolve_airport(code_b)
+    if airport_a is not None and airport_b is not None:
+        return airport_a.icao == airport_b.icao
+    return normalize_code(code_a) == normalize_code(code_b)

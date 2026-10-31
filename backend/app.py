@@ -1,51 +1,26 @@
-"""Main FastAPI application for the Plane Guessing Game backend."""
+"""Main FastAPI application for the AeroGuessr backend."""
 
 import asyncio
 import logging
 import logging.handlers  # Added import
 import os  # Added import
 import sys  # Add sys import
-import time  # Add time import
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.routes import logging as logging_routes  # Import the logging router
-from backend.routes import rooms  # Import the rooms router
+from backend.routes import client_config, health, rooms
 from backend.routes.rooms import manager as connection_manager
-
-# Explicitly import endpoint for add_api_websocket_route if needed,
-# but router usually handles this.
-# from backend.routes.rooms import websocket_endpoint
 from backend.services.broadcast import broadcast_plane_updates
+from backend.services.client_config import warn_if_monitored_airport_unknown
+from backend.settings import get_settings
+from backend.utils import airport_db
 from backend.utils.redis_async import RedisClient
-
-# --- Remove Basic Logging Configuration ---
-# logging.basicConfig(level=logging.INFO, stream=sys.stderr,
-# format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# --- End Basic Logging Configuration Removal ---
-
-
-# --- Custom Log Filter ---
-class DeltaFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        msg = record.getMessage()
-        if '\\"type\\":\\"delta\\"' in msg:  # Check for '{"type":"delta"}'
-            return False
-        # Allow BCAST INFO messages through - they're important for debugging
-        # if record.name == "backend.services.broadcast" and "Delta broadcasted" in msg:
-        #     return False
-        # The following will filter out the noisy DEBUG messages from websockets library if needed
-        # if record.name == 'websockets.server' and record.levelno ==
-        # logging.DEBUG and ('> TEXT' in msg or '< TEXT' in msg or '> CLOSE'
-        # in msg or '< CLOSE' in msg):
-        #     return False
-        return True
-
+from backend.version import app_version
 
 # --- Centralized Logger Configuration ---
 # Ensure 'logs' directory exists at the project root
@@ -77,30 +52,9 @@ file_handler = logging.handlers.RotatingFileHandler(
 )
 file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
-
-# Add the custom filter to the file handler
-delta_filter = DeltaFilter()
-file_handler.addFilter(delta_filter)
 root_logger.addHandler(file_handler)
 
-# Configure uvicorn access logger to use our handlers too, if desired
-# uvicorn_access_logger = logging.getLogger("uvicorn.access")
-# uvicorn_access_logger.handlers = root_logger.handlers
-# uvicorn_access_logger.setLevel(logging.INFO) # Or whatever level you prefer
-# uvicorn_access_logger.propagate = False
-
-# uvicorn_error_logger = logging.getLogger("uvicorn.error")
-# uvicorn_error_logger.handlers = root_logger.handlers
-# # Send uvicorn errors to our file log as well
-# uvicorn_error_logger.propagate = False
-
-
 logger = logging.getLogger(__name__)
-
-# Configuration for health check
-INGEST_HEALTH_THRESHOLD_SECONDS = int(
-    os.getenv("INGEST_HEALTH_THRESHOLD_SECONDS", "60")
-)  # For specific use in this file, will inherit root config
 
 # --- End Centralized Logger Configuration ---
 
@@ -113,8 +67,7 @@ async def validation_exception_handler(
     error_details = (
         f"Validation error for request {request.method} {request.url.path}: {exc.errors()}"
     )
-    logger.error(error_details)  # Re-enable logger call
-    # print(f"STDERR_DEBUG: {error_details}", file=sys.stderr) # Remove direct print
+    logger.error(error_details)
     # Return the default 422 response structure that FastAPI uses
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -141,8 +94,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handles application startup and shutdown events."""
     logger.info("Application startup...")
 
-    # Connect Redis client (if it needs explicit connection)
-    # await redis_client.connect() # Example if needed
+    # Scoring is meaningless without the airport dataset, so refuse to start
+    # (FileNotFoundError / ValueError) rather than score every guess as 0.
+    airports = airport_db.load_airports()
+    logger.info(f"Loaded {len(airports)} airport codes from {airport_db.DATA_PATH}")
+    warn_if_monitored_airport_unknown(get_settings())
+    # Working the version out here also spares /healthz the file read and the git call
+    logger.info(f"AeroGuessr {app_version(get_settings())}")
 
     # Start background tasks – ensure we don't spawn duplicates if the module is
     # re-imported (e.g. when running with `uvicorn --reload`).
@@ -173,15 +131,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.error(f"Error during broadcast task shutdown: {e}", exc_info=True)
 
-    # Disconnect Redis client (if it needs explicit disconnection)
-    # await redis_client.disconnect() # Example if needed
     logger.info("Application shutdown complete.")
 
 
-logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 # --- FastAPI App Initialization --- #
 app = FastAPI(
-    title="Plane Guessing Game API",
+    title="AeroGuessr API",
     description="API for managing game rooms, players, and flight data.",
     version="0.1.0",
     lifespan=lifespan,  # Register the lifespan context manager
@@ -204,79 +159,10 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 @app.get("/")
 async def read_root() -> Dict[str, str]:
     """Root endpoint providing a basic welcome message."""
-    return {"message": "Welcome to the Plane Guessing Game API!"}
-
-
-@app.get("/healthz", status_code=status.HTTP_200_OK)
-async def health_check() -> Dict[str, Any]:
-    """Health check endpoint to verify service status.
-
-    Checks:
-    - API is responsive
-    - Redis connection
-    - Ingest process (checks for recent plane updates)
-    """
-    health_status = {"status": "ok", "api": "healthy", "redis": "unknown", "ingest": "unknown"}
-
-    try:
-        # Check Redis connection
-        await redis_client.ping()
-        health_status["redis"] = "healthy"
-
-        # Check ingest process by looking for recent plane updates
-        # Get all plane keys
-        plane_keys = await redis_client.keys("plane:*")
-        if plane_keys:
-            # Get the most recent update timestamp
-            current_time = time.time()
-            recent_update_found = False
-
-            for key in plane_keys[:10]:  # Check up to 10 planes
-                plane_data = await redis_client.hgetall(key)
-                if plane_data and b"last_update_ts" in plane_data:
-                    try:
-                        last_update = float(plane_data[b"last_update_ts"])
-                        # Consider ingest healthy if we have updates within configured threshold
-                        if current_time - last_update < INGEST_HEALTH_THRESHOLD_SECONDS:
-                            recent_update_found = True
-                            break
-                    except (ValueError, TypeError):
-                        continue
-
-            health_status["ingest"] = "healthy" if recent_update_found else "unhealthy"
-        else:
-            health_status["ingest"] = "no_data"
-
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        health_status["redis"] = "unhealthy"
-        health_status["status"] = "degraded"
-
-    # Overall status
-    if health_status["redis"] == "unhealthy" or health_status["ingest"] == "unhealthy":
-        health_status["status"] = "unhealthy"
-    elif health_status["ingest"] == "no_data":
-        health_status["status"] = "degraded"
-
-    return health_status
+    return {"message": "Welcome to the AeroGuessr API!"}
 
 
 # --- Routers & WebSocket --- #
+app.include_router(health.router)
+app.include_router(client_config.router)
 app.include_router(rooms.router)
-app.include_router(logging_routes.router)
-
-# Note: rooms.router already defines the WebSocket endpoint.
-# Explicitly adding it again with add_api_websocket_route might cause issues
-# unless the router's definition is removed or handled carefully.
-# Let's rely on the router inclusion for now.
-# app.add_api_websocket_route(
-#     path="/ws/{room_code}/{nickname}",
-#     endpoint=websocket_endpoint, # Make sure this is correctly imported/defined
-#     name="websocket_endpoint_root",
-# )
-
-
-# --- Optional Direct Execution --- #
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)

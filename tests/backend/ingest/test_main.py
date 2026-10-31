@@ -2,19 +2,22 @@
 
 import asyncio
 import dataclasses
+import socket
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
+import httpx
 import numpy as np
 import pytest
 
 # Modules to test
 from backend.ingest import main as ingest_main
-from backend.ingest.enrichment import EnrichedData, RouteData
-from backend.ingest.main import PlaneState  # Import PlaneState directly
-from backend.ingest.parser import RawMessage
+from backend.ingest.airport_board import AirportBoard, BoardDirection, Route, parse_board_rows
+from backend.ingest.parser import RawMessage, parse_sbs_message
 from backend.ingest.smoother_enu import PositionSmootherENU
+from backend.schemas.plane import PlaneState
 from backend.utils.redis_async import RedisClient
 
 # Mark all tests in this module as async
@@ -23,14 +26,31 @@ pytestmark = pytest.mark.asyncio
 # --- Test Fixtures ---
 
 
+class StubRoutes:
+    """In-memory route lookup."""
+
+    def __init__(self, routes: Optional[dict[str, Route]] = None) -> None:
+        self.routes = routes or {}
+
+    def lookup(self, callsign: str, now: float) -> Optional[Route]:
+        return self.routes.get(callsign)
+
+
+NO_ROUTES = StubRoutes()
+
+
 @pytest.fixture(autouse=True)
 def clear_global_state() -> None:
     """Clear the global dictionaries before each test."""
     ingest_main.active_smoothers.clear()
     ingest_main.last_timestamps.clear()
+    ingest_main.callsign_cache.clear()
+    ingest_main.track_cache.clear()
     yield  # Run the test
     ingest_main.active_smoothers.clear()
     ingest_main.last_timestamps.clear()
+    ingest_main.callsign_cache.clear()
+    ingest_main.track_cache.clear()
 
 
 @pytest.fixture
@@ -39,7 +59,6 @@ def mock_redis_client() -> AsyncMock:
     mock = AsyncMock(spec=RedisClient)
     mock.set_json = AsyncMock()  # Keep for backwards compatibility
     mock.get_model = AsyncMock(return_value=None)  # Default to no existing state
-    mock.get_json = AsyncMock(return_value=None)  # Keep for backwards compatibility
     return mock
 
 
@@ -57,34 +76,28 @@ def sample_raw_message() -> RawMessage:
         altitude=35000.0,
         latitude=42.123,
         longitude=-71.456,
-        # Other fields are implicitly None if not provided by parser for this msg_type
-        # flight_id=None, # Removed - not a field
         squawk=None,
         ground_speed=None,
         track=None,
         vertical_rate=None,
-        callsign=None,  # Added callsign explicitly as None for clarity
-        # alert=None, # Removed - not a field
-        # emergency=None, # Removed - not a field
-        # spi=None, # Removed - not a field
-        # is_on_ground=None, # Removed - not a field
+        callsign=None,
+    )
+
+
+def _identification(hex_ident: str, callsign: str, timestamp: float) -> RawMessage:
+    return RawMessage(
+        timestamp=timestamp, hex_ident=hex_ident, raw_sbs="", msg_type=1, callsign=callsign
     )
 
 
 # --- Test Cases for handle_message ---
 
 
-@pytest.mark.skip(reason="Floating point precision issue - see Issue #120")
-@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
-@patch("backend.ingest.main.fetch_aeroapi_route", new_callable=AsyncMock)
-@patch("backend.ingest.main.fetch_opensky_data", new_callable=AsyncMock)
 async def test_handle_first_message(
-    mock_fetch_opensky: AsyncMock,
-    mock_fetch_aeroapi: AsyncMock,
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
-    """Test processing the first message, including enrichment fetch and trail init."""
+    """Test processing the first message, including route resolution and trail init."""
     hex_id = sample_raw_message.hex_ident
     initial_pos = np.array(
         [
@@ -93,32 +106,19 @@ async def test_handle_first_message(
             sample_raw_message.altitude,
         ]
     )
-
-    # Configure mock enrichment data
-    sample_opensky_enrichment = EnrichedData(
-        callsign="TEST1234", origin_country="Testland", category=3
-    )
-    sample_aeroapi_route = RouteData(origin_icao="KAAA", destination_icao="KZZZ")
-    mock_fetch_opensky.return_value = sample_opensky_enrichment
-    mock_fetch_aeroapi.return_value = sample_aeroapi_route
+    routes = StubRoutes({"TEST1234": Route("KAAA", "KZZZ", "Test Air")})
+    ingest_main.callsign_cache[hex_id] = "TEST1234"
 
     assert hex_id not in ingest_main.active_smoothers
     assert hex_id not in ingest_main.last_timestamps
 
-    # Ensure Redis get_json returns None for the first message
-    mock_redis_client.get_model.return_value = None
-
-    await ingest_main.handle_message(sample_raw_message, mock_redis_client)
+    await ingest_main.handle_message(sample_raw_message, mock_redis_client, routes=routes)
 
     # Check smoother was created and timestamp stored
     assert hex_id in ingest_main.active_smoothers
     assert isinstance(ingest_main.active_smoothers[hex_id], PositionSmootherENU)
     assert hex_id in ingest_main.last_timestamps
     assert ingest_main.last_timestamps[hex_id] == sample_raw_message.timestamp
-
-    # Check enrichment fetches were called
-    mock_fetch_opensky.assert_called_once_with(hex_id, mock_redis_client)
-    mock_fetch_aeroapi.assert_called_once_with(hex_id, mock_redis_client)
 
     # Check Redis calls
     mock_redis_client.get_model.assert_called_once_with(f"plane:{hex_id}", PlaneState)
@@ -127,76 +127,50 @@ async def test_handle_first_message(
 
     # Check key
     assert call_args.args[0] == f"plane:{hex_id}"
-    # Check model data (initial state, zero velocity, enrichment)
+    # Check model data (initial state, zero velocity, route)
     plane_state: PlaneState = call_args.args[1]
-    assert isinstance(plane_state, ingest_main.PlaneState)
+    assert isinstance(plane_state, PlaneState)
     assert plane_state.hex_ident == hex_id
-    assert plane_state.lat == initial_pos[0]
-    assert plane_state.lon == initial_pos[1]
-    assert plane_state.alt == initial_pos[2]
+    # The smoother round-trips through ENU coordinates, so compare within float tolerance.
+    assert (plane_state.lat, plane_state.lon, plane_state.alt) == pytest.approx(tuple(initial_pos))
     assert plane_state.lat_v == 0.0
     assert plane_state.lon_v == 0.0
     assert plane_state.alt_v == 0.0
     assert plane_state.last_update_ts == sample_raw_message.timestamp
-
-    # Check OpenSky enrichment data saved
-    assert plane_state.callsign == sample_opensky_enrichment.callsign
-    assert plane_state.origin_country == sample_opensky_enrichment.origin_country
-    assert plane_state.category == sample_opensky_enrichment.category
-
-    # Check AeroAPI enrichment data saved
-    assert plane_state.origin == sample_aeroapi_route.origin_icao
-    assert plane_state.destination == sample_aeroapi_route.destination_icao
+    assert plane_state.callsign == "TEST1234"
+    assert plane_state.origin == "KAAA"
+    assert plane_state.destination == "KZZZ"
 
     # Check trail initialization
     assert len(plane_state.trail) == 1
-    assert plane_state.trail[0] == (
-        initial_pos[0],
-        initial_pos[1],
-        initial_pos[2],
-    )
+    assert plane_state.trail[0] == pytest.approx(tuple(initial_pos))
     # Check TTL
     assert call_args.kwargs["expire_seconds"] == ingest_main.PLANE_TTL_SECONDS
 
 
-@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
-@patch("backend.ingest.main.fetch_aeroapi_route", new_callable=AsyncMock)
-@patch("backend.ingest.main.fetch_opensky_data", new_callable=AsyncMock)
 async def test_handle_subsequent_message(
-    mock_fetch_opensky: AsyncMock,
-    mock_fetch_aeroapi: AsyncMock,
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
-    """Test processing a second message, checking trail append and enrichment carry-over."""
+    """Test processing a second message, checking trail append and route carry-over."""
     hex_id = sample_raw_message.hex_ident
     initial_pos = (
         sample_raw_message.latitude,
         sample_raw_message.longitude,
         sample_raw_message.altitude,
     )
+    routes = StubRoutes({"FIRST": Route("KAAA", "KBBB", None)})
+    ingest_main.callsign_cache[hex_id] = "FIRST"
 
     # --- First message setup ---
-    # Configure mock enrichment data for the first call
-    sample_opensky_enrichment = EnrichedData(
-        callsign="FIRST", origin_country="Initialia", category=1
-    )
-    sample_aeroapi_route = RouteData(origin_icao="KAAA", destination_icao="KBBB")
-    mock_fetch_opensky.return_value = sample_opensky_enrichment
-    mock_fetch_aeroapi.return_value = sample_aeroapi_route
     mock_redis_client.get_model.return_value = None  # No state exists initially
-    await ingest_main.handle_message(sample_raw_message, mock_redis_client)
+    await ingest_main.handle_message(sample_raw_message, mock_redis_client, routes=routes)
 
-    # Check enrichment was fetched on first call
-    mock_fetch_opensky.assert_called_once()
-    mock_fetch_aeroapi.assert_called_once()
     # Get the state that was saved
     saved_state_args = mock_redis_client.set_json.call_args
     first_saved_state: PlaneState = saved_state_args.args[1]
 
     # Reset mocks for the second call
-    mock_fetch_opensky.reset_mock()
-    mock_fetch_aeroapi.reset_mock()
     mock_redis_client.set_json.reset_mock()
     mock_redis_client.get_model.reset_mock()
     # Mock get_json to return the first saved state for the second call
@@ -225,13 +199,9 @@ async def test_handle_subsequent_message(
             mock_state_vector[2],
         )
 
-        await ingest_main.handle_message(second_message, mock_redis_client)
+        await ingest_main.handle_message(second_message, mock_redis_client, routes=routes)
 
         # --- Assertions ---
-        # Check enrichment was NOT fetched again
-        mock_fetch_opensky.assert_not_called()
-        mock_fetch_aeroapi.assert_not_called()
-
         # Check smoother predict/update called
         smoother.predict.assert_called_once()
         smoother.update.assert_called_once()
@@ -254,14 +224,10 @@ async def test_handle_subsequent_message(
         assert second_saved_state.alt_v == mock_state_vector[5]
         assert second_saved_state.last_update_ts == second_message.timestamp
 
-        # Check OpenSky enrichment data carried over from first state
-        assert second_saved_state.callsign == sample_opensky_enrichment.callsign
-        assert second_saved_state.origin_country == sample_opensky_enrichment.origin_country
-        assert second_saved_state.category == sample_opensky_enrichment.category
-
-        # Check AeroAPI enrichment data carried over from first state
-        assert second_saved_state.origin == sample_aeroapi_route.origin_icao
-        assert second_saved_state.destination == sample_aeroapi_route.destination_icao
+        # Check callsign and route carried over from first state
+        assert second_saved_state.callsign == "FIRST"
+        assert second_saved_state.origin == "KAAA"
+        assert second_saved_state.destination == "KBBB"
 
         # Check trail append
         assert len(second_saved_state.trail) == 2
@@ -275,7 +241,7 @@ async def test_handle_message_missing_position(
     """Test that messages without position data are skipped."""
     sample_raw_message.latitude = None  # Remove position data
 
-    await ingest_main.handle_message(sample_raw_message, mock_redis_client)
+    await ingest_main.handle_message(sample_raw_message, mock_redis_client, routes=NO_ROUTES)
 
     # Assert no smoother created and no Redis call made
     assert not ingest_main.active_smoothers
@@ -283,17 +249,11 @@ async def test_handle_message_missing_position(
     mock_redis_client.set_json.assert_not_called()
 
 
-@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
-@patch("backend.ingest.main.fetch_aeroapi_route", return_value=None)
-@patch("backend.ingest.main.fetch_opensky_data", return_value=None)
 async def test_handle_message_trail_capping(
-    mock_fetch_opensky: MagicMock,
-    mock_fetch_aeroapi: MagicMock,
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
     """Test that the position trail is capped at 10 points."""
-    # hex_id = sample_raw_message.hex_ident
     current_state: Optional[PlaneState] = None
 
     base_time = time.time()
@@ -315,15 +275,14 @@ async def test_handle_message_trail_capping(
 
         # Mock the smoother state property for subsequent messages
         if i > 0:
-            # smoother = ingest_main.active_smoothers[hex_id]
             mock_state_vector = np.array([msg.latitude, msg.longitude, msg.altitude, 0.0, 0.0, 0.0])
             # Patch the property within a context manager for each iteration > 0
             with patch.object(PositionSmootherENU, "state", new_callable=PropertyMock) as mock_prop:
                 mock_prop.return_value = mock_state_vector
-                await ingest_main.handle_message(msg, mock_redis_client)
+                await ingest_main.handle_message(msg, mock_redis_client, routes=NO_ROUTES)
         else:
             # First message doesn't mock smoother state
-            await ingest_main.handle_message(msg, mock_redis_client)
+            await ingest_main.handle_message(msg, mock_redis_client, routes=NO_ROUTES)
 
         # Store the state that was supposedly saved to Redis for the next iteration
         assert mock_redis_client.set_json.call_count == 1
@@ -362,11 +321,7 @@ async def test_handle_message_trail_capping(
     )
 
 
-@patch("backend.ingest.main.fetch_aeroapi_route", return_value=None)
-@patch("backend.ingest.main.fetch_opensky_data", return_value=None)
 async def test_handle_message_kalman_error(
-    mock_fetch_opensky: MagicMock,
-    mock_fetch_aeroapi: MagicMock,
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
@@ -374,7 +329,7 @@ async def test_handle_message_kalman_error(
     hex_id = sample_raw_message.hex_ident
 
     # --- First message setup ---
-    await ingest_main.handle_message(sample_raw_message, mock_redis_client)
+    await ingest_main.handle_message(sample_raw_message, mock_redis_client, routes=NO_ROUTES)
     mock_redis_client.set_json.reset_mock()
     assert hex_id in ingest_main.active_smoothers
     smoother = ingest_main.active_smoothers[hex_id]
@@ -393,7 +348,7 @@ async def test_handle_message_kalman_error(
         sample_raw_message, timestamp=time.time(), latitude=(sample_raw_message.latitude + 0.002)
     )
 
-    await ingest_main.handle_message(second_message, mock_redis_client)
+    await ingest_main.handle_message(second_message, mock_redis_client, routes=NO_ROUTES)
 
     # Check smoother was called, resulted in error, and was removed
     smoother.predict.assert_called_once()
@@ -405,12 +360,7 @@ async def test_handle_message_kalman_error(
     assert mock_redis_client.set_json.call_count == 1
 
 
-@patch("backend.ingest.main.ENRICHMENT_V2_ENABLED", False)  # Disable V2 enrichment
-@patch("backend.ingest.main.fetch_aeroapi_route", return_value=None)
-@patch("backend.ingest.main.fetch_opensky_data", return_value=None)
 async def test_handle_message_redis_error(
-    mock_fetch_opensky: MagicMock,
-    mock_fetch_aeroapi: MagicMock,
     mock_redis_client: AsyncMock,
     sample_raw_message: RawMessage,
 ) -> None:
@@ -420,7 +370,7 @@ async def test_handle_message_redis_error(
     # --- Mock Redis set_json to raise error ---
     mock_redis_client.set_json.side_effect = Exception("Redis unavailable")
 
-    await ingest_main.handle_message(sample_raw_message, mock_redis_client)
+    await ingest_main.handle_message(sample_raw_message, mock_redis_client, routes=NO_ROUTES)
 
     # Check smoother was still created (error happens after smoother logic)
     assert hex_id in ingest_main.active_smoothers
@@ -429,3 +379,123 @@ async def test_handle_message_redis_error(
     # Check Redis call was attempted
     mock_redis_client.set_json.assert_called_once()
     # (No further state change expected, error is logged internally)
+
+
+# --- Route resolution from the local airport board ---
+
+
+async def test_route_comes_from_the_board_once_the_callsign_is_known(
+    redis_client: RedisClient, sample_raw_message: RawMessage
+) -> None:
+    """MSG,1 carries the callsign; the next position report resolves the route."""
+    routes = StubRoutes({"JBU123": Route("KMCO", "KBOS", "JetBlue Airways")})
+    hex_id = sample_raw_message.hex_ident
+
+    await ingest_main.handle_message(
+        _identification(hex_id, "JBU123  ", sample_raw_message.timestamp - 1),
+        redis_client,
+        routes=routes,
+    )
+    await ingest_main.handle_message(sample_raw_message, redis_client, routes=routes)
+
+    stored = await redis_client.get_model(f"plane:{hex_id}", PlaneState)
+    assert stored is not None
+    assert (stored.callsign, stored.origin, stored.destination, stored.operator) == (
+        "JBU123",
+        "KMCO",
+        "KBOS",
+        "JetBlue Airways",
+    )
+
+
+async def test_stored_route_is_kept_when_the_board_forgets_the_flight(
+    redis_client: RedisClient, sample_raw_message: RawMessage
+) -> None:
+    hex_id = sample_raw_message.hex_ident
+    ingest_main.callsign_cache[hex_id] = "JBU123"
+    board_with_flight = StubRoutes({"JBU123": Route("KMCO", "KBOS", None)})
+    await ingest_main.handle_message(sample_raw_message, redis_client, routes=board_with_flight)
+
+    later = dataclasses.replace(sample_raw_message, timestamp=sample_raw_message.timestamp + 1)
+    await ingest_main.handle_message(later, redis_client, routes=NO_ROUTES)
+
+    stored = await redis_client.get_model(f"plane:{hex_id}", PlaneState)
+    assert stored is not None and stored.origin == "KMCO"
+
+
+async def test_new_callsign_does_not_inherit_the_old_route(
+    redis_client: RedisClient, sample_raw_message: RawMessage
+) -> None:
+    hex_id = sample_raw_message.hex_ident
+    ingest_main.callsign_cache[hex_id] = "JBU123"
+    await ingest_main.handle_message(
+        sample_raw_message, redis_client, routes=StubRoutes({"JBU123": Route("KMCO", "KBOS", None)})
+    )
+
+    ingest_main.callsign_cache[hex_id] = "JBU999"
+    later = dataclasses.replace(sample_raw_message, timestamp=sample_raw_message.timestamp + 1)
+    await ingest_main.handle_message(later, redis_client, routes=NO_ROUTES)
+
+    stored = await redis_client.get_model(f"plane:{hex_id}", PlaneState)
+    assert stored is not None and stored.origin is None and stored.destination is None
+
+
+async def test_unmatched_plane_for_two_minutes_makes_zero_network_calls(
+    redis_client: RedisClient,
+) -> None:
+    """Regression for #157: one unmatched plane once caused 58 AeroAPI requests in 2 minutes.
+
+    120 s of real SBS traffic (MSG,1 every 5 s, MSG,3 every second) for a plane
+    the board does not know must resolve locally and never touch the network.
+    """
+    now = datetime.now(timezone.utc)
+    board = AirportBoard("KBOS")
+    board.merge(
+        parse_board_rows(
+            [
+                {
+                    "fa_flight_id": "JBU123-1",
+                    "ident": "JBU123",
+                    "origin": {"code_icao": "KMCO"},
+                    "destination": {"code_icao": "KBOS"},
+                    "estimated_on": (now + timedelta(minutes=20)).isoformat(),
+                }
+            ],
+            BoardDirection.ARRIVAL,
+            "KBOS",
+        )
+    )
+    network_calls: list[object] = []
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        network_calls.append(args)
+        raise AssertionError("handle_message must not touch the network")
+
+    start = now.timestamp()
+    with (
+        patch.object(httpx.AsyncClient, "send", side_effect=refuse),
+        patch.object(socket.socket, "connect", side_effect=refuse),
+    ):
+        for second in range(120):
+            stamp = datetime.fromtimestamp(start + second, tz=timezone.utc)
+            day, clock_time = stamp.strftime("%Y/%m/%d"), stamp.strftime("%H:%M:%S.000")
+            lines = []
+            if second % 5 == 0:
+                lines.append(
+                    f"MSG,1,1,1,A1B2C3,1,{day},{clock_time},{day},{clock_time},XYZ999,,,,,,,,,,,"
+                )
+            lat, lon = 42.5 - second * 0.001, -70.8 - second * 0.001
+            lines.append(
+                f"MSG,3,1,1,A1B2C3,1,{day},{clock_time},{day},{clock_time},,9000,,,"
+                f"{lat:.5f},{lon:.5f},,,0,0,0,0"
+            )
+            for line in lines:
+                msg = parse_sbs_message(line, start + second)
+                assert msg is not None
+                await ingest_main.handle_message(msg, redis_client, routes=board)
+
+    stored = await redis_client.get_model("plane:A1B2C3", PlaneState)
+    assert network_calls == []
+    assert stored is not None
+    assert stored.callsign == "XYZ999"
+    assert stored.origin is None and stored.destination is None

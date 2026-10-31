@@ -2,11 +2,12 @@
 
 import json
 import logging
-import os
 from typing import Dict, Optional, Type, TypeVar
 
 import redis.asyncio as redis
 from pydantic import BaseModel
+
+from backend.settings import get_settings
 
 T_BaseModel = TypeVar("T_BaseModel", bound=BaseModel)
 
@@ -53,10 +54,20 @@ class RedisClient:
     # ---------------------------------------------------------------------
 
     def _get_pool(self) -> redis.ConnectionPool:
-        """Lazily create (or return) the connection pool for **this** instance."""
+        """Lazily create (or return) the connection pool for **this** instance.
+
+        Without socket timeouts redis-py waits forever on a connect, a send or a reply. A
+        half-open connection would then stall the caller until the process restarts, and so
+        would a connect that CPython 3.12's selector loop never completes after a drop (#210).
+        """
         if self._pool is None:
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-            self._pool = redis.ConnectionPool.from_url(redis_url, decode_responses=True)
+            settings = get_settings()
+            self._pool = redis.ConnectionPool.from_url(
+                settings.redis_url,
+                decode_responses=True,
+                socket_connect_timeout=settings.redis_socket_connect_timeout_seconds,
+                socket_timeout=settings.redis_socket_timeout_seconds,
+            )
         return self._pool
 
     async def get_connection(self) -> redis.Redis:  # noqa: D401 – *get* is ok
@@ -89,7 +100,7 @@ class RedisClient:
         async with await self.get_connection() as conn:
             json_data = model.model_dump_json()
             # Return the result of the set command
-            logger.info(f"Setting key {key} with data {json_data}")
+            logger.debug(f"Setting key {key} with data {json_data}")
             return await conn.set(key, json_data, ex=expire_seconds)  # type: ignore
 
     async def get_model(self, key: str, model_type: Type[T_BaseModel]) -> Optional[T_BaseModel]:
@@ -211,21 +222,6 @@ class RedisClient:
                     # Skip this field
         return models
 
-    async def hdel(self, hash_key: str, *fields: str) -> int:
-        """Delete one or more fields from a Redis Hash.
-
-        Args:
-            hash_key: The key of the Redis Hash.
-            *fields: One or more fields to delete.
-
-        Returns:
-            The number of fields that were removed from the hash,
-            not including specified but non existing fields.
-        """
-        async with await self.get_connection() as conn:
-            # Ensure fields are passed correctly to the underlying client
-            return await conn.hdel(hash_key, *fields)
-
     async def set(
         self,
         key: str,
@@ -263,6 +259,15 @@ class RedisClient:
             # exists returns the number of keys that exist from the list provided
             return await conn.exists(key) > 0  # type: ignore
 
+    async def ping(self) -> bool:
+        """Verify connectivity to the Redis server.
+
+        Returns:
+            True if the server responds to PING. Raises on connection failure.
+        """
+        async with await self.get_connection() as conn:
+            return await conn.ping()  # type: ignore
+
     async def delete(self, *keys: str) -> int:
         """Delete one or more keys from Redis.
 
@@ -275,17 +280,3 @@ class RedisClient:
         async with await self.get_connection() as conn:
             # ``fakeredis`` implements ``delete`` but the signature may vary, so ignore attr-defined
             return await conn.delete(*keys)  # type: ignore[attr-defined]
-
-
-# Example usage (optional, for demonstration)
-async def main() -> None:
-    client = RedisClient()
-    conn = await client.get_connection()
-    await conn.ping()
-    # print("Redis connection successful!") # Removed example print
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())  # type: ignore

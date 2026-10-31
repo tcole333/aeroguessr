@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAirportByCode, formatAirportDisplay } from '../airportLookup';
+import { getAirportByCode, formatAirportDisplay, guessCodeError } from '../airportLookup';
 
 describe('getAirportByCode', () => {
   it('returns airport by ICAO code', () => {
@@ -94,5 +94,15 @@ describe('formatAirportDisplay', () => {
       expect(formatAirportDisplay('kbos')).toBe('Boston');
       expect(formatAirportDisplay('kjfk')).toBe('JFK');
     });
+  });
+});
+
+describe('guessCodeError', () => {
+  it.each(['ORD', 'KORD', 'kord'])('accepts %s from the shared dataset', (code) => {
+    expect(guessCodeError(code)).toBeNull();
+  });
+
+  it.each(['ZZZ', 'KMVY'])('names the unknown code %s', (code) => {
+    expect(guessCodeError(code)).toContain(`Unknown airport code '${code}'`);
   });
 });

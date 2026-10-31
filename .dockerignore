@@ -1,0 +1,31 @@
+# Build context for both images is the repo root (infra/docker-compose.yml).
+# Keep data/ and sample_data/: the backend and frontend images COPY them.
+
+# VCS and agent/editor state
+.git
+.claude
+
+# Secrets for the running stack, at any depth: no image needs an .env file, and Vite would
+# read one under frontend/ at build time
+**/.env
+**/.env.*
+
+# Dependencies and virtualenvs
+**/node_modules
+.venv
+
+# Build output and caches
+frontend/dist
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+**/coverage
+.coverage
+.coverage.*
+coverage.xml
+
+# Logs (the Pi writes logs/auto-update.log)
+logs
+**/*.log

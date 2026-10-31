@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import SettingsPanelContent from '../SettingsPanelContent';
 import { StoreContext, createRootStore } from '../../../../store/createRootStore';
+import { seattleClientConfig } from '../../../../mocks/clientConfig';
+import { createStoreWithClientConfig } from '../../../../mocks/configuredStore';
 
 // Mock the WebSocket client
 vi.mock('../../../../hooks/useWebSocketManager', () => ({
@@ -71,6 +73,17 @@ describe('SettingsPanelContent', () => {
 
     // Clean up
     removeItemSpy.mockRestore();
+  });
+
+  it('shows the version the server runs, for bug reports', async () => {
+    const store = await createStoreWithClientConfig();
+    render(
+      <StoreContext.Provider value={store}>
+        <SettingsPanelContent />
+      </StoreContext.Provider>,
+    );
+
+    expect(screen.getByText(`AeroGuessr ${seattleClientConfig.version}`)).toBeInTheDocument();
   });
 
 

@@ -4,6 +4,31 @@ import { useStore } from '../../hooks/useStore';
 import { selectRetroMode } from '../../features/ui/selectors';
 import { formatAirportDisplay } from '../../lib/airportLookup';
 
+type ModalVariant = 'retro' | 'standard';
+
+/**
+ * Distance suffix for a guess, or null when the server sent no usable distance
+ * (e.g. distance_km: null for an airport without coordinates).
+ */
+function formatDistance(distanceKm: number | null | undefined, variant: ModalVariant): string | null {
+  if (typeof distanceKm !== 'number') return null;
+  if (distanceKm === 0) return variant === 'retro' ? 'Exact' : 'Exact match!';
+  const km = distanceKm.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return variant === 'retro' ? `${km}km` : `${km} km away`;
+}
+
+interface DistanceNoteProps {
+  distanceKm: number | null | undefined;
+  variant: ModalVariant;
+  className: string;
+}
+
+const DistanceNote: React.FC<DistanceNoteProps> = ({ distanceKm, variant, className }) => {
+  const label = formatDistance(distanceKm, variant);
+  if (label === null) return null;
+  return <span className={className}>({label})</span>;
+};
+
 interface RoundResultModalProps {
   autoCloseDelay?: number; // milliseconds, default 8000 (8 seconds)
 }
@@ -119,12 +144,12 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
                         {/* Their guess */}
                         <div className="font-splitflap text-xs text-retro-led mt-1">
                           {result.guess ? formatAirportDisplay(result.guess) : '---'}
-                          {scoringMode === 'Distance' && result.distance_km !== undefined && result.guess && (
-                            <span className="ml-2 font-display text-retro-text-muted">
-                              ({result.distance_km === 0
-                                ? 'Exact'
-                                : `${result.distance_km.toLocaleString(undefined, { maximumFractionDigits: 0 })}km`})
-                            </span>
+                          {scoringMode === 'Distance' && result.guess && (
+                            <DistanceNote
+                              distanceKm={result.distance_km}
+                              variant="retro"
+                              className="ml-2 font-display text-retro-text-muted"
+                            />
                           )}
                         </div>
                       </div>
@@ -229,12 +254,8 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ autoCloseDel
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
                       Guessed: {result.guess ? formatAirportDisplay(result.guess) : 'No guess'}
-                      {scoringMode === 'Distance' && result.distance_km !== undefined && result.guess && (
-                        <span className="ml-2">
-                          ({result.distance_km === 0
-                            ? 'Exact match!'
-                            : `${result.distance_km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km away`})
-                        </span>
+                      {scoringMode === 'Distance' && result.guess && (
+                        <DistanceNote distanceKm={result.distance_km} variant="standard" className="ml-2" />
                       )}
                     </div>
                   </div>

@@ -1,0 +1,3 @@
+# Follow sourced files, as shellcheck -x does, so a script that sources another (scripts/dev.sh,
+# scripts/worktree-setup.sh) checks cleanly when pre-commit passes it on its own.
+external-sources=true
